@@ -105,7 +105,7 @@ func (r *documentRepo) ListDocuments(ctx context.Context, projectID string) ([]*
 	if err != nil {
 		return nil, fmt.Errorf("failed to list documents: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	documents := make([]*domain.Document, 0)
 	for rows.Next() {

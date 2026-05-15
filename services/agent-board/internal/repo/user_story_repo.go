@@ -77,7 +77,7 @@ func (r *UserStoryRepo) ListUserStories(ctx context.Context, projectID string) (
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var userStories []*domain.UserStory
 	for rows.Next() {

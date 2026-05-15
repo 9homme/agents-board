@@ -17,7 +17,7 @@ import (
 func TestTaskRepo_CreateTask(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewTaskRepo(db)
 	now := time.Now()
@@ -53,7 +53,7 @@ func TestTaskRepo_CreateTask(t *testing.T) {
 func TestTaskRepo_GetTask(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewTaskRepo(db)
 	now := time.Now()
@@ -87,7 +87,7 @@ func TestTaskRepo_GetTask(t *testing.T) {
 func TestTaskRepo_UpdateTask(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewTaskRepo(db)
 	now := time.Now()
@@ -122,7 +122,7 @@ func TestTaskRepo_UpdateTask(t *testing.T) {
 func TestTaskRepo_DeleteTask(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewTaskRepo(db)
 	id := "223e4567-e89b-12d3-a456-426614174000"
@@ -141,7 +141,7 @@ func TestTaskRepo_DeleteTask(t *testing.T) {
 func TestTaskRepo_ListTasks(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewTaskRepo(db)
 	now := time.Now()

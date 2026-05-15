@@ -100,7 +100,7 @@ func (r *taskRepo) ListTasks(ctx context.Context, userStoryID string) ([]*domain
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tasks []*domain.Task
 	for rows.Next() {

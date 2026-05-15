@@ -17,7 +17,7 @@ import (
 func TestUserStoryRepo_CreateUserStory(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewUserStoryRepo(db)
 	now := time.Now()
@@ -53,7 +53,7 @@ func TestUserStoryRepo_CreateUserStory(t *testing.T) {
 func TestUserStoryRepo_GetUserStory(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewUserStoryRepo(db)
 	now := time.Now()
@@ -87,7 +87,7 @@ func TestUserStoryRepo_GetUserStory(t *testing.T) {
 func TestUserStoryRepo_UpdateUserStory(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewUserStoryRepo(db)
 	now := time.Now()
@@ -122,7 +122,7 @@ func TestUserStoryRepo_UpdateUserStory(t *testing.T) {
 func TestUserStoryRepo_DeleteUserStory(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewUserStoryRepo(db)
 	id := "223e4567-e89b-12d3-a456-426614174000"
@@ -141,7 +141,7 @@ func TestUserStoryRepo_DeleteUserStory(t *testing.T) {
 func TestUserStoryRepo_ListUserStories(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewUserStoryRepo(db)
 	now := time.Now()

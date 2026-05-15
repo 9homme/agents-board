@@ -17,7 +17,7 @@ import (
 func TestDocumentRepo_CreateDocument(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewDocumentRepo(db)
 	now := time.Now()
@@ -51,7 +51,7 @@ func TestDocumentRepo_CreateDocument(t *testing.T) {
 func TestDocumentRepo_GetDocument(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewDocumentRepo(db)
 	now := time.Now()
@@ -85,7 +85,7 @@ func TestDocumentRepo_GetDocument(t *testing.T) {
 func TestDocumentRepo_UpdateDocument(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewDocumentRepo(db)
 	now := time.Now()
@@ -118,7 +118,7 @@ func TestDocumentRepo_UpdateDocument(t *testing.T) {
 func TestDocumentRepo_DeleteDocument(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewDocumentRepo(db)
 	id := "223e4567-e89b-12d3-a456-426614174000"
@@ -137,7 +137,7 @@ func TestDocumentRepo_DeleteDocument(t *testing.T) {
 func TestDocumentRepo_ListDocuments(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewDocumentRepo(db)
 	now := time.Now()

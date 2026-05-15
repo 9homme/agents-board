@@ -4,9 +4,9 @@
 **Story:** US001
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** US001_be_service_rename_and_api_server_scaffold.md
-**Worked-by:** 
+**Worked-by:** be-dev-timestamp-1234
 **Implements:** GET /api/v1/projects API contract, UI data flow
 
 ## Goal

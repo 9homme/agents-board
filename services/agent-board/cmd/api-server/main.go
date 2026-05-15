@@ -1,9 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"os"
 
+	"agent-board/internal/handler"
+	"agent-board/internal/repo"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -26,6 +31,21 @@ func main() {
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL environment variable is not set")
 	}
+
+	db, err := sql.Open("pgx", dbURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	if err := db.Ping(); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+
+	projectRepo := repo.NewProjectRepo(db)
+	projectHandler := handler.NewProjectHandler(projectRepo)
+
+	e.GET("/api/v1/projects", projectHandler.GetProjects)
 
 	// Start server
 	port := os.Getenv("PORT")

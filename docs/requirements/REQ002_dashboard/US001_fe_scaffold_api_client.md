@@ -3,9 +3,9 @@
 **Requirement:** REQ002
 **Story:** US001
 **Track:** FE
-**Status:** pending
+**Status:** completed
 **Blocked by:** 
-**Worked-by:** 
+**Worked-by:** fe-dev
 **Implements:** GET /api/v1/projects API contract, API client layer
 
 ## Goal
@@ -42,3 +42,6 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back; tech-lead approved.
 
 ## Review log
+### Review pass 1 — 2026-05-15 — tech-lead
+- **Verdict:** approved
+- **Findings:** FE scaffold verified. MSW handlers, types, and client implementation match the architecture. Gate is green.

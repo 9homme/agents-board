@@ -15,6 +15,8 @@ import (
 
 func main() {
 	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 
 	// Configure CORS
 	frontendURL := os.Getenv("FRONTEND_URL")

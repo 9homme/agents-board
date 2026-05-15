@@ -4,9 +4,9 @@
 **Story:** US001
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** 
-**Worked-by:** be-dev-20240321T100000Z-abcd
+**Worked-by:** be-dev
 **Implements:** D-001 Split Application Entrypoints
 
 ## Goal
@@ -43,10 +43,12 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back; tech-lead approved.
 
 ## Review log
-enamed the directory to `services/agent-board` and `cmd/agent-board-mcp` to `cmd/mcp-server` via `git mv`.
-- Created `services/agent-board/cmd/api-server/main.go` with Echo and CORS.
-- Updated `go.mod` to `module agent-board` and ran `go mod tidy`.
-- Replaced all imports of `agent-board-mcp` with `agent-board` in internal go files.
-- Gates ran successfully. Note: `US001_be_unit_tests.md` only specifies `UT-001` and `UT-002` for `internal/handler.GetProjects` which are explicitly marked as "out of scope" in the task's instructions. As such, no unit tests were written for scaffolding.
+### Review pass 1 — 2026-05-15 — tech-lead
+- **Verdict:** changes_requested
+- **Findings:** The review gate failed with 8 issues that must be fixed.
+  - `internal/repo/*.go`: 6 `errcheck` issues (unchecked `rows.Close()`, `db.Close()`).
+  - `internal/handler/sse.go`: 2 `staticcheck` issues (use `fmt.Fprintf` instead of `Write([]byte(fmt.Sprintf(...)))`).
 
-## Review log
+### Review pass 2 — 2026-05-15 — tech-lead
+- **Verdict:** approved
+- **Findings:** Lint issues fixed. Gate is now green. Scaffold verified.

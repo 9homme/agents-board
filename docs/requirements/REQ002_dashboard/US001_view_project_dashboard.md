@@ -1,7 +1,7 @@
 # US001 — View project dashboard
 
 **Requirement:** REQ002 — dashboard
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a user, I want to see a dashboard listing all projects, so that I can quickly view the available projects in a minimal, beautiful card UI.
@@ -52,3 +52,8 @@ As a user, I want to see a dashboard listing all projects, so that I can quickly
 - The frontend is Next.js Pages Router (CSR-only).
 
 ## Sign-off log
+
+### Sign-off pass 1 — 2026-05-15 — verdict: approved
+- **Spec review:** All four scenarios (Success, Empty, Loading, Error) are fully covered in FE unit specs (FCT-001 to FCT-004). BE correctly covers Success and Error (UT-001, UT-002, IT-001). E2E (E2E-001) covers the full flow from MCP creation to UI display. Specs accurately map to ACs.
+- **Result review:** All listed BE, FE, and E2E test cases passed. No tests were skipped.
+- **Routed to:** none

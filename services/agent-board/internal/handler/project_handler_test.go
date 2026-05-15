@@ -116,7 +116,7 @@ func TestProjectHandler_GetProjects_Error(t *testing.T) {
 	h := NewProjectHandler(mockRepo)
 	err := h.GetProjects(c)
 	require.NoError(t, err) // Echo handler usually returns the error for centralized handling, but architecture says handler returns 500 JSON directly. We'll verify what the handler returns. Let's design handler to return the JSON response and nil error to echo, or return echo.NewHTTPError? Wait, architecture says response must be `{"code": "INTERNAL_ERROR", "message": "Failed to fetch projects"}` on 500 error.
-	
+
 	// If handler returns `c.JSON(500, ...)`, `err` is nil.
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
@@ -131,7 +131,7 @@ func TestProjectHandler_GetProjects_Error(t *testing.T) {
 func TestProjectHandler_GetProjects_Integration(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	r := repo.NewProjectRepo(db)
 	h := NewProjectHandler(r)

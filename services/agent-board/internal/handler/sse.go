@@ -22,7 +22,7 @@ func (h *Handler) HandleSSE(c echo.Context) error {
 
 	// Send endpoint event
 	endpointData := fmt.Sprintf("/message?sessionId=%s", session.ID)
-	if _, err := c.Response().Write([]byte(fmt.Sprintf("event: endpoint\ndata: %s\n\n", endpointData))); err != nil {
+	if _, err := fmt.Fprintf(c.Response(), "event: endpoint\ndata: %s\n\n", endpointData); err != nil {
 		return err
 	}
 	c.Response().Flush()
@@ -36,7 +36,8 @@ func (h *Handler) HandleSSE(c echo.Context) error {
 			return nil
 		}
 
-		if _, err := fmt.Fprintf(c.Response(), "event: message\ndata: %s\n\n", string(msg)); err != nil {			return err
+		if _, err := fmt.Fprintf(c.Response(), "event: message\ndata: %s\n\n", string(msg)); err != nil {
+			return err
 		}
 		c.Response().Flush()
 	}

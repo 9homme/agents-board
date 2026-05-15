@@ -3,7 +3,7 @@
 **Requirement:** REQ002
 **Story:** US001
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US001_fe_scaffold_api_client.md
 **Worked-by:** fe-dev
 **Implements:** view list of projects UI
@@ -46,3 +46,6 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back; tech-lead approved.
 
 ## Review log
+### Review pass 1 — 2026-05-15 — tech-lead
+- **Verdict:** approved
+- **Findings:** Dashboard UI implemented with Card UI as requested. Custom hook and component tests pass. Gate is green.

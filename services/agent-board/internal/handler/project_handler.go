@@ -46,16 +46,14 @@ func (h *ProjectHandler) GetProjects(c echo.Context) error {
 	}
 
 	res := make([]projectResponse, 0)
-	if projects != nil {
-		for _, p := range projects {
-			res = append(res, projectResponse{
-				ID:          p.ID,
-				Name:        p.Name,
-				Description: p.Description,
-				CreatedAt:   p.CreatedAt.Format("2006-01-02T15:04:05Z"),
-				UpdatedAt:   p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-			})
-		}
+	for _, p := range projects {
+		res = append(res, projectResponse{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			CreatedAt:   p.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:   p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		})
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{

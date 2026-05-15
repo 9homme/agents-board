@@ -59,13 +59,35 @@ The project progresses through three distinct, gated phases:
 - **Postgres:** 15+
 - **Python 3:** (for Robot Framework tests)
 
-### Running the Server
+### Running the Backend
+The backend is a unified Go module in `services/agent-board` that produces two separate binaries.
+
+**1. MCP Server (AI Interface)**
 ```bash
-cd services/agent-board-mcp
+cd services/agent-board
 export DB_URL=postgres://localhost/agent_board?sslmode=disable
-go run cmd/agent-board-mcp/main.go
+go run cmd/mcp-server/main.go
+```
+
+**2. API Server (Web Dashboard Interface)**
+```bash
+cd services/agent-board
+export DATABASE_URL=postgres://localhost/agent_board?sslmode=disable
+export PORT=8080
+export FRONTEND_URL=http://localhost:3000
+go run cmd/api-server/main.go
+```
+
+### Running the Frontend
+The dashboard is a Next.js (CSR-only) application.
+```bash
+cd web
+export NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+npm install
+npm run dev
 ```
 
 ### Running Tests
-- **Unit/Integration:** `go test ./...`
-- **E2E:** `python3 -m robot tests/e2e/REQ001_agent_board_mcp/`
+- **Backend (Unit/Integration):** `cd services/agent-board && go test ./...`
+- **Frontend (Component):** `cd web && npm test`
+- **E2E (Robot Framework):** `python3 -m robot tests/e2e/`

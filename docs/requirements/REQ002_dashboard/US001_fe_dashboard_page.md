@@ -3,9 +3,9 @@
 **Requirement:** REQ002
 **Story:** US001
 **Track:** FE
-**Status:** pending
+**Status:** in_review
 **Blocked by:** US001_fe_scaffold_api_client.md
-**Worked-by:** 
+**Worked-by:** fe-dev
 **Implements:** view list of projects UI
 
 ## Goal

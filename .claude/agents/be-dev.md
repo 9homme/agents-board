@@ -47,6 +47,13 @@ If the orchestrator's prompt does not give you a single concrete task path, **st
 
 If the task's `Track:` is not `BE`, **stop and report `WRONG_TRACK`** — the orchestrator should have spawned a `fe-dev` instead.
 
+### Worktree isolation
+
+You are spawned inside a fresh git worktree on a temporary branch (`agent/<short-id>`) off the orchestrator's working branch. Other parallel devs are in their own worktrees — you cannot see or step on their work and they cannot see yours until the orchestrator merges. This means:
+- **Treat your working tree as authoritative for this spawn.** Don't worry about other in-flight tasks.
+- **Stay inside the task's declared `## Files touched (estimated, exclusive)`.** If your work needs a file the task didn't declare, surface it as a note and stop expanding before adding — silently editing an undeclared file creates a merge-conflict surprise for the orchestrator.
+- **Commit your work at the end** of the workflow (last step below). The harness returns the branch name to the orchestrator, which merges with `--no-ff` into the working branch. Uncommitted changes are lost on cleanup.
+
 ## Workflow per task
 
 1. **Read the task file.** Verify `Track: BE`, `Service:` is set, `Status: pending` or `Status: changes_requested`, `Blocked by:` is satisfied. If any check fails, report back and stop.
@@ -69,7 +76,8 @@ If the task's `Track:` is not `BE`, **stop and report `WRONG_TRACK`** — the or
    - Public exports have doc comments.
    - On rework: every item in the latest review-log entry is addressed.
 9. **Hand off for review.** Set status to `in_review` (NOT `completed` — only tech-lead can mark `completed`). Append a `## Notes` section with: files touched, tests added, anything follow-up worthy, and (on rework) a per-item response to the previous review pass.
-10. **Report back** to the orchestrator: task path, status now `in_review`, files changed, test counts, blockers.
+10. **Commit on the worktree branch.** `git add -A` then `git commit -m "be-dev: <one-line task title> (Status: in_review)"`. The orchestrator will merge this branch back into the working branch. **Uncommitted changes are lost** when the worktree is cleaned up — do not skip this step.
+11. **Report back** to the orchestrator: task path, status now `in_review`, files changed, test counts, branch name (so the orchestrator can merge), and blockers.
 
 ## Rules
 

@@ -244,6 +244,72 @@ def test_descriptions_match_across_platforms(agent_name):
     )
 
 
+def test_worktree_isolation_required_in_phase3_command():
+    """The phase3 orchestrator command must enforce worktree isolation on both
+    platforms — Claude side uses the Agent tool's `isolation: \"worktree\"`,
+    Gemini side uses manual `git worktree add`. If either form goes missing,
+    parallel agents will race on the working tree."""
+    claude_phase3 = os.path.join(REPO_ROOT, ".claude", "commands", "phase3.md")
+    gemini_phase3 = os.path.join(REPO_ROOT, ".gemini", "commands", "phase3.toml")
+
+    with open(claude_phase3, "r", encoding="utf-8") as f:
+        claude_text = f.read()
+    assert 'isolation: "worktree"' in claude_text, (
+        ".claude/commands/phase3.md must reference `isolation: \"worktree\"` "
+        "(the Claude Code Agent-tool parameter for worktree isolation)."
+    )
+    assert "Files touched" in claude_text, (
+        ".claude/commands/phase3.md must reference the `Files touched` field "
+        "(used by the orchestrator to avoid co-picking overlapping tasks)."
+    )
+
+    with open(gemini_phase3, "r", encoding="utf-8") as f:
+        gemini_text = f.read()
+    assert "git worktree add" in gemini_text, (
+        ".gemini/commands/phase3.toml must reference `git worktree add` "
+        "(the manual fallback Gemini orchestrators use — sync-gemini.py should "
+        "translate the Claude `isolation:` directive into this manual form)."
+    )
+    assert "Files touched" in gemini_text, (
+        ".gemini/commands/phase3.toml must reference the `Files touched` field. "
+        "Rerun scripts/sync-gemini.py after editing .claude/commands/phase3.md."
+    )
+
+
+def test_tech_lead_template_has_files_touched_section():
+    """tech-lead's task template must include a `## Files touched` section so
+    every task declares its file scope — the orchestrator depends on this to
+    avoid co-picking overlapping tasks."""
+    for platform_dir in (CLAUDE_AGENTS_DIR, GEMINI_AGENTS_DIR):
+        path = os.path.join(platform_dir, "tech-lead.md")
+        if not os.path.isfile(path):
+            pytest.skip(f"{_short(path)} missing (caught elsewhere)")
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert "## Files touched" in content, (
+            f"{_short(path)} task template must include a `## Files touched` section."
+        )
+
+
+def test_devs_have_worktree_awareness():
+    """be-dev and fe-dev prompts must mention worktree isolation and commit
+    instructions. If a dev doesn't commit, the harness cleans up the worktree
+    and the work is lost."""
+    for agent_name in ("be-dev", "fe-dev"):
+        for platform_dir in (CLAUDE_AGENTS_DIR, GEMINI_AGENTS_DIR):
+            path = os.path.join(platform_dir, f"{agent_name}.md")
+            if not os.path.isfile(path):
+                pytest.skip(f"{_short(path)} missing (caught elsewhere)")
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            assert "Worktree isolation" in content or "worktree isolation" in content, (
+                f"{_short(path)} must explain worktree isolation to the dev."
+            )
+            assert "git commit" in content or "Commit on the worktree branch" in content, (
+                f"{_short(path)} must instruct the dev to commit before exiting."
+            )
+
+
 def test_tech_lead_references_review_gate_on_both_platforms():
     """Both .claude/agents/tech-lead.md and .gemini/agents/tech-lead.md must
     reference scripts/review/run-gate.sh — the gate is mandatory in review mode.

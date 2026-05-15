@@ -70,8 +70,28 @@ BODY_SUBSTITUTIONS = [
     (r"a single `Agent` tool call", "a single subagent invocation"),
     (r"the `Agent` tool", "the subagent-invocation mechanism"),
     (r"\bAgent tool\b", "subagent-invocation mechanism"),
+    (r"`Agent` call", "subagent invocation"),
     (r"`subagent_type`", "subagent name"),
     (r"\bsubagent_type\b", "subagent name"),
+    # Worktree isolation. `isolation: "worktree"` is a Claude Code Agent-tool
+    # parameter — the harness manages the worktree lifecycle automatically.
+    # Gemini CLI has no equivalent, so the orchestrator runs `git worktree add`
+    # by hand. More specific patterns first; the generic fallback catches the rest.
+    (
+        r'MUST include `isolation: "worktree"` so the harness creates a fresh worktree on a new branch off the current HEAD',
+        "MUST run inside a fresh git worktree on a new branch off the current HEAD; "
+        "the orchestrator creates one per spawn with `git worktree add -b agent/<short-id> "
+        ".worktrees/<short-id>` and removes it after the merge",
+    ),
+    (
+        r'MUST include `isolation: "worktree"`',
+        "MUST run inside a fresh git worktree managed by the orchestrator "
+        "(`git worktree add -b agent/<short-id> .worktrees/<short-id>`)",
+    ),
+    (
+        r'`isolation: "worktree"`',
+        "manual git worktree management",
+    ),
 ]
 
 

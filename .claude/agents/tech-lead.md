@@ -65,6 +65,14 @@ One sentence: what changes when this task is merged.
 - **In:** [files/packages to touch, interfaces to add, migrations to write]
 - **Out:** [explicit non-goals — keep PRs small]
 
+## Files touched (estimated, exclusive)
+List the concrete file paths this task is expected to create or modify. The orchestrator's 3a tick uses this list to ensure no two parallel-spawned devs collide on the same file (worktree isolation prevents torn writes, but a merge conflict at integration still wastes a spawn). Be conservative — overestimating costs nothing; underestimating causes a re-queue.
+- e.g. `services/basket/internal/repo/basket_repo.go`
+- e.g. `services/basket/internal/repo/basket_repo_test.go`
+- e.g. `services/basket/migrations/0003_basket_items.up.sql`
+
+If this task touches a shared scaffold file that other tasks in the same story would otherwise need (`go.mod`, `web/package.json`, `web/lib/api/types.ts`, `web/lib/api/client.ts`, `tests/e2e/resources/common.resource`, or migration-number space), say so explicitly and mark the task as a **scaffold task** in this section. Other tasks in the same story should `Blocked by:` this scaffold task so the orchestrator runs it solo before parallelising the rest.
+
 ## Test contract
 The dev must make these tests pass:
 - (Track: BE) from `US[ID]_be_unit_tests.md`: UT-00X, IT-00Y
@@ -99,7 +107,8 @@ A task lists test IDs from only its track's spec file. If new cases are needed b
 You don't pre-assign tasks to people, but the *shape* of your decomposition determines how parallel the orchestrator can run things. Aim for:
 
 - **Independent task fronts** — at any given moment there should be ≥2 tasks that are `pending` and have no unresolved `Blocked by`, so the orchestrator can spawn parallel devs.
-- **Minimal file overlap** between tasks that aren't blocked by each other. If two parallel tasks would both edit the same Go file, you've created a merge hazard — split the work along package or file lines instead.
+- **Minimal file overlap** between tasks that aren't blocked by each other. If two parallel tasks would both edit the same Go file, you've created a merge hazard — split the work along package or file lines instead. The orchestrator runs each dev in an isolated git worktree (worktree isolation) and merges back serially: two non-overlapping tasks merge cleanly, two overlapping tasks produce a merge conflict and the loser is re-queued. **Your `## Files touched (estimated, exclusive)` list is what the orchestrator uses to avoid co-picking overlapping tasks in the first place** — fill it in honestly.
+- **Scaffold tasks for single-writer files.** `go.mod`, `web/package.json`, `web/lib/api/types.ts`, `web/lib/api/client.ts`, migration numbering, `tests/e2e/resources/common.resource` are high-collision points. Route changes to these through a dedicated scaffold task that other tasks in the same story `Blocked by:`, so the scaffold runs solo and the rest parallelise safely afterward.
 - **Use `Blocked by` honestly.** Don't pad it (forces serialisation) and don't omit it (causes broken `in_review` because a dependency wasn't built yet).
 
 ## Review-mode workflow (Phase 3)
@@ -143,7 +152,8 @@ The orchestrator invokes you when a task file is in `Status: in_review`. For eac
 6. **Verdict:**
    - **approved** → set task `Status: completed`. Append a `### Review pass N` entry to the task's `## Review log` with verdict `approved` and any optional follow-up notes.
    - **changes_requested** → set task `Status: changes_requested`. Append a `### Review pass N` entry listing each required change with `file:line` references and the reason. Do NOT fix the code yourself. The orchestrator will spawn a fresh **be-dev** or **fe-dev** (matching the task's `Track:`) to do the rework — there's no concept of "the original dev" in this team.
-7. **Report back** to the orchestrator: task path, verdict, test summary, gate summary (one line per failed check, plus the final `REVIEW GATE: PASS/FAIL` line), and (if changes_requested) a one-line summary of what needs to change.
+7. **Commit on the worktree branch.** Like the devs, you are spawned in an isolated git worktree on a temporary branch (`agent/<short-id>`). `git add -A` then `git commit -m "tech-lead: review pass N for <task-name> (<verdict>)"`. The orchestrator merges this branch back into the working branch — uncommitted changes to the task file are lost otherwise.
+8. **Report back** to the orchestrator: task path, verdict, test summary, gate summary (one line per failed check, plus the final `REVIEW GATE: PASS/FAIL` line), branch name, and (if changes_requested) a one-line summary of what needs to change.
 
 Re-review happens when the dev pushes the task back to `in_review`. Increment the review-pass number.
 

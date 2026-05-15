@@ -14,6 +14,7 @@ You are the orchestrator. Run Phase 3 of the vibe-commerce pipeline (see `CLAUDE
 2. `architecture.md` exists with `Approval: approved`.
 3. At least one `US[ID]_[task_name].md` task file exists; each has `Track:` set.
 4. The relevant test specs exist for each story (`US[ID]_be_unit_tests.md` for any story with BE tasks; `US[ID]_fe_unit_tests.md` for any story with FE tasks; `US[ID]_e2e_tests.md` for all stories).
+5. **Git repo is initialised with at least one commit on the working branch.** `git rev-parse --git-dir` succeeds AND `git log -1` returns a commit. Worktree isolation cannot work without a base ref. If not, abort with `GIT_REPO_NOT_INITIALISED` and instruct the user to run `git init && git add -A && git commit -m "chore: baseline"`.
 
 ## Concurrency cap
 
@@ -26,15 +27,19 @@ Repeat until: no task is in `pending` / `changes_requested` / `in_progress` / `i
 ### 3a. Implementation tick (parallel work-stealing across both tracks)
 
 1. **Build the ready queue.** Tasks with `Status: pending` OR `Status: changes_requested` AND every `Blocked by` resolved to `completed`. Sort REQ → US → filename. **`changes_requested` first.**
-2. From the ready queue, pick:
-   - up to 2 tasks with `Track: BE`,
-   - up to 2 tasks with `Track: FE`.
-   Distinct task paths only.
-3. **Spawn `be-dev` for each picked BE task and `fe-dev` for each picked FE task — all in a single message with parallel subagent invocations.** Each prompt contains exactly one task path, plus a one-line note pointing to the latest `### Review pass N` if it's rework.
-4. Collect dev reports. Handle:
+2. **Pick with no-overlap guarantee.** From the ready queue, pick up to 2 `Track: BE` tasks AND up to 2 `Track: FE` tasks. Distinct task paths only. **Additionally:** for each candidate task, read its `## Files touched (estimated, exclusive)` section. **Skip any candidate whose file list intersects an already-picked task's file list this tick** — push the skipped task back to the front of the queue for the next tick. This prevents two parallel devs from doing work that will only collide at merge. If a task is missing `## Files touched`, treat that as a `changes_requested`-style routing back to `tech-lead` plan mode rather than guessing — do NOT pick it this tick.
+3. **Spawn each dev in an isolated git worktree** — one subagent invocation per task, all in a single message with parallel calls. Each call MUST run inside a fresh git worktree on a new branch off the current HEAD; the orchestrator creates one per spawn with `git worktree add -b agent/<short-id> .worktrees/<short-id>` and removes it after the merge. Each prompt contains exactly one task path, plus a one-line note pointing to the latest `### Review pass N` if it's rework. (On harnesses without built-in worktree isolation, the orchestrator must wrap each spawn with `git worktree add -b agent/<short-id> .worktrees/<short-id>` before invoking the subagent and `git worktree remove --force .worktrees/<short-id>` after merging the branch.)
+4. **Devs run in parallel, isolated.** Each dev sees only its own worktree on its own branch. The Worked-by claim mechanism on the task file still applies (handles double-spawn bugs), but the worktree guarantees no cross-spawn file collisions during the work itself.
+5. **Merge each dev's branch back to the working branch — serially, in the order they completed.** For each dev that returned `Status: in_review`:
+   1. From the working branch: `git merge --no-ff --no-commit agent/<short-id>`.
+   2. If the merge applies cleanly → `git commit --no-edit` (keep the merge commit) → continue to the next dev's merge.
+   3. **If a merge conflict** → `git merge --abort`. Re-queue the task with a `MERGE_CONFLICT` note listing the conflicting files. The task does NOT advance to `in_review`. The orchestrator records this so `tech-lead` can decide whether to (a) refine the task's `## Files touched` and the overlapping task's, or (b) split one of the tasks. The losing dev's branch is preserved for inspection; clean it up after the user has reviewed.
+   4. After all clean merges, the working branch has the combined work and is the source of truth for `tech-lead`'s review in 3b.
+6. **Collect dev reports.** Handle:
    - `RACE_LOST` → re-queue, re-pick on next tick.
    - `WRONG_TRACK` → orchestrator routing bug — re-spawn the correct dev type for that task.
    - `MISSING_TASK_PATH` → orchestrator briefing bug — re-brief properly.
+   - `MERGE_CONFLICT` → already handled in step 5.3 above.
    - `ARCHITECTURE_TEST_CONFLICT` or `ARCHITECTURE_GAP_FOUND` → spawn `system-architect` to resolve (HARD STOP loop), then resume.
    - Spec gap reports → spawn `tester` (revision mode) for the right spec file (`be_unit_tests.md` if BE dev raised it; `fe_unit_tests.md` if FE dev raised it), then resume.
 
@@ -42,8 +47,9 @@ Repeat until: no task is in `pending` / `changes_requested` / `in_progress` / `i
 
 For each task now in `Status: in_review`:
 
-1. **Spawn `tech-lead` in review mode** (parallel-safe — one invocation per task in a single message with parallel subagent invocations). Brief tech-lead with the task path; tech-lead infers track from the file.
-2. Collect verdicts:
+1. **Spawn `tech-lead` in review mode** (parallel-safe — one invocation per task in a single message with parallel subagent invocations). **Each spawn MUST run inside a fresh git worktree managed by the orchestrator (`git worktree add -b agent/<short-id> .worktrees/<short-id>`)** — even though parallel tech-lead reviews update different task files (no file collision), each review runs the gate (which executes `go test`, `npm test`, semgrep, etc.) and writes a commit; running those in shared worktrees would race on git state and build caches. Brief tech-lead with the task path; tech-lead infers track from the file.
+2. **Merge each completed review serially**, same protocol as 3a step 5: `git merge --no-ff --no-commit agent/<short-id>` → on clean → commit → on conflict → abort and re-queue (rare here, since reviews only touch the task file's review log, but possible if two reviewers somehow target the same task).
+3. Collect verdicts:
    - `approved` → task `completed`. Continue.
    - `changes_requested` → task back in the ready queue for the next 3a tick. The track field still says BE or FE, so the next pick automatically routes to be-dev or fe-dev.
    - `CIRCUIT_BREAKER_TRIPPED` → STOP THE PIPELINE for this requirement.

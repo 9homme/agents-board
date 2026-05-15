@@ -1,0 +1,57 @@
+# .golangci.yml — repo-wide Go linter config.
+#
+# Used by `scripts/review/run-gate.sh be <service-dir>`. Each service module
+# inherits this file (golangci-lint walks up to the first config it finds).
+#
+# Conservative set: high-signal linters only. Add more once the team has a
+# track record with the baseline.
+
+run:
+  timeout: 2m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck       # unchecked errors
+    - govet          # stdlib-quality static analysis
+    - ineffassign    # unused assignments
+    - staticcheck    # the big one: bug-finding, perf, deprecations
+    - unused         # dead code
+    - gocritic       # opinionated style + perf nits (curated)
+    - revive         # replaces golint, public-export docs
+    - misspell       # typos in identifiers / comments
+    - bodyclose      # http.Response.Body not closed
+    - errorlint      # %w vs %v, errors.Is/As correctness
+    - rowserrcheck   # sql.Rows.Err() not checked
+    - sqlclosecheck  # sql.Rows / sql.Stmt not closed
+    - noctx          # http.Request without ctx
+    - gosec          # also runs standalone in the gate; keep here for IDE feedback
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported           # public symbols need doc comments
+      - name: var-naming
+      - name: package-comments
+      - name: context-as-argument
+      - name: error-return
+      - name: error-naming
+  gocritic:
+    enabled-tags:
+      - performance
+      - diagnostic
+    disabled-checks:
+      - hugeParam       # noisy for value-receiver style
+      - rangeValCopy
+  errcheck:
+    check-blank: true   # `_ = foo()` is also an unchecked error
+    check-type-assertions: true
+
+issues:
+  exclude-rules:
+    # Tests can be a bit looser on doc comments and security false positives.
+    - path: _test\.go
+      linters: [revive, gosec, errcheck]
+  max-issues-per-linter: 0
+  max-same-issues: 0

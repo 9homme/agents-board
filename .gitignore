@@ -1,0 +1,52 @@
+# macOS
+.DS_Store
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+.npm
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage/
+.nyc_output/
+
+# Go
+bin/
+*.test
+*.out
+*.prof
+vendor/
+
+# Python (test runners, sync script env)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+.python-version
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Eval runner artefacts
+eval-workspace/iteration-*/runs/
+.semgrep_cache/
+
+# Worktrees created by isolation: "worktree" — the harness puts these under
+# .git/worktrees/<short-id>/ which git already manages, but if any tool
+# writes scratch worktree paths to the repo root, ignore the common prefixes.
+.worktrees/

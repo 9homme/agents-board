@@ -1,0 +1,221 @@
+{
+  "iteration": 1,
+  "target": "agents",
+  "notes": "Scenarios per agent in .claude/agents/ and .gemini/agents/. Each scenario isolates ONE spawn — full pipeline runs are out of scope (those live in tests/e2e/ Robot). Anti-patterns come from CLAUDE.md's anti-pattern list and must be detected by the grader.",
+  "evals": [
+    {
+      "id": "po-ba-1",
+      "agent": "po-ba",
+      "scenario": "intake — raw requirement",
+      "setup": "Empty docs/requirements/. Single user message: 'Customers should be able to add items to a basket and see line totals.'",
+      "prompt": "/phase1 Customers should be able to add items to a basket and see line totals.",
+      "expected_artifacts": [
+        "docs/requirements/REQ001_*/README.md",
+        "docs/requirements/REQ001_*/US001_*.md (at least one story)"
+      ],
+      "expected_behavior": [
+        "Calls AskUserQuestion (Claude) / equivalent (Gemini) BEFORE writing files — asks about anonymous vs logged-in, currency formatting, quantity limits, or similar.",
+        "Each story file has a status header and a `## UI / UX flow expectations` section (or explicit 'No UI:' note).",
+        "Stories follow As-a/I-want/So-that with INVEST acceptance criteria.",
+        "REQ ID is zero-padded 3-digit (REQ001).",
+        "Reports paths back to orchestrator in the final message."
+      ],
+      "anti_patterns": [
+        "Writes architecture.md (system-architect's job).",
+        "Invents acceptance criteria without asking the user any clarifying question.",
+        "Skips the UI/UX flow section on a user-facing story.",
+        "Edits files outside docs/requirements/.",
+        "Decomposes into engineering tasks (tech-lead's job)."
+      ]
+    },
+    {
+      "id": "po-ba-2",
+      "agent": "po-ba",
+      "scenario": "sign-off — all tasks completed, test report present",
+      "setup": "docs/requirements/REQ001_*/ with one story in Status: in_signoff, BE+FE tasks all Status: completed, US001_test_report.md showing all UT/IT/FCT/E2E green.",
+      "prompt": "Phase 3d sign-off for docs/requirements/REQ001_checkout_basket/US001_add_item_to_basket.md.",
+      "expected_artifacts": [
+        "Story file updated with `## Sign-off log` entry containing verdict + reasoning",
+        "Story Status flipped to `done` on approval, or `changes_requested` with explicit routing on rejection"
+      ],
+      "expected_behavior": [
+        "Cross-references every AC against the test report (UT/IT/FCT/E2E IDs).",
+        "If approving: explicitly states all 3 spec files were reviewed.",
+        "If requesting changes: routes to tester (spec issue) OR tech-lead (failing behavior) OR self (AC wrong) — never ambiguous.",
+        "Respects circuit breaker: never issues a 3rd consecutive changes_requested; sets `blocked_circuit_breaker` instead."
+      ],
+      "anti_patterns": [
+        "Marks Status: done without referencing the test report.",
+        "Marks Status: done while any AC is unverified.",
+        "Issues changes_requested without specifying which artifact owns the fix."
+      ]
+    },
+    {
+      "id": "system-architect-1",
+      "agent": "system-architect",
+      "scenario": "draft architecture from approved stories",
+      "setup": "docs/requirements/REQ001_*/README.md + 2 stories on disk. No architecture.md yet.",
+      "prompt": "Draft architecture for docs/requirements/REQ001_checkout_basket/.",
+      "expected_artifacts": [
+        "docs/requirements/REQ001_*/architecture.md with `Approval: pending_approval` header"
+      ],
+      "expected_behavior": [
+        "Covers service topology, frontend surface, and EXACT JSON request/response per endpoint (every field typed, every status code's body specified).",
+        "Cites decision IDs that tasks can reference via `Implements:`.",
+        "Reports `ARCHITECTURE_PENDING_APPROVAL` + path + 3–5-bullet executive summary.",
+        "Does NOT flip Approval to approved itself — that's the human/orchestrator's job via /approve-architecture."
+      ],
+      "anti_patterns": [
+        "Leaves any JSON shape vague (e.g. `subtotal: number` without min/max, or omits an error body).",
+        "Self-approves architecture.md.",
+        "Writes user stories (po-ba's job) or tasks (tech-lead's job).",
+        "Modifies existing stories."
+      ]
+    },
+    {
+      "id": "tech-lead-1",
+      "agent": "tech-lead",
+      "scenario": "plan — decompose stories into BE+FE tasks",
+      "setup": "docs/requirements/REQ001_*/architecture.md with `Approval: approved`, two stories on disk, no task files yet.",
+      "prompt": "Phase 2 plan for docs/requirements/REQ001_checkout_basket/.",
+      "expected_artifacts": [
+        "One or more US001_*.md task files tagged `Track: BE` with `Service: services/<name>`",
+        "One or more US001_*.md task files tagged `Track: FE`",
+        "Updated REQ README task table"
+      ],
+      "expected_behavior": [
+        "Pre-checks `Approval: approved` and refuses with `ARCHITECTURE_NOT_APPROVED` if pending.",
+        "BE and FE tasks for the same story have NO `Blocked by` link between them (they meet at the locked API contract).",
+        "BE task names like `be_<thing>`, FE like `fe_<thing>` (Track: field is authoritative).",
+        "Each task has `## Test contract` listing UT/IT/FCT IDs it owns.",
+        "Architecture gap surfaced via `ARCHITECTURE_GAP_FOUND` rather than patched in place."
+      ],
+      "anti_patterns": [
+        "Creates a single task spanning both tracks.",
+        "Edits architecture.md.",
+        "Cross-blocks BE on FE or vice versa.",
+        "Begins planning without checking Approval header."
+      ]
+    },
+    {
+      "id": "tech-lead-2",
+      "agent": "tech-lead",
+      "scenario": "review — code in Status: in_review",
+      "setup": "Task US001_be_basket_repo.md at `Status: in_review` with `Worked-by:` from be-dev. Implementation files in services/basket/, test files present. Architecture + be_unit_tests.md on disk.",
+      "prompt": "Phase 3b review for docs/requirements/REQ001_checkout_basket/US001_be_basket_repo.md.",
+      "expected_artifacts": [
+        "Task file with new `### Review pass N` entry under `## Review log`",
+        "Status flipped to `completed` on approval, or `changes_requested` on rejection"
+      ],
+      "expected_behavior": [
+        "Runs `go test ./...` inside the service module (Bash / run_shell_command) — not just static review.",
+        "Compares HTTP response field names + status codes against architecture.md API contract verbatim.",
+        "Cites findings with file:line.",
+        "Tracks the consecutive-fail streak; if this would be the 3rd `changes_requested` on this task, sets `blocked_circuit_breaker` and stops instead of issuing a 3rd reject."
+      ],
+      "anti_patterns": [
+        "Marks completed without running tests.",
+        "Patches the architecture during review.",
+        "Issues a 3rd changes_requested (must trip breaker).",
+        "Reviews an FE task as if it were BE (track mismatch)."
+      ]
+    },
+    {
+      "id": "tester-1",
+      "agent": "tester",
+      "scenario": "author — write the test pyramid for one story",
+      "setup": "Approved architecture.md + one story. No spec files yet.",
+      "prompt": "Phase 2 author tests for docs/requirements/REQ001_checkout_basket/US001_add_item_to_basket.md.",
+      "expected_artifacts": [
+        "docs/requirements/REQ001_*/US001_be_unit_tests.md with UT-* / IT-* IDs",
+        "docs/requirements/REQ001_*/US001_fe_unit_tests.md with FCT-* IDs",
+        "docs/requirements/REQ001_*/US001_e2e_tests.md with E2E-* IDs",
+        "tests/e2e/REQ001_*/US001_*.robot tagged with US001"
+      ],
+      "expected_behavior": [
+        "FE component specs and e2e specs bind to the architecture's exact JSON shapes.",
+        "Pyramid is honest: most coverage in UT/FCT, narrow E2E for golden path only.",
+        "Robot file imports common.resource and uses RequestsLibrary / Browser appropriately.",
+        "Untestable AC → routes to po-ba, doesn't invent."
+      ],
+      "anti_patterns": [
+        "Promotes unit/component concerns to e2e to 'be safe'.",
+        "Uses JSON shapes that diverge from architecture.md.",
+        "Writes production code or task files.",
+        "Skips the Robot implementation (spec-only is incomplete)."
+      ]
+    },
+    {
+      "id": "be-dev-1",
+      "agent": "be-dev",
+      "scenario": "happy path — one BE task, TDD",
+      "setup": "Task US001_be_basket_repo.md with Track: BE, Service: services/basket, Status: pending. Matching US001_be_unit_tests.md present. Empty services/basket/ skeleton.",
+      "prompt": "Work docs/requirements/REQ001_checkout_basket/US001_be_basket_repo.md.",
+      "expected_artifacts": [
+        "Atomic claim: `Worked-by: be-dev-<ISO>-<4hex>` line + Status: in_progress",
+        "Failing *_test.go files written FIRST",
+        "Production Go code only after RED is proven",
+        "Status: in_review (NOT completed) when done",
+        "`## Notes` section listing files touched + test counts"
+      ],
+      "expected_behavior": [
+        "Re-reads the task file after writing claim to detect parallel races.",
+        "On RACE_LOST, reports and stops without touching code.",
+        "Runs `go test ./...` from inside services/basket/ and confirms failures are for the right reason.",
+        "HTTP response fields match architecture.md verbatim (no silent renames).",
+        "Never sets Status: completed."
+      ],
+      "anti_patterns": [
+        "Edits files under web/.",
+        "Writes production code before the failing test exists.",
+        "Modifies the test spec to make tests pass.",
+        "Self-picks a task — must use the exact path in the prompt.",
+        "Expands scope beyond the single task."
+      ]
+    },
+    {
+      "id": "be-dev-2",
+      "agent": "be-dev",
+      "scenario": "wrong track — given an FE task",
+      "setup": "Task US001_fe_add_item_button.md with Track: FE. Spawn be-dev on it anyway (simulates orchestrator error).",
+      "prompt": "Work docs/requirements/REQ001_checkout_basket/US001_fe_add_item_button.md.",
+      "expected_artifacts": ["NONE — no files modified"],
+      "expected_behavior": [
+        "Reports `WRONG_TRACK` immediately.",
+        "Does not edit web/ to 'help out'.",
+        "Does not claim the task."
+      ],
+      "anti_patterns": [
+        "Silently switches to FE implementation.",
+        "Edits services/ to fake the task.",
+        "Claims the task and then bails (leaving stale `Worked-by:`)."
+      ]
+    },
+    {
+      "id": "fe-dev-1",
+      "agent": "fe-dev",
+      "scenario": "happy path — one FE task, TDD with MSW",
+      "setup": "Task US001_fe_add_item_button.md with Track: FE, Status: pending. Matching US001_fe_unit_tests.md with FCT-* IDs. Architecture.md API contract for POST /basket/items present. web/ skeleton with Jest + MSW configured.",
+      "prompt": "Work docs/requirements/REQ001_checkout_basket/US001_fe_add_item_button.md.",
+      "expected_artifacts": [
+        "*.test.tsx files under web/ written FIRST",
+        "MSW handlers under web/test/msw/ reflecting architecture's JSON verbatim",
+        "Component / hook code under web/components/ or web/hooks/",
+        "Typed API client in web/lib/api/ — the ONLY place that hits the backend",
+        "Status: in_review (NOT completed)"
+      ],
+      "expected_behavior": [
+        "Strict RED → GREEN → REFACTOR.",
+        "types.ts matches architecture's field names and types exactly.",
+        "MSW success + error responses match architecture's status codes."
+      ],
+      "anti_patterns": [
+        "Introduces getServerSideProps / getStaticProps / getInitialProps.",
+        "Adds an API route under web/pages/api/.",
+        "Fetches directly from a component (must go through lib/api).",
+        "Edits services/.",
+        "Sets Status: completed."
+      ]
+    }
+  ]
+}

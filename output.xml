@@ -1,0 +1,2953 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot generator="Robot 7.4.2 (Python 3.10.11 on darwin)" generated="2026-05-15T13:50:35.687093" rpa="false" schemaversion="5">
+<suite id="s1" name="REQ001 agent board mcp" source="/Users/a667282/workspace/agents-board/tests/e2e/REQ001_agent_board_mcp">
+<suite id="s1-s1" name="US001 mcp server setup" source="/Users/a667282/workspace/agents-board/tests/e2e/REQ001_agent_board_mcp/US001_mcp_server_setup.robot">
+<test id="s1-s1-t1" name="Scenario: MCP Server SSE Connection Setup" line="6">
+<kw name="Connect To MCP SSE" owner="mcp_keywords">
+<kw name="Get Session Id From Sse" owner="sse_helper">
+<msg time="2026-05-15T13:50:35.832742" level="INFO">${session_id} = 947f203d-556c-412f-aa8e-47bf307eedcf</msg>
+<var>${session_id}</var>
+<arg>${BASE_URL}/sse</arg>
+<doc>Connects to the SSE endpoint, reads the first 'endpoint' event,
+and returns the sessionId. Note: This closes the connection after
+getting the ID, which is fine for the current simple tool-call tests
+if the server allows session persistence for a short window or 
+if the session isn't strictly bound to the socket's lifecycle 
+(though in our current Echo implementation it is).</doc>
+<status status="PASS" start="2026-05-15T13:50:35.825046" elapsed="0.007740"/>
+</kw>
+<return>
+<value>${session_id}</value>
+<status status="PASS" start="2026-05-15T13:50:35.832832" elapsed="0.000027"/>
+</return>
+<msg time="2026-05-15T13:50:35.832943" level="INFO">${session_id} = 947f203d-556c-412f-aa8e-47bf307eedcf</msg>
+<var>${session_id}</var>
+<doc>Establishes an SSE connection and returns the session ID.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.824689" elapsed="0.008268"/>
+</kw>
+<kw name="Should Not Be Empty" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.833890" level="INFO">Length is 36.</msg>
+<arg>${session_id}</arg>
+<doc>Verifies that the given item is not empty.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.833060" elapsed="0.000855"/>
+</kw>
+<doc>Verify that the MCP server accepts SSE connections and returns a session ID.</doc>
+<tag>E2E-001</tag>
+<tag>US001</tag>
+<status status="PASS" start="2026-05-15T13:50:35.824215" elapsed="0.009780"/>
+</test>
+<status status="PASS" start="2026-05-15T13:50:35.704555" elapsed="0.129629"/>
+</suite>
+<suite id="s1-s2" name="US002 project crud" source="/Users/a667282/workspace/agents-board/tests/e2e/REQ001_agent_board_mcp/US002_project_crud.robot">
+<test id="s1-s2-t1" name="Scenario: Full Project CRUD Lifecycle" line="6">
+<kw name="Connect To MCP SSE" owner="mcp_keywords">
+<kw name="Get Session Id From Sse" owner="sse_helper">
+<msg time="2026-05-15T13:50:35.837332" level="INFO">${session_id} = 9343c9a1-89fa-4657-a97a-dbb6130b43f9</msg>
+<var>${session_id}</var>
+<arg>${BASE_URL}/sse</arg>
+<doc>Connects to the SSE endpoint, reads the first 'endpoint' event,
+and returns the sessionId. Note: This closes the connection after
+getting the ID, which is fine for the current simple tool-call tests
+if the server allows session persistence for a short window or 
+if the session isn't strictly bound to the socket's lifecycle 
+(though in our current Echo implementation it is).</doc>
+<status status="PASS" start="2026-05-15T13:50:35.835878" elapsed="0.001474"/>
+</kw>
+<return>
+<value>${session_id}</value>
+<status status="PASS" start="2026-05-15T13:50:35.837383" elapsed="0.000020"/>
+</return>
+<msg time="2026-05-15T13:50:35.837469" level="INFO">${session_id} = 9343c9a1-89fa-4657-a97a-dbb6130b43f9</msg>
+<var>${session_id}</var>
+<doc>Establishes an SSE connection and returns the session ID.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.835760" elapsed="0.001721"/>
+</kw>
+<kw name="Create Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.843834" level="INFO">${args} = {'name': 'Test Project', 'description': 'Initial description'}</msg>
+<var>${args}</var>
+<arg>name=${name}</arg>
+<arg>description=${description}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.837770" elapsed="0.006085"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.844269" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.844126" elapsed="0.000156"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.844492" level="INFO">${params} = {'name': 'create_project', 'arguments': {'name': 'Test Project', 'description': 'Initial description'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.844336" elapsed="0.000168"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.844552" elapsed="0.000127"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.873285" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ path_url=/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '168', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_project", "arguments": {"name": "Test Project", "description": "Initial description"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.873369" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '293'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"67153717-9bb9-46dd-8ec9-e994acf76121\",\"name\":\"Test Project\",\"description\":\"Initial description\",\"createdAt\":\"2026-05-15T13:50:35.856495+07:00\",\"updatedAt\":\"2026-05-15T13:50:35.856495+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.873479" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.844727" elapsed="0.028769"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.873556" elapsed="0.000038"/>
+</return>
+<msg time="2026-05-15T13:50:35.873684" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.843958" elapsed="0.029740"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.873724" elapsed="0.000019"/>
+</return>
+<msg time="2026-05-15T13:50:35.873814" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>Test Project</arg>
+<arg>Initial description</arg>
+<status status="PASS" start="2026-05-15T13:50:35.837591" elapsed="0.036239"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.874466" level="INFO">${project} = {"id":"67153717-9bb9-46dd-8ec9-e994acf76121","name":"Test Project","description":"Initial description","createdAt":"2026-05-15T13:50:35.856495+07:00","updatedAt":"2026-05-15T13:50:35.856495+07:00"}</msg>
+<var>${project}</var>
+<arg>${resp.json()['result']['content'][0]['text']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.873969" elapsed="0.000513"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.874865" level="INFO">${project_json} = {'id': '67153717-9bb9-46dd-8ec9-e994acf76121', 'name': 'Test Project', 'description': 'Initial description', 'createdAt': '2026-05-15T13:50:35.856495+07:00', 'updatedAt': '2026-05-15T13:50:35.856495+0...</msg>
+<var>${project_json}</var>
+<arg>json.loads('''${project}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.874627" elapsed="0.000253"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.875253" level="INFO">${project_id} = 67153717-9bb9-46dd-8ec9-e994acf76121</msg>
+<var>${project_id}</var>
+<arg>${project_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.874957" elapsed="0.000310"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${project_json['name']}</arg>
+<arg>Test Project</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.875338" elapsed="0.000280"/>
+</kw>
+<kw name="Get Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.876093" level="INFO">${args} = {'id': '67153717-9bb9-46dd-8ec9-e994acf76121'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.875921" elapsed="0.000186"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.876488" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.876346" elapsed="0.000155"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.876716" level="INFO">${params} = {'name': 'get_project', 'arguments': {'id': '67153717-9bb9-46dd-8ec9-e994acf76121'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.876554" elapsed="0.000175"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.876780" elapsed="0.000112"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.884412" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ path_url=/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '149', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_project", "arguments": {"id": "67153717-9bb9-46dd-8ec9-e994acf76121"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.884449" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '293'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"67153717-9bb9-46dd-8ec9-e994acf76121\",\"name\":\"Test Project\",\"description\":\"Initial description\",\"createdAt\":\"2026-05-15T13:50:35.856495+07:00\",\"updatedAt\":\"2026-05-15T13:50:35.856495+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.884509" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.876940" elapsed="0.007582"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.884555" elapsed="0.000021"/>
+</return>
+<msg time="2026-05-15T13:50:35.884643" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.876188" elapsed="0.008467"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.884679" elapsed="0.000012"/>
+</return>
+<msg time="2026-05-15T13:50:35.884746" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.875743" elapsed="0.009015"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.885174" level="INFO">${project_text} = {"id":"67153717-9bb9-46dd-8ec9-e994acf76121","name":"Test Project","description":"Initial description","createdAt":"2026-05-15T13:50:35.856495+07:00","updatedAt":"2026-05-15T13:50:35.856495+07:00"}</msg>
+<var>${project_text}</var>
+<arg>${resp.json()['result']['content'][0]['text']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.884840" elapsed="0.000348"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.885472" level="INFO">${project_json} = {'id': '67153717-9bb9-46dd-8ec9-e994acf76121', 'name': 'Test Project', 'description': 'Initial description', 'createdAt': '2026-05-15T13:50:35.856495+07:00', 'updatedAt': '2026-05-15T13:50:35.856495+0...</msg>
+<var>${project_json}</var>
+<arg>json.loads('''${project_text}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.885268" elapsed="0.000218"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${project_json['id']}</arg>
+<arg>${project_id}</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.885573" elapsed="0.000290"/>
+</kw>
+<kw name="Update Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.886353" level="INFO">${args} = {'id': '67153717-9bb9-46dd-8ec9-e994acf76121'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.886178" elapsed="0.000188"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${args}</arg>
+<arg>name=${name}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.886619" elapsed="0.000109"/>
+</kw>
+<arg>"${name}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>name=${name}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.886422" elapsed="0.000332"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${description}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>description=${description}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.886839" elapsed="0.000164"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.887506" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.887256" elapsed="0.000263"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.887784" level="INFO">${params} = {'name': 'update_project', 'arguments': {'id': '67153717-9bb9-46dd-8ec9-e994acf76121', 'name': 'Updated Project'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.887610" elapsed="0.000188"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.887847" elapsed="0.000096"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.893585" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ path_url=/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '179', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "update_project", "arguments": {"id": "67153717-9bb9-46dd-8ec9-e994acf76121", "name": "Updated Project"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.893623" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '296'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"67153717-9bb9-46dd-8ec9-e994acf76121\",\"name\":\"Updated Project\",\"description\":\"Initial description\",\"createdAt\":\"2026-05-15T13:50:35.856495+07:00\",\"updatedAt\":\"2026-05-15T13:50:35.892701+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.893684" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.887992" elapsed="0.005706"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.893731" elapsed="0.000019"/>
+</return>
+<msg time="2026-05-15T13:50:35.893816" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>update_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.887088" elapsed="0.006740"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.893852" elapsed="0.000013"/>
+</return>
+<msg time="2026-05-15T13:50:35.893965" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<arg>name=Updated Project</arg>
+<status status="PASS" start="2026-05-15T13:50:35.885969" elapsed="0.008010"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.894395" level="INFO">${project_text} = {"id":"67153717-9bb9-46dd-8ec9-e994acf76121","name":"Updated Project","description":"Initial description","createdAt":"2026-05-15T13:50:35.856495+07:00","updatedAt":"2026-05-15T13:50:35.892701+07:00"}</msg>
+<var>${project_text}</var>
+<arg>${resp.json()['result']['content'][0]['text']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.894065" elapsed="0.000345"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.894675" level="INFO">${project_json} = {'id': '67153717-9bb9-46dd-8ec9-e994acf76121', 'name': 'Updated Project', 'description': 'Initial description', 'createdAt': '2026-05-15T13:50:35.856495+07:00', 'updatedAt': '2026-05-15T13:50:35.89270...</msg>
+<var>${project_json}</var>
+<arg>json.loads('''${project_text}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.894486" elapsed="0.000203"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${project_json['name']}</arg>
+<arg>Updated Project</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.894756" elapsed="0.000276"/>
+</kw>
+<kw name="List Projects Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.895387" level="INFO">${args} = {}</msg>
+<var>${args}</var>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.895268" elapsed="0.000133"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.895774" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.895629" elapsed="0.000158"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.896011" level="INFO">${params} = {'name': 'list_projects', 'arguments': {}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.895842" elapsed="0.000181"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.896073" elapsed="0.000105"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.899890" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ path_url=/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '107', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "list_projects", "arguments": {}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.899926" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Transfer-Encoding': 'chunked'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"projects\":[{\"id\":\"67153717-9bb9-46dd-8ec9-e994acf76121\",\"name\":\"Updated Project\",\"description\":\"Initial description\",\"createdAt\":\"2026-05-15T13:50:35.856495+07:00\",\"updatedAt\":\"2026-05-15T13:50:35.892701+07:00\"},{\"id\":\"0e77c943-65ce-49df-b0df-fedb6a6582eb\",\"name\":\"Task Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:42:37.043517+07:00\",\"updatedAt\":\"2026-05-15T13:42:37.043517+07:00\"},{\"id\":\"3fba0327-408f-4a2e-86dd-7fa2ff4f7694\",\"name\":\"Story Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:42:37.002131+07:00\",\"updatedAt\":\"2026-05-15T13:42:37.002131+07:00\"},{\"id\":\"47ae04c9-3c14-4fa8-b919-5d09e51c2316\",\"name\":\"Doc Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:42:36.963148+07:00\",\"updatedAt\":\"2026-05-15T13:42:36.963148+07:00\"},{\"id\":\"1446a3c7-d271-427f-8920-94a3791e08a1\",\"name\":\"Task Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:39:24.482484+07:00\",\"updatedAt\":\"2026-05-15T13:39:24.482484+07:00\"},{\"id\":\"71731e6b-9964-468e-b3ee-f854a03e7f78\",\"name\":\"Story Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:39:24.448526+07:00\",\"updatedAt\":\"2026-05-15T13:39:24.448526+07:00\"},{\"id\":\"2644eb4a-9c32-4546-9d8d-ca1b7a7846e4\",\"name\":\"Doc Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:39:24.40854+07:00\",\"updatedAt\":\"2026-05-15T13:39:24.40854+07:00\"},{\"id\":\"e250ffad-516c-4b1d-92ca-edba630c2145\",\"name\":\"Updated Project\",\"description\":\"Initial description\",\"createdAt\":\"2026-05-15T13:39:24.357678+07:00\",\"updatedAt\":\"2026-05-15T13:39:24.389967+07:00\"},{\"id\":\"69b945d6-d8c4-4803-bcdb-2de07ce9a481\",\"name\":\"Task Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:38:58.594424+07:00\",\"updatedAt\":\"2026-05-15T13:38:58.594424+07:00\"},{\"id\":\"32618ba2-04b6-4c76-9b0c-6b38a119bad6\",\"name\":\"Story Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:38:58.585069+07:00\",\"updatedAt\":\"2026-05-15T13:38:58.585069+07:00\"},{\"id\":\"7967fa08-c5d0-4a40-b001-08fe3e2e7148\",\"name\":\"Doc Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:38:58.573696+07:00\",\"updatedAt\":\"2026-05-15T13:38:58.573696+07:00\"},{\"id\":\"d1743db5-f49a-4630-8f2b-7ef5c65f9142\",\"name\":\"Test Project\",\"description\":\"Initial description\",\"createdAt\":\"2026-05-15T13:38:58.543915+07:00\",\"updatedAt\":\"2026-05-15T13:38:58.543915+07:00\"}]}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.900024" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.896227" elapsed="0.003811"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.900070" elapsed="0.000018"/>
+</return>
+<msg time="2026-05-15T13:50:35.900155" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>list_projects</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.895476" elapsed="0.004691"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.900190" elapsed="0.000012"/>
+</return>
+<msg time="2026-05-15T13:50:35.900255" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.895129" elapsed="0.005138"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.900673" level="INFO">${list_text} = {"projects":[{"id":"67153717-9bb9-46dd-8ec9-e994acf76121","name":"Updated Project","description":"Initial description","createdAt":"2026-05-15T13:50:35.856495+07:00","updatedAt":"2026-05-15T13:50:35.8...</msg>
+<var>${list_text}</var>
+<arg>${resp.json()['result']['content'][0]['text']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.900342" elapsed="0.000345"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.900963" level="INFO">${list_json} = {'projects': [{'id': '67153717-9bb9-46dd-8ec9-e994acf76121', 'name': 'Updated Project', 'description': 'Initial description', 'createdAt': '2026-05-15T13:50:35.856495+07:00', 'updatedAt': '2026-05-15T...</msg>
+<var>${list_json}</var>
+<arg>json.loads('''${list_text}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.900757" elapsed="0.000220"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.901177" level="INFO">${found} = False</msg>
+<var>${found}</var>
+<arg>${FALSE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.901053" elapsed="0.000136"/>
+</kw>
+<for flavor="IN">
+<iter>
+<if>
+<branch type="IF" condition="'${p['id']}' == '${project_id}'">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.901897" level="INFO">${found} = True</msg>
+<var>${found}</var>
+<arg>${TRUE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.901773" elapsed="0.000136"/>
+</kw>
+<break>
+<status status="PASS" start="2026-05-15T13:50:35.901932" elapsed="0.000019"/>
+</break>
+<status status="PASS" start="2026-05-15T13:50:35.901523" elapsed="0.000441"/>
+</branch>
+<status status="PASS" start="2026-05-15T13:50:35.901511" elapsed="0.000465"/>
+</if>
+<var name="${p}">{'id': '67153717-9bb9-46dd-8ec9-e994acf76121', 'name': 'Updated Project', 'description': 'Initial description', 'createdAt': '2026-05-15T13:50:35.856495+07:00', 'updatedAt': '2026-05-15T13:50:35.89270...</var>
+<status status="PASS" start="2026-05-15T13:50:35.901484" elapsed="0.000505"/>
+</iter>
+<var>${p}</var>
+<value>@{list_json['projects']}</value>
+<status status="PASS" start="2026-05-15T13:50:35.901234" elapsed="0.000770"/>
+</for>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${found}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.902065" elapsed="0.000115"/>
+</kw>
+<kw name="Delete Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.902659" level="INFO">${args} = {'id': '67153717-9bb9-46dd-8ec9-e994acf76121'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.902505" elapsed="0.000167"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.903158" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.902898" elapsed="0.000284"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.903511" level="INFO">${params} = {'name': 'delete_project', 'arguments': {'id': '67153717-9bb9-46dd-8ec9-e994acf76121'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.903288" elapsed="0.000238"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.903586" elapsed="0.000116"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.915235" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ path_url=/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '152', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "delete_project", "arguments": {"id": "67153717-9bb9-46dd-8ec9-e994acf76121"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.915296" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '94'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"success\":true}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.915396" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.903878" elapsed="0.011533"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.915468" elapsed="0.000032"/>
+</return>
+<msg time="2026-05-15T13:50:35.915594" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>delete_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.902748" elapsed="0.012858"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.915632" elapsed="0.000014"/>
+</return>
+<msg time="2026-05-15T13:50:35.915783" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.902264" elapsed="0.013537"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.916341" level="INFO">${delete_text} = {"success":true}</msg>
+<var>${delete_text}</var>
+<arg>${resp.json()['result']['content'][0]['text']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.915923" elapsed="0.000433"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.916625" level="INFO">${delete_json} = {'success': True}</msg>
+<var>${delete_json}</var>
+<arg>json.loads('''${delete_text}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.916437" elapsed="0.000200"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${delete_json['success']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.916707" elapsed="0.000270"/>
+</kw>
+<kw name="Get Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.917422" level="INFO">${args} = {'id': '67153717-9bb9-46dd-8ec9-e994acf76121'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.917250" elapsed="0.000188"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.917826" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.917671" elapsed="0.000168"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.918058" level="INFO">${params} = {'name': 'get_project', 'arguments': {'id': '67153717-9bb9-46dd-8ec9-e994acf76121'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.917892" elapsed="0.000178"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.918125" elapsed="0.000116"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.921981" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ path_url=/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '149', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_project", "arguments": {"id": "67153717-9bb9-46dd-8ec9-e994acf76121"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.922016" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=9343c9a1-89fa-4657-a97a-dbb6130b43f9 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '108'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"project not found"}],"isError":true}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.922071" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.918288" elapsed="0.003795"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.922115" elapsed="0.000020"/>
+</return>
+<msg time="2026-05-15T13:50:35.922195" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.917516" elapsed="0.004690"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.922227" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.922289" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.917088" elapsed="0.005212"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${resp.json()['result']['isError']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.922398" elapsed="0.000307"/>
+</kw>
+<doc>Create, read, update, list and delete a project via MCP tools.</doc>
+<tag>E2E-002</tag>
+<tag>US002</tag>
+<status status="PASS" start="2026-05-15T13:50:35.835518" elapsed="0.087263"/>
+</test>
+<status status="PASS" start="2026-05-15T13:50:35.834386" elapsed="0.088547"/>
+</suite>
+<suite id="s1-s3" name="US003 document crud" source="/Users/a667282/workspace/agents-board/tests/e2e/REQ001_agent_board_mcp/US003_document_crud.robot">
+<test id="s1-s3-t1" name="Scenario: Full Document CRUD Lifecycle" line="6">
+<kw name="Connect To MCP SSE" owner="mcp_keywords">
+<kw name="Get Session Id From Sse" owner="sse_helper">
+<msg time="2026-05-15T13:50:35.926423" level="INFO">${session_id} = b4e561c8-40f3-4edc-a392-e1585072a5d0</msg>
+<var>${session_id}</var>
+<arg>${BASE_URL}/sse</arg>
+<doc>Connects to the SSE endpoint, reads the first 'endpoint' event,
+and returns the sessionId. Note: This closes the connection after
+getting the ID, which is fine for the current simple tool-call tests
+if the server allows session persistence for a short window or 
+if the session isn't strictly bound to the socket's lifecycle 
+(though in our current Echo implementation it is).</doc>
+<status status="PASS" start="2026-05-15T13:50:35.924865" elapsed="0.001575"/>
+</kw>
+<return>
+<value>${session_id}</value>
+<status status="PASS" start="2026-05-15T13:50:35.926503" elapsed="0.000017"/>
+</return>
+<msg time="2026-05-15T13:50:35.926581" level="INFO">${session_id} = b4e561c8-40f3-4edc-a392-e1585072a5d0</msg>
+<var>${session_id}</var>
+<doc>Establishes an SSE connection and returns the session ID.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.924752" elapsed="0.001840"/>
+</kw>
+<kw name="Create Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.927165" level="INFO">${args} = {'name': 'Doc Project', 'description': ''}</msg>
+<var>${args}</var>
+<arg>name=${name}</arg>
+<arg>description=${description}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.926983" elapsed="0.000195"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.927535" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.927395" elapsed="0.000152"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.927765" level="INFO">${params} = {'name': 'create_project', 'arguments': {'name': 'Doc Project', 'description': ''}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.927598" elapsed="0.000179"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.927824" elapsed="0.000100"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.930496" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ path_url=/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '148', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_project", "arguments": {"name": "Doc Project", "description": ""}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.930542" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '273'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"ac1febf2-ec95-463e-975d-6648a1b78eba\",\"name\":\"Doc Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:50:35.929556+07:00\",\"updatedAt\":\"2026-05-15T13:50:35.929556+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.930612" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.927969" elapsed="0.002657"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.930663" elapsed="0.000022"/>
+</return>
+<msg time="2026-05-15T13:50:35.930754" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.927256" elapsed="0.003509"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.930787" elapsed="0.000012"/>
+</return>
+<msg time="2026-05-15T13:50:35.930851" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>Doc Project</arg>
+<status status="PASS" start="2026-05-15T13:50:35.926684" elapsed="0.004178"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.931337" level="INFO">${project_json} = {'id': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'name': 'Doc Project', 'description': '', 'createdAt': '2026-05-15T13:50:35.929556+07:00', 'updatedAt': '2026-05-15T13:50:35.929556+07:00'}</msg>
+<var>${project_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.930962" elapsed="0.000388"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.931662" level="INFO">${project_id} = ac1febf2-ec95-463e-975d-6648a1b78eba</msg>
+<var>${project_id}</var>
+<arg>${project_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.931421" elapsed="0.000253"/>
+</kw>
+<kw name="Create Document Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.932234" level="INFO">${args} = {'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'title': 'Test Doc', 'content': 'Some content'}</msg>
+<var>${args}</var>
+<arg>projectId=${project_id}</arg>
+<arg>title=${title}</arg>
+<arg>content=${content}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.932043" elapsed="0.000204"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.932590" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.932464" elapsed="0.000138"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.932800" level="INFO">${params} = {'name': 'create_document', 'arguments': {'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'title': 'Test Doc', 'content': 'Some content'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.932652" elapsed="0.000160"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.932856" elapsed="0.000093"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.935351" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ path_url=/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '208', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_document", "arguments": {"projectId": "ac1febf2-ec95-463e-975d-6648a1b78eba", "title": "Test Doc", "content": "Some content"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.935427" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '320'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"8546d11e-36fd-4bc4-a6c1-7c00c768cfe5\",\"projectId\":\"ac1febf2-ec95-463e-975d-6648a1b78eba\",\"title\":\"Test Doc\",\"content\":\"Some content\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.935511" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.932992" elapsed="0.002533"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.935562" elapsed="0.000036"/>
+</return>
+<msg time="2026-05-15T13:50:35.935673" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_document</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.932323" elapsed="0.003362"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.935709" elapsed="0.000012"/>
+</return>
+<msg time="2026-05-15T13:50:35.935825" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<arg>Test Doc</arg>
+<arg>Some content</arg>
+<status status="PASS" start="2026-05-15T13:50:35.931770" elapsed="0.004068"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.936353" level="INFO">${doc_json} = {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5', 'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'title': 'Test Doc', 'content': 'Some content', 'createdAt': '2026-05-15T13:50:35+07:00', 'updatedAt...</msg>
+<var>${doc_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.935946" elapsed="0.000421"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.936738" level="INFO">${doc_id} = 8546d11e-36fd-4bc4-a6c1-7c00c768cfe5</msg>
+<var>${doc_id}</var>
+<arg>${doc_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.936452" elapsed="0.000299"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${doc_json['title']}</arg>
+<arg>Test Doc</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.936823" elapsed="0.000279"/>
+</kw>
+<kw name="Get Document Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.937520" level="INFO">${args} = {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.937365" elapsed="0.000167"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.937875" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.937748" elapsed="0.000139"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.938090" level="INFO">${params} = {'name': 'get_document', 'arguments': {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.937935" elapsed="0.000166"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.938147" elapsed="0.000112"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.940215" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ path_url=/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '150', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_document", "arguments": {"id": "8546d11e-36fd-4bc4-a6c1-7c00c768cfe5"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.940248" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '320'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"8546d11e-36fd-4bc4-a6c1-7c00c768cfe5\",\"projectId\":\"ac1febf2-ec95-463e-975d-6648a1b78eba\",\"title\":\"Test Doc\",\"content\":\"Some content\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.940300" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.938310" elapsed="0.002002"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.940341" elapsed="0.000017"/>
+</return>
+<msg time="2026-05-15T13:50:35.940425" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_document</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.937610" elapsed="0.002826"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.940456" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.940513" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${doc_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.937207" elapsed="0.003316"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.940947" level="INFO">${doc_json} = {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5', 'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'title': 'Test Doc', 'content': 'Some content', 'createdAt': '2026-05-15T13:50:35+07:00', 'updatedAt...</msg>
+<var>${doc_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.940605" elapsed="0.000356"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${doc_json['id']}</arg>
+<arg>${doc_id}</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.941029" elapsed="0.000282"/>
+</kw>
+<kw name="Update Document Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.941774" level="INFO">${args} = {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.941624" elapsed="0.000162"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${args}</arg>
+<arg>title=${title}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.942019" elapsed="0.000091"/>
+</kw>
+<arg>"${title}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>title=${title}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.941839" elapsed="0.000294"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${content}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>content=${content}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.942184" elapsed="0.000135"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.942769" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.942538" elapsed="0.000244"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.942989" level="INFO">${params} = {'name': 'update_document', 'arguments': {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5', 'title': 'Updated Doc'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.942833" elapsed="0.000168"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.943050" elapsed="0.000090"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.946340" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ path_url=/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '177', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "update_document", "arguments": {"id": "8546d11e-36fd-4bc4-a6c1-7c00c768cfe5", "title": "Updated Doc"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.946370" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '323'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"8546d11e-36fd-4bc4-a6c1-7c00c768cfe5\",\"projectId\":\"ac1febf2-ec95-463e-975d-6648a1b78eba\",\"title\":\"Updated Doc\",\"content\":\"Some content\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.946421" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.943184" elapsed="0.003249"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.946463" elapsed="0.000015"/>
+</return>
+<msg time="2026-05-15T13:50:35.946534" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>update_document</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.942395" elapsed="0.004149"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.946567" elapsed="0.000010"/>
+</return>
+<msg time="2026-05-15T13:50:35.946660" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${doc_id}</arg>
+<arg>title=Updated Doc</arg>
+<status status="PASS" start="2026-05-15T13:50:35.941432" elapsed="0.005240"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.947080" level="INFO">${doc_json} = {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5', 'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'title': 'Updated Doc', 'content': 'Some content', 'createdAt': '2026-05-15T13:50:35+07:00', 'update...</msg>
+<var>${doc_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.946754" elapsed="0.000338"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${doc_json['title']}</arg>
+<arg>Updated Doc</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.947161" elapsed="0.000266"/>
+</kw>
+<kw name="List Documents Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.947841" level="INFO">${args} = {'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba'}</msg>
+<var>${args}</var>
+<arg>projectId=${project_id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.947683" elapsed="0.000170"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.948199" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.948058" elapsed="0.000153"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.948415" level="INFO">${params} = {'name': 'list_documents', 'arguments': {'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.948268" elapsed="0.000159"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.948470" elapsed="0.000088"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.950465" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ path_url=/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '159', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "list_documents", "arguments": {"projectId": "ac1febf2-ec95-463e-975d-6648a1b78eba"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.950493" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '341'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"documents\":[{\"id\":\"8546d11e-36fd-4bc4-a6c1-7c00c768cfe5\",\"projectId\":\"ac1febf2-ec95-463e-975d-6648a1b78eba\",\"title\":\"Updated Doc\",\"content\":\"Some content\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}]}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.950570" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.948611" elapsed="0.001972"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.950617" elapsed="0.000018"/>
+</return>
+<msg time="2026-05-15T13:50:35.950696" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>list_documents</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.947924" elapsed="0.002782"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.950727" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.950785" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.947522" elapsed="0.003274"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.951197" level="INFO">${list_json} = {'documents': [{'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5', 'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'title': 'Updated Doc', 'content': 'Some content', 'createdAt': '2026-05-15T13:50:35+...</msg>
+<var>${list_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.950869" elapsed="0.000341"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.951408" level="INFO">${found} = False</msg>
+<var>${found}</var>
+<arg>${FALSE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.951284" elapsed="0.000135"/>
+</kw>
+<for flavor="IN">
+<iter>
+<if>
+<branch type="IF" condition="'${d['id']}' == '${doc_id}'">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.952087" level="INFO">${found} = True</msg>
+<var>${found}</var>
+<arg>${TRUE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.951968" elapsed="0.000131"/>
+</kw>
+<break>
+<status status="PASS" start="2026-05-15T13:50:35.952120" elapsed="0.000016"/>
+</break>
+<status status="PASS" start="2026-05-15T13:50:35.951737" elapsed="0.000411"/>
+</branch>
+<status status="PASS" start="2026-05-15T13:50:35.951728" elapsed="0.000430"/>
+</if>
+<var name="${d}">{'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5', 'projectId': 'ac1febf2-ec95-463e-975d-6648a1b78eba', 'title': 'Updated Doc', 'content': 'Some content', 'createdAt': '2026-05-15T13:50:35+07:00', 'update...</var>
+<status status="PASS" start="2026-05-15T13:50:35.951709" elapsed="0.000463"/>
+</iter>
+<var>${d}</var>
+<value>@{list_json['documents']}</value>
+<status status="PASS" start="2026-05-15T13:50:35.951474" elapsed="0.000712"/>
+</for>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${found}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.952247" elapsed="0.000110"/>
+</kw>
+<kw name="Delete Document Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.952802" level="INFO">${args} = {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.952607" elapsed="0.000210"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.953190" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.953049" elapsed="0.000154"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.953513" level="INFO">${params} = {'name': 'delete_document', 'arguments': {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.953255" elapsed="0.000271"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.953588" elapsed="0.000106"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.956329" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ path_url=/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '153', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "delete_document", "arguments": {"id": "8546d11e-36fd-4bc4-a6c1-7c00c768cfe5"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.956357" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '94'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"success\":true}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.956405" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.953745" elapsed="0.002672"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.956445" elapsed="0.000015"/>
+</return>
+<msg time="2026-05-15T13:50:35.956520" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>delete_document</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.952899" elapsed="0.003633"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.956553" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.956644" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${doc_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.952441" elapsed="0.004215"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.957055" level="INFO">${delete_json} = {'success': True}</msg>
+<var>${delete_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.956741" elapsed="0.000326"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${delete_json['success']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.957138" elapsed="0.000243"/>
+</kw>
+<kw name="Get Document Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.957775" level="INFO">${args} = {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.957626" elapsed="0.000161"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.958136" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.958004" elapsed="0.000145"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.958354" level="INFO">${params} = {'name': 'get_document', 'arguments': {'id': '8546d11e-36fd-4bc4-a6c1-7c00c768cfe5'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.958201" elapsed="0.000164"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.958408" elapsed="0.000084"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.960727" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ path_url=/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '150', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_document", "arguments": {"id": "8546d11e-36fd-4bc4-a6c1-7c00c768cfe5"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.960754" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=b4e561c8-40f3-4edc-a392-e1585072a5d0 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '109'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"document not found"}],"isError":true}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.960799" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.958542" elapsed="0.002269"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.960839" elapsed="0.000014"/>
+</return>
+<msg time="2026-05-15T13:50:35.960909" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_document</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.957861" elapsed="0.003060"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.960942" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.961002" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${doc_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.957491" elapsed="0.003521"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${resp.json()['result']['isError']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.961076" elapsed="0.000262"/>
+</kw>
+<doc>Create, read, update, list and delete a document via MCP tools.</doc>
+<tag>E2E-003</tag>
+<tag>US003</tag>
+<status status="PASS" start="2026-05-15T13:50:35.924523" elapsed="0.036884"/>
+</test>
+<status status="PASS" start="2026-05-15T13:50:35.923131" elapsed="0.038424"/>
+</suite>
+<suite id="s1-s4" name="US004 user story crud" source="/Users/a667282/workspace/agents-board/tests/e2e/REQ001_agent_board_mcp/US004_user_story_crud.robot">
+<test id="s1-s4-t1" name="Scenario: Full User Story CRUD Lifecycle" line="6">
+<kw name="Connect To MCP SSE" owner="mcp_keywords">
+<kw name="Get Session Id From Sse" owner="sse_helper">
+<msg time="2026-05-15T13:50:35.965300" level="INFO">${session_id} = 4f98b113-1468-4ad6-8361-08e7aea545f4</msg>
+<var>${session_id}</var>
+<arg>${BASE_URL}/sse</arg>
+<doc>Connects to the SSE endpoint, reads the first 'endpoint' event,
+and returns the sessionId. Note: This closes the connection after
+getting the ID, which is fine for the current simple tool-call tests
+if the server allows session persistence for a short window or 
+if the session isn't strictly bound to the socket's lifecycle 
+(though in our current Echo implementation it is).</doc>
+<status status="PASS" start="2026-05-15T13:50:35.963482" elapsed="0.001843"/>
+</kw>
+<return>
+<value>${session_id}</value>
+<status status="PASS" start="2026-05-15T13:50:35.965359" elapsed="0.000021"/>
+</return>
+<msg time="2026-05-15T13:50:35.965457" level="INFO">${session_id} = 4f98b113-1468-4ad6-8361-08e7aea545f4</msg>
+<var>${session_id}</var>
+<doc>Establishes an SSE connection and returns the session ID.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.963369" elapsed="0.002100"/>
+</kw>
+<kw name="Create Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.966148" level="INFO">${args} = {'name': 'Story Project', 'description': ''}</msg>
+<var>${args}</var>
+<arg>name=${name}</arg>
+<arg>description=${description}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.965935" elapsed="0.000226"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.966537" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.966392" elapsed="0.000157"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.966770" level="INFO">${params} = {'name': 'create_project', 'arguments': {'name': 'Story Project', 'description': ''}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.966601" elapsed="0.000182"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.966831" elapsed="0.000099"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.969505" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ path_url=/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '150', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_project", "arguments": {"name": "Story Project", "description": ""}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.969536" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '275'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"5f302c6b-7277-4fb5-9a30-9fc819f0ae4e\",\"name\":\"Story Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:50:35.968805+07:00\",\"updatedAt\":\"2026-05-15T13:50:35.968805+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.969615" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.966981" elapsed="0.002647"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.969661" elapsed="0.000026"/>
+</return>
+<msg time="2026-05-15T13:50:35.969762" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.966241" elapsed="0.003532"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.969795" elapsed="0.000012"/>
+</return>
+<msg time="2026-05-15T13:50:35.969862" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>Story Project</arg>
+<status status="PASS" start="2026-05-15T13:50:35.965599" elapsed="0.004273"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.970286" level="INFO">${project_json} = {'id': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'name': 'Story Project', 'description': '', 'createdAt': '2026-05-15T13:50:35.968805+07:00', 'updatedAt': '2026-05-15T13:50:35.968805+07:00'}</msg>
+<var>${project_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.969950" elapsed="0.000350"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.970630" level="INFO">${project_id} = 5f302c6b-7277-4fb5-9a30-9fc819f0ae4e</msg>
+<var>${project_id}</var>
+<arg>${project_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.970373" elapsed="0.000270"/>
+</kw>
+<kw name="Create User Story Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.971137" level="INFO">${args} = {'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'title': 'Test Story', 'description': 'Story description', 'status': 'draft'}</msg>
+<var>${args}</var>
+<arg>projectId=${project_id}</arg>
+<arg>title=${title}</arg>
+<arg>description=${description}</arg>
+<arg>status=${status}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.970923" elapsed="0.000227"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.971516" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.971383" elapsed="0.000145"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.971733" level="INFO">${params} = {'name': 'create_user_story', 'arguments': {'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'title': 'Test Story', 'description': 'Story description', 'status': 'draft'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.971584" elapsed="0.000161"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.971795" elapsed="0.000094"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.974495" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ path_url=/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '240', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_user_story", "arguments": {"projectId": "5f302c6b-7277-4fb5-9a30-9fc819f0ae4e", "title": "Test Story", "description": "Story description", "status": "draft"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.974525" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '352'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"579f5ff9-4983-43d2-86c2-eee9a189400c\",\"projectId\":\"5f302c6b-7277-4fb5-9a30-9fc819f0ae4e\",\"title\":\"Test Story\",\"description\":\"Story description\",\"status\":\"draft\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.974575" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.971935" elapsed="0.002653"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.974616" elapsed="0.000016"/>
+</return>
+<msg time="2026-05-15T13:50:35.974691" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_user_story</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.971232" elapsed="0.003469"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.974722" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.974817" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<arg>Test Story</arg>
+<arg>Story description</arg>
+<arg>draft</arg>
+<status status="PASS" start="2026-05-15T13:50:35.970735" elapsed="0.004094"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.975227" level="INFO">${story_json} = {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c', 'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'title': 'Test Story', 'description': 'Story description', 'status': 'draft', 'createdAt': '2026-05-...</msg>
+<var>${story_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.974900" elapsed="0.000341"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.975564" level="INFO">${story_id} = 579f5ff9-4983-43d2-86c2-eee9a189400c</msg>
+<var>${story_id}</var>
+<arg>${story_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.975310" elapsed="0.000266"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${story_json['title']}</arg>
+<arg>Test Story</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.975640" elapsed="0.000249"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${story_json['status']}</arg>
+<arg>draft</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.975967" elapsed="0.000234"/>
+</kw>
+<kw name="Get User Story Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.976578" level="INFO">${args} = {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.976436" elapsed="0.000154"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.976929" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.976799" elapsed="0.000142"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.977144" level="INFO">${params} = {'name': 'get_user_story', 'arguments': {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.976992" elapsed="0.000164"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.977201" elapsed="0.000094"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.979990" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ path_url=/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '152', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_user_story", "arguments": {"id": "579f5ff9-4983-43d2-86c2-eee9a189400c"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.980025" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '352'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"579f5ff9-4983-43d2-86c2-eee9a189400c\",\"projectId\":\"5f302c6b-7277-4fb5-9a30-9fc819f0ae4e\",\"title\":\"Test Story\",\"description\":\"Story description\",\"status\":\"draft\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.980077" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.977339" elapsed="0.002750"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.980117" elapsed="0.000018"/>
+</return>
+<msg time="2026-05-15T13:50:35.980196" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_user_story</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.976661" elapsed="0.003546"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.980229" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.980290" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${story_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.976297" elapsed="0.004004"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.980718" level="INFO">${story_json} = {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c', 'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'title': 'Test Story', 'description': 'Story description', 'status': 'draft', 'createdAt': '2026-05-...</msg>
+<var>${story_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.980376" elapsed="0.000356"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${story_json['id']}</arg>
+<arg>${story_id}</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.980801" elapsed="0.000279"/>
+</kw>
+<kw name="Update User Story Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.981535" level="INFO">${args} = {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.981383" elapsed="0.000164"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${title}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>title=${title}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.981604" elapsed="0.000150"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${description}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>description=${description}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.981810" elapsed="0.000135"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${args}</arg>
+<arg>status=${status}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.982163" elapsed="0.000095"/>
+</kw>
+<arg>"${status}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>status=${status}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.982000" elapsed="0.000281"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.982639" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.982510" elapsed="0.000141"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.982857" level="INFO">${params} = {'name': 'update_user_story', 'arguments': {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c', 'status': 'in_development'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.982700" elapsed="0.000169"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.982917" elapsed="0.000087"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.987177" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ path_url=/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '183', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "update_user_story", "arguments": {"id": "579f5ff9-4983-43d2-86c2-eee9a189400c", "status": "in_development"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.987233" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '361'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"579f5ff9-4983-43d2-86c2-eee9a189400c\",\"projectId\":\"5f302c6b-7277-4fb5-9a30-9fc819f0ae4e\",\"title\":\"Test Story\",\"description\":\"Story description\",\"status\":\"in_development\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.987287" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.983071" elapsed="0.004229"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.987329" elapsed="0.000018"/>
+</return>
+<msg time="2026-05-15T13:50:35.987406" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>update_user_story</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.982363" elapsed="0.005054"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.987438" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.987537" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${story_id}</arg>
+<arg>status=in_development</arg>
+<status status="PASS" start="2026-05-15T13:50:35.981177" elapsed="0.006373"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.988067" level="INFO">${story_json} = {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c', 'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'title': 'Test Story', 'description': 'Story description', 'status': 'in_development', 'createdAt': ...</msg>
+<var>${story_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.987633" elapsed="0.000454"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${story_json['status']}</arg>
+<arg>in_development</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.988179" elapsed="0.000257"/>
+</kw>
+<kw name="List User Stories Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.988819" level="INFO">${args} = {'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e'}</msg>
+<var>${args}</var>
+<arg>projectId=${project_id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.988675" elapsed="0.000156"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.989160" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.989034" elapsed="0.000137"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.989367" level="INFO">${params} = {'name': 'list_user_stories', 'arguments': {'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.989220" elapsed="0.000158"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.989421" elapsed="0.000090"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.992388" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ path_url=/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '162', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "list_user_stories", "arguments": {"projectId": "5f302c6b-7277-4fb5-9a30-9fc819f0ae4e"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.992424" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '381'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"userStories\":[{\"id\":\"579f5ff9-4983-43d2-86c2-eee9a189400c\",\"projectId\":\"5f302c6b-7277-4fb5-9a30-9fc819f0ae4e\",\"title\":\"Test Story\",\"description\":\"Story description\",\"status\":\"in_development\",\"createdAt\":\"2026-05-15T13:50:35+07:00\",\"updatedAt\":\"2026-05-15T13:50:35+07:00\"}]}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.992484" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.989554" elapsed="0.002942"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:35.992535" elapsed="0.000018"/>
+</return>
+<msg time="2026-05-15T13:50:35.992620" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>list_user_stories</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.988899" elapsed="0.003732"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:35.992651" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:35.992712" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.988527" elapsed="0.004195"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.993218" level="INFO">${list_json} = {'userStories': [{'id': '579f5ff9-4983-43d2-86c2-eee9a189400c', 'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'title': 'Test Story', 'description': 'Story description', 'status': 'in_developmen...</msg>
+<var>${list_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.992815" elapsed="0.000416"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.993444" level="INFO">${found} = False</msg>
+<var>${found}</var>
+<arg>${FALSE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.993315" elapsed="0.000140"/>
+</kw>
+<for flavor="IN">
+<iter>
+<if>
+<branch type="IF" condition="'${s['id']}' == '${story_id}'">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.994168" level="INFO">${found} = True</msg>
+<var>${found}</var>
+<arg>${TRUE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.994038" elapsed="0.000143"/>
+</kw>
+<break>
+<status status="PASS" start="2026-05-15T13:50:35.994203" elapsed="0.000016"/>
+</break>
+<status status="PASS" start="2026-05-15T13:50:35.993798" elapsed="0.000433"/>
+</branch>
+<status status="PASS" start="2026-05-15T13:50:35.993787" elapsed="0.000454"/>
+</if>
+<var name="${s}">{'id': '579f5ff9-4983-43d2-86c2-eee9a189400c', 'projectId': '5f302c6b-7277-4fb5-9a30-9fc819f0ae4e', 'title': 'Test Story', 'description': 'Story description', 'status': 'in_development', 'createdAt': ...</var>
+<status status="PASS" start="2026-05-15T13:50:35.993766" elapsed="0.000490"/>
+</iter>
+<var>${s}</var>
+<value>@{list_json['userStories']}</value>
+<status status="PASS" start="2026-05-15T13:50:35.993500" elapsed="0.000770"/>
+</for>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${found}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.994337" elapsed="0.000124"/>
+</kw>
+<kw name="Delete User Story Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.994936" level="INFO">${args} = {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.994721" elapsed="0.000233"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.995328" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.995198" elapsed="0.000142"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:35.995539" level="INFO">${params} = {'name': 'delete_user_story', 'arguments': {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.995389" elapsed="0.000161"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.995595" elapsed="0.000095"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:35.999831" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ path_url=/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '155', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "delete_user_story", "arguments": {"id": "579f5ff9-4983-43d2-86c2-eee9a189400c"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:35.999885" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:35 GMT', 'Content-Length': '94'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"success\":true}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:35.999965" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:35.995736" elapsed="0.004243"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.000025" elapsed="0.000034"/>
+</return>
+<msg time="2026-05-15T13:50:36.000134" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>delete_user_story</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.995045" elapsed="0.005102"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.000170" elapsed="0.000012"/>
+</return>
+<msg time="2026-05-15T13:50:36.000353" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${story_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:35.994559" elapsed="0.005814"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.000952" level="INFO">${delete_json} = {'success': True}</msg>
+<var>${delete_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.000498" elapsed="0.000469"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${delete_json['success']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.001051" elapsed="0.000279"/>
+</kw>
+<kw name="Get User Story Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.001766" level="INFO">${args} = {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.001601" elapsed="0.000178"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.002142" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.002005" elapsed="0.000150"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.002369" level="INFO">${params} = {'name': 'get_user_story', 'arguments': {'id': '579f5ff9-4983-43d2-86c2-eee9a189400c'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.002208" elapsed="0.000173"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.002429" elapsed="0.000103"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.005592" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ path_url=/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '152', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_user_story", "arguments": {"id": "579f5ff9-4983-43d2-86c2-eee9a189400c"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.005626" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=4f98b113-1468-4ad6-8361-08e7aea545f4 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '111'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"user story not found"}],"isError":true}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.005704" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.002578" elapsed="0.003138"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.005748" elapsed="0.000019"/>
+</return>
+<msg time="2026-05-15T13:50:36.005827" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_user_story</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.001858" elapsed="0.003980"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.005867" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:36.005924" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${story_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.001438" elapsed="0.004496"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${resp.json()['result']['isError']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.006012" elapsed="0.000294"/>
+</kw>
+<doc>Create, read, update, list and delete a user story via MCP tools.</doc>
+<tag>E2E-004</tag>
+<tag>US004</tag>
+<status status="PASS" start="2026-05-15T13:50:35.963028" elapsed="0.043355"/>
+</test>
+<status status="PASS" start="2026-05-15T13:50:35.961759" elapsed="0.044750"/>
+</suite>
+<suite id="s1-s5" name="US005 task crud" source="/Users/a667282/workspace/agents-board/tests/e2e/REQ001_agent_board_mcp/US005_task_crud.robot">
+<test id="s1-s5-t1" name="Scenario: Full Task CRUD Lifecycle" line="6">
+<kw name="Connect To MCP SSE" owner="mcp_keywords">
+<kw name="Get Session Id From Sse" owner="sse_helper">
+<msg time="2026-05-15T13:50:36.011322" level="INFO">${session_id} = add9de0f-53f1-4bad-8ce2-c271cb2a0b33</msg>
+<var>${session_id}</var>
+<arg>${BASE_URL}/sse</arg>
+<doc>Connects to the SSE endpoint, reads the first 'endpoint' event,
+and returns the sessionId. Note: This closes the connection after
+getting the ID, which is fine for the current simple tool-call tests
+if the server allows session persistence for a short window or 
+if the session isn't strictly bound to the socket's lifecycle 
+(though in our current Echo implementation it is).</doc>
+<status status="PASS" start="2026-05-15T13:50:36.008756" elapsed="0.002593"/>
+</kw>
+<return>
+<value>${session_id}</value>
+<status status="PASS" start="2026-05-15T13:50:36.011391" elapsed="0.000027"/>
+</return>
+<msg time="2026-05-15T13:50:36.011503" level="INFO">${session_id} = add9de0f-53f1-4bad-8ce2-c271cb2a0b33</msg>
+<var>${session_id}</var>
+<doc>Establishes an SSE connection and returns the session ID.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.007897" elapsed="0.003618"/>
+</kw>
+<kw name="Create Project Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.012288" level="INFO">${args} = {'name': 'Task Project', 'description': ''}</msg>
+<var>${args}</var>
+<arg>name=${name}</arg>
+<arg>description=${description}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.012001" elapsed="0.000305"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.012706" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.012560" elapsed="0.000158"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.012920" level="INFO">${params} = {'name': 'create_project', 'arguments': {'name': 'Task Project', 'description': ''}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.012769" elapsed="0.000163"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.012975" elapsed="0.000093"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.016145" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '149', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_project", "arguments": {"name": "Task Project", "description": ""}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.016184" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '274'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"de6d5f0f-637f-47da-b138-e7fe4ac7d329\",\"name\":\"Task Project\",\"description\":\"\",\"createdAt\":\"2026-05-15T13:50:36.015241+07:00\",\"updatedAt\":\"2026-05-15T13:50:36.015241+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.016302" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.013111" elapsed="0.003204"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.016359" elapsed="0.000021"/>
+</return>
+<msg time="2026-05-15T13:50:36.016450" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_project</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.012403" elapsed="0.004057"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.016485" elapsed="0.000012"/>
+</return>
+<msg time="2026-05-15T13:50:36.016552" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>Task Project</arg>
+<status status="PASS" start="2026-05-15T13:50:36.011650" elapsed="0.004912"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.017034" level="INFO">${project_json} = {'id': 'de6d5f0f-637f-47da-b138-e7fe4ac7d329', 'name': 'Task Project', 'description': '', 'createdAt': '2026-05-15T13:50:36.015241+07:00', 'updatedAt': '2026-05-15T13:50:36.015241+07:00'}</msg>
+<var>${project_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.016652" elapsed="0.000396"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.017390" level="INFO">${project_id} = de6d5f0f-637f-47da-b138-e7fe4ac7d329</msg>
+<var>${project_id}</var>
+<arg>${project_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.017132" elapsed="0.000270"/>
+</kw>
+<kw name="Create User Story Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.017937" level="INFO">${args} = {'projectId': 'de6d5f0f-637f-47da-b138-e7fe4ac7d329', 'title': 'Task Story', 'description': 'Description', 'status': 'draft'}</msg>
+<var>${args}</var>
+<arg>projectId=${project_id}</arg>
+<arg>title=${title}</arg>
+<arg>description=${description}</arg>
+<arg>status=${status}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.017710" elapsed="0.000240"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.018318" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.018170" elapsed="0.000160"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.018550" level="INFO">${params} = {'name': 'create_user_story', 'arguments': {'projectId': 'de6d5f0f-637f-47da-b138-e7fe4ac7d329', 'title': 'Task Story', 'description': 'Description', 'status': 'draft'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.018382" elapsed="0.000182"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.018612" elapsed="0.000106"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.022055" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '234', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_user_story", "arguments": {"projectId": "de6d5f0f-637f-47da-b138-e7fe4ac7d329", "title": "Task Story", "description": "Description", "status": "draft"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.022089" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '346'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"ba86fd8c-9b3e-4fd6-9123-bd3f7d662747\",\"projectId\":\"de6d5f0f-637f-47da-b138-e7fe4ac7d329\",\"title\":\"Task Story\",\"description\":\"Description\",\"status\":\"draft\",\"createdAt\":\"2026-05-15T13:50:36+07:00\",\"updatedAt\":\"2026-05-15T13:50:36+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.022138" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.018766" elapsed="0.003383"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.022175" elapsed="0.000017"/>
+</return>
+<msg time="2026-05-15T13:50:36.022248" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_user_story</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.018027" elapsed="0.004231"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.022278" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:36.022342" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${project_id}</arg>
+<arg>Task Story</arg>
+<arg>Description</arg>
+<status status="PASS" start="2026-05-15T13:50:36.017529" elapsed="0.004824"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.022763" level="INFO">${story_json} = {'id': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'projectId': 'de6d5f0f-637f-47da-b138-e7fe4ac7d329', 'title': 'Task Story', 'description': 'Description', 'status': 'draft', 'createdAt': '2026-05-15T13:...</msg>
+<var>${story_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.022431" elapsed="0.000346"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.023290" level="INFO">${story_id} = ba86fd8c-9b3e-4fd6-9123-bd3f7d662747</msg>
+<var>${story_id}</var>
+<arg>${story_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.022854" elapsed="0.000449"/>
+</kw>
+<kw name="Create Task Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.023800" level="INFO">${args} = {'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'title': 'Test Task', 'description': 'Task description', 'status': 'pending'}</msg>
+<var>${args}</var>
+<arg>userStoryId=${user_story_id}</arg>
+<arg>title=${title}</arg>
+<arg>description=${description}</arg>
+<arg>status=${status}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.023585" elapsed="0.000228"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.024166" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.024038" elapsed="0.000139"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.024391" level="INFO">${params} = {'name': 'create_task', 'arguments': {'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'title': 'Test Task', 'description': 'Task description', 'status': 'pending'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.024227" elapsed="0.000175"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.024450" elapsed="0.000095"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.027247" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '236', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "create_task", "arguments": {"userStoryId": "ba86fd8c-9b3e-4fd6-9123-bd3f7d662747", "title": "Test Task", "description": "Task description", "status": "pending"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.027272" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '354'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"f07ba1a6-60f9-421b-98a4-dba1397e8202\",\"userStoryId\":\"ba86fd8c-9b3e-4fd6-9123-bd3f7d662747\",\"title\":\"Test Task\",\"description\":\"Task description\",\"status\":\"pending\",\"createdAt\":\"2026-05-15T13:50:36+07:00\",\"updatedAt\":\"2026-05-15T13:50:36+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.027328" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.024586" elapsed="0.002752"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.027362" elapsed="0.000017"/>
+</return>
+<msg time="2026-05-15T13:50:36.027432" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>create_task</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.023896" elapsed="0.003545"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.027460" elapsed="0.000010"/>
+</return>
+<msg time="2026-05-15T13:50:36.027544" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${story_id}</arg>
+<arg>Test Task</arg>
+<arg>Task description</arg>
+<arg>pending</arg>
+<status status="PASS" start="2026-05-15T13:50:36.023407" elapsed="0.004148"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.027925" level="INFO">${task_json} = {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202', 'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'title': 'Test Task', 'description': 'Task description', 'status': 'pending', 'createdAt': '2026-0...</msg>
+<var>${task_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.027629" elapsed="0.000308"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.028264" level="INFO">${task_id} = f07ba1a6-60f9-421b-98a4-dba1397e8202</msg>
+<var>${task_id}</var>
+<arg>${task_json['id']}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.028014" elapsed="0.000261"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${task_json['title']}</arg>
+<arg>Test Task</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.028343" elapsed="0.000258"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${task_json['status']}</arg>
+<arg>pending</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.028663" elapsed="0.000236"/>
+</kw>
+<kw name="Get Task Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.029279" level="INFO">${args} = {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.029123" elapsed="0.000167"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.029636" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.029503" elapsed="0.000145"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.029849" level="INFO">${params} = {'name': 'get_task', 'arguments': {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.029694" elapsed="0.000166"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.029906" elapsed="0.000092"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.031927" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '146', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_task", "arguments": {"id": "f07ba1a6-60f9-421b-98a4-dba1397e8202"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.031952" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '354'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"f07ba1a6-60f9-421b-98a4-dba1397e8202\",\"userStoryId\":\"ba86fd8c-9b3e-4fd6-9123-bd3f7d662747\",\"title\":\"Test Task\",\"description\":\"Task description\",\"status\":\"pending\",\"createdAt\":\"2026-05-15T13:50:36+07:00\",\"updatedAt\":\"2026-05-15T13:50:36+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.031996" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.030046" elapsed="0.001961"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.032032" elapsed="0.000014"/>
+</return>
+<msg time="2026-05-15T13:50:36.032098" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_task</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.029370" elapsed="0.002738"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.032128" elapsed="0.000010"/>
+</return>
+<msg time="2026-05-15T13:50:36.032185" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${task_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.028986" elapsed="0.003209"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.032571" level="INFO">${task_json} = {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202', 'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'title': 'Test Task', 'description': 'Task description', 'status': 'pending', 'createdAt': '2026-0...</msg>
+<var>${task_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.032260" elapsed="0.000324"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${task_json['id']}</arg>
+<arg>${task_id}</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.032644" elapsed="0.000272"/>
+</kw>
+<kw name="Update Task Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.033341" level="INFO">${args} = {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.033201" elapsed="0.000172"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${title}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>title=${title}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.033423" elapsed="0.000276"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<arg>"${description}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>description=${description}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.033757" elapsed="0.000145"/>
+</kw>
+<kw name="Run Keyword If" owner="BuiltIn">
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${args}</arg>
+<arg>status=${status}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.034114" elapsed="0.000092"/>
+</kw>
+<arg>"${status}" != "${NONE}"</arg>
+<arg>Set To Dictionary</arg>
+<arg>${args}</arg>
+<arg>status=${status}</arg>
+<doc>Runs the given keyword with the given arguments, if ``condition`` is true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.033953" elapsed="0.000275"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.034609" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.034463" elapsed="0.000159"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.034826" level="INFO">${params} = {'name': 'update_task', 'arguments': {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202', 'status': 'in_progress'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.034672" elapsed="0.000167"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.034883" elapsed="0.000093"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.037412" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '174', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "update_task", "arguments": {"id": "f07ba1a6-60f9-421b-98a4-dba1397e8202", "status": "in_progress"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.037436" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '358'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"id\":\"f07ba1a6-60f9-421b-98a4-dba1397e8202\",\"userStoryId\":\"ba86fd8c-9b3e-4fd6-9123-bd3f7d662747\",\"title\":\"Test Task\",\"description\":\"Task description\",\"status\":\"in_progress\",\"createdAt\":\"2026-05-15T13:50:36+07:00\",\"updatedAt\":\"2026-05-15T13:50:36+07:00\"}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.037478" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.035017" elapsed="0.002472"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.037515" elapsed="0.000013"/>
+</return>
+<msg time="2026-05-15T13:50:36.037578" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>update_task</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.034304" elapsed="0.003284"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.037610" elapsed="0.000010"/>
+</return>
+<msg time="2026-05-15T13:50:36.037700" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${task_id}</arg>
+<arg>status=in_progress</arg>
+<status status="PASS" start="2026-05-15T13:50:36.033007" elapsed="0.004704"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.038080" level="INFO">${task_json} = {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202', 'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'title': 'Test Task', 'description': 'Task description', 'status': 'in_progress', 'createdAt': '20...</msg>
+<var>${task_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.037784" elapsed="0.000308"/>
+</kw>
+<kw name="Should Be Equal" owner="BuiltIn">
+<arg>${task_json['status']}</arg>
+<arg>in_progress</arg>
+<doc>Fails if the given objects are unequal.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.038167" elapsed="0.000243"/>
+</kw>
+<kw name="List Tasks Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.038766" level="INFO">${args} = {'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747'}</msg>
+<var>${args}</var>
+<arg>userStoryId=${user_story_id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.038628" elapsed="0.000150"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.039113" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.038984" elapsed="0.000140"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.039324" level="INFO">${params} = {'name': 'list_tasks', 'arguments': {'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.039171" elapsed="0.000164"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.039377" elapsed="0.000084"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.041256" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '157', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "list_tasks", "arguments": {"userStoryId": "ba86fd8c-9b3e-4fd6-9123-bd3f7d662747"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.041280" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '372'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"tasks\":[{\"id\":\"f07ba1a6-60f9-421b-98a4-dba1397e8202\",\"userStoryId\":\"ba86fd8c-9b3e-4fd6-9123-bd3f7d662747\",\"title\":\"Test Task\",\"description\":\"Task description\",\"status\":\"in_progress\",\"createdAt\":\"2026-05-15T13:50:36+07:00\",\"updatedAt\":\"2026-05-15T13:50:36+07:00\"}]}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.041351" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.039505" elapsed="0.001857"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.041394" elapsed="0.000013"/>
+</return>
+<msg time="2026-05-15T13:50:36.041455" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>list_tasks</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.038847" elapsed="0.002618"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.041483" elapsed="0.000014"/>
+</return>
+<msg time="2026-05-15T13:50:36.041551" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${story_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.038495" elapsed="0.003066"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.041940" level="INFO">${list_json} = {'tasks': [{'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202', 'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'title': 'Test Task', 'description': 'Task description', 'status': 'in_progress', 'crea...</msg>
+<var>${list_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.041633" elapsed="0.000319"/>
+</kw>
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.042141" level="INFO">${found} = False</msg>
+<var>${found}</var>
+<arg>${FALSE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.042021" elapsed="0.000131"/>
+</kw>
+<for flavor="IN">
+<iter>
+<if>
+<branch type="IF" condition="'${t['id']}' == '${task_id}'">
+<kw name="Set Variable" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.042802" level="INFO">${found} = True</msg>
+<var>${found}</var>
+<arg>${TRUE}</arg>
+<doc>Returns the given values which can then be assigned to a variables.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.042692" elapsed="0.000121"/>
+</kw>
+<break>
+<status status="PASS" start="2026-05-15T13:50:36.042836" elapsed="0.000014"/>
+</break>
+<status status="PASS" start="2026-05-15T13:50:36.042466" elapsed="0.000395"/>
+</branch>
+<status status="PASS" start="2026-05-15T13:50:36.042457" elapsed="0.000413"/>
+</if>
+<var name="${t}">{'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202', 'userStoryId': 'ba86fd8c-9b3e-4fd6-9123-bd3f7d662747', 'title': 'Test Task', 'description': 'Task description', 'status': 'in_progress', 'createdAt': '20...</var>
+<status status="PASS" start="2026-05-15T13:50:36.042437" elapsed="0.000444"/>
+</iter>
+<var>${t}</var>
+<value>@{list_json['tasks']}</value>
+<status status="PASS" start="2026-05-15T13:50:36.042203" elapsed="0.000690"/>
+</for>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${found}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.042949" elapsed="0.000108"/>
+</kw>
+<kw name="Delete Task Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.043499" level="INFO">${args} = {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.043266" elapsed="0.000245"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.043851" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.043718" elapsed="0.000145"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.044068" level="INFO">${params} = {'name': 'delete_task', 'arguments': {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.043913" elapsed="0.000167"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.044124" elapsed="0.000091"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.046642" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '149', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "delete_task", "arguments": {"id": "f07ba1a6-60f9-421b-98a4-dba1397e8202"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.046668" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '94'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"{\"success\":true}"}]}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.046714" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.044258" elapsed="0.002468"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.046752" elapsed="0.000015"/>
+</return>
+<msg time="2026-05-15T13:50:36.046822" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>delete_task</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.043582" elapsed="0.003253"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.046855" elapsed="0.000010"/>
+</return>
+<msg time="2026-05-15T13:50:36.046947" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${task_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.043132" elapsed="0.003826"/>
+</kw>
+<kw name="Evaluate" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.047350" level="INFO">${delete_json} = {'success': True}</msg>
+<var>${delete_json}</var>
+<arg>json.loads('''${resp.json()['result']['content'][0]['text']}''')</arg>
+<arg>json</arg>
+<doc>Evaluates the given expression in Python and returns the result.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.047028" elapsed="0.000336"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${delete_json['success']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.047443" elapsed="0.000236"/>
+</kw>
+<kw name="Get Task Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.048049" level="INFO">${args} = {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202'}</msg>
+<var>${args}</var>
+<arg>id=${id}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.047911" elapsed="0.000149"/>
+</kw>
+<kw name="Call MCP Tool" owner="mcp_keywords">
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.048435" level="INFO">${payload} = {'jsonrpc': '2.0', 'id': '1', 'method': 'tools/call'}</msg>
+<var>${payload}</var>
+<arg>jsonrpc=2.0</arg>
+<arg>id=1</arg>
+<arg>method=tools/call</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.048296" elapsed="0.000152"/>
+</kw>
+<kw name="Create Dictionary" owner="BuiltIn">
+<msg time="2026-05-15T13:50:36.048655" level="INFO">${params} = {'name': 'get_task', 'arguments': {'id': 'f07ba1a6-60f9-421b-98a4-dba1397e8202'}}</msg>
+<var>${params}</var>
+<arg>name=${tool_name}</arg>
+<arg>arguments=${arguments}</arg>
+<doc>Creates and returns a dictionary based on the given ``items``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.048499" elapsed="0.000168"/>
+</kw>
+<kw name="Set To Dictionary" owner="Collections">
+<arg>${payload}</arg>
+<arg>params=${params}</arg>
+<doc>Adds the given ``key_value_pairs`` and/or ``items`` to the ``dictionary``.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.048713" elapsed="0.000091"/>
+</kw>
+<kw name="POST" owner="RequestsLibrary">
+<msg time="2026-05-15T13:50:36.050421" level="INFO">POST Request : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ path_url=/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ headers={'User-Agent': 'python-requests/2.33.1', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive', 'Content-Length': '146', 'Content-Type': 'application/json'} 
+ body=b'{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "get_task", "arguments": {"id": "f07ba1a6-60f9-421b-98a4-dba1397e8202"}}}' 
+ </msg>
+<msg time="2026-05-15T13:50:36.050446" level="INFO">POST Response : url=http://localhost:8080/message?sessionId=add9de0f-53f1-4bad-8ce2-c271cb2a0b33 
+ status=200, reason=OK 
+ headers={'Content-Type': 'application/json', 'Date': 'Fri, 15 May 2026 06:50:36 GMT', 'Content-Length': '105'} 
+ body={"jsonrpc":"2.0","id":"1","result":{"content":[{"type":"text","text":"task not found"}],"isError":true}}
+ 
+ </msg>
+<msg time="2026-05-15T13:50:36.050487" level="INFO">${response} = &lt;Response [200]&gt;</msg>
+<var>${response}</var>
+<arg>${BASE_URL}/message</arg>
+<arg>params=sessionId=${session_id}</arg>
+<arg>json=${payload}</arg>
+<arg>expected_status=200</arg>
+<doc>Sends a POST request.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.048847" elapsed="0.001651"/>
+</kw>
+<return>
+<value>${response}</value>
+<status status="PASS" start="2026-05-15T13:50:36.050523" elapsed="0.000014"/>
+</return>
+<msg time="2026-05-15T13:50:36.050595" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>get_task</arg>
+<arg>${args}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.048127" elapsed="0.002478"/>
+</kw>
+<return>
+<value>${resp}</value>
+<status status="PASS" start="2026-05-15T13:50:36.050625" elapsed="0.000011"/>
+</return>
+<msg time="2026-05-15T13:50:36.050683" level="INFO">${resp} = &lt;Response [200]&gt;</msg>
+<var>${resp}</var>
+<arg>${session_id}</arg>
+<arg>${task_id}</arg>
+<status status="PASS" start="2026-05-15T13:50:36.047779" elapsed="0.002914"/>
+</kw>
+<kw name="Should Be True" owner="BuiltIn">
+<arg>${resp.json()['result']['isError']}</arg>
+<doc>Fails if the given condition is not true.</doc>
+<status status="PASS" start="2026-05-15T13:50:36.050752" elapsed="0.000248"/>
+</kw>
+<doc>Create, read, update, list and delete a task via MCP tools.</doc>
+<tag>E2E-005</tag>
+<tag>US005</tag>
+<status status="PASS" start="2026-05-15T13:50:36.007694" elapsed="0.043366"/>
+</test>
+<status status="PASS" start="2026-05-15T13:50:36.006688" elapsed="0.044503"/>
+</suite>
+<status status="PASS" start="2026-05-15T13:50:35.688369" elapsed="0.363039"/>
+</suite>
+<statistics>
+<total>
+<stat pass="5" fail="0" skip="0">All Tests</stat>
+</total>
+<tag>
+<stat pass="1" fail="0" skip="0">E2E-001</stat>
+<stat pass="1" fail="0" skip="0">E2E-002</stat>
+<stat pass="1" fail="0" skip="0">E2E-003</stat>
+<stat pass="1" fail="0" skip="0">E2E-004</stat>
+<stat pass="1" fail="0" skip="0">E2E-005</stat>
+<stat pass="1" fail="0" skip="0">US001</stat>
+<stat pass="1" fail="0" skip="0">US002</stat>
+<stat pass="1" fail="0" skip="0">US003</stat>
+<stat pass="1" fail="0" skip="0">US004</stat>
+<stat pass="1" fail="0" skip="0">US005</stat>
+</tag>
+<suite>
+<stat name="REQ001 agent board mcp" id="s1" pass="5" fail="0" skip="0">REQ001 agent board mcp</stat>
+<stat name="US001 mcp server setup" id="s1-s1" pass="1" fail="0" skip="0">REQ001 agent board mcp.US001 mcp server setup</stat>
+<stat name="US002 project crud" id="s1-s2" pass="1" fail="0" skip="0">REQ001 agent board mcp.US002 project crud</stat>
+<stat name="US003 document crud" id="s1-s3" pass="1" fail="0" skip="0">REQ001 agent board mcp.US003 document crud</stat>
+<stat name="US004 user story crud" id="s1-s4" pass="1" fail="0" skip="0">REQ001 agent board mcp.US004 user story crud</stat>
+<stat name="US005 task crud" id="s1-s5" pass="1" fail="0" skip="0">REQ001 agent board mcp.US005 task crud</stat>
+</suite>
+</statistics>
+<errors>
+</errors>
+</robot>

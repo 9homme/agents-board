@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(go build *)",
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(node -e \"require\\('msw/node'\\)\")",
+      "Bash(npx jest *)",
+      "Bash(python3 *)",
+      "Bash(node -e ' *)",
+      "WebSearch",
+      "WebFetch(domain:geminicli.com)",
+      "Bash(ln -s ../.claude/evals .gemini/evals)"
+    ]
+  }
+}

@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS user_stories;
+DROP TABLE IF EXISTS documents;
+DROP TABLE IF EXISTS projects;

@@ -1,0 +1,55 @@
+{
+  "iteration": 1,
+  "target": "skills",
+  "notes": "One prompt per skill under .claude/skills/. Graded against the assertions in expected_output, not against an exact string. Mirrors claude-skills/eval-workspace/iteration-1/evals.json.",
+  "evals": [
+    {
+      "id": 1,
+      "skill": "agile-product-owner",
+      "prompt": "Our team wants to add a 'wishlist' feature to our e-commerce site. Users should be able to save products for later, see them across devices, and share the list with friends. Decompose this into INVEST user stories with clear acceptance criteria in Given/When/Then form. Include a story for the empty state and one for sharing.",
+      "expected_output": "3-6 user stories in 'As a / I want / So that' form; each story has at least 3 Given/When/Then acceptance criteria; stories are independently shippable (INVEST); empty state and share are separate stories; no implementation details (no 'use Redis', 'add a column'); skill is referenced by name."
+    },
+    {
+      "id": 2,
+      "skill": "focused-fix",
+      "prompt": "Our user-profile module is broken end-to-end: edits don't persist, the avatar upload silently fails on Safari, and the page sometimes shows another user's email. I want a systematic deep-dive that finds every related defect across the module and its dependencies, not three separate hotfixes. Give me the investigation plan.",
+      "expected_output": "Plan systematically traces request flow through all layers (FE form, API, persistence, cache, CDN/avatar storage); explicitly enumerates dependencies to inspect; calls out the cross-user data leak as the highest priority (security/correctness); proposes regression tests; resists the temptation to ship a single quick patch; references focused-fix skill."
+    },
+    {
+      "id": 3,
+      "skill": "karpathy-coder",
+      "prompt": "Here's a 60-line Python function that reads a CSV, filters rows by date, joins against a config dict, and writes a summary JSON. It works but feels overengineered: lots of small helper functions, a class for the config, and a try/except around every line. Rewrite in the pragmatic style — terse, flat, only the abstractions earned by the problem.",
+      "expected_output": "Output is shorter than input; no speculative abstractions (no premature class, no helpers used once); try/except only at real failure boundaries (file open, JSON parse); variable names are short but clear; no docstrings on obvious functions; rewrite preserves behavior; references karpathy-coder style explicitly."
+    },
+    {
+      "id": 4,
+      "skill": "senior-architect",
+      "prompt": "We have a monolith Django app at 50k LOC. The checkout path is the hot loop (60% of traffic) and the team that owns it is blocked behind every release. Should we extract checkout into its own service? Write an ADR comparing keep-mono / modular-monolith / extract-service, with the trade-offs scored against our actual constraints (small team, one shared Postgres, no platform team). Recommend.",
+      "expected_output": "ADR uses MADR or equivalent template (Status, Context, Decision, Consequences, Alternatives); compares 3 options on at least 4 axes (ops cost, blast radius, team autonomy, data consistency); calls out the shared Postgres as the central constraint; recommendation is explicit and justified; no FAANG-scale assumptions; senior-architect skill referenced."
+    },
+    {
+      "id": 5,
+      "skill": "senior-backend",
+      "prompt": "Design a REST API for a 'basket' microservice in Go that supports: add line item, remove line item, get basket, clear basket. Anonymous users keep a basket via cookie; logged-in users merge cookie basket on login. Show exact JSON request/response per endpoint, all status codes, error model, idempotency strategy for add, and where the boundary against the catalog service is.",
+      "expected_output": "All four endpoints documented with exact JSON shapes; non-2xx responses include error body schema; idempotency-key approach defined for add (header + storage strategy); merge-on-login behavior specified end-to-end; catalog boundary is a remote call with stated failure-mode (timeout, fallback); no SQL leaking into the API; senior-backend skill referenced."
+    },
+    {
+      "id": 6,
+      "skill": "senior-frontend",
+      "prompt": "Build the React component for an 'AddToBasket' button that lives on a product card. Constraints: Next.js Pages Router, CSR-only (no getServerSideProps), TypeScript strict, Tailwind. Must show disabled+spinner while the POST is in flight, surface server errors inline, and announce success to screen readers. Show the component file, the typed API client function, and a Jest + RTL test that uses MSW to mock the success and 409-out-of-stock cases.",
+      "expected_output": "No getServerSideProps / getStaticProps / API route present; component file, lib/api function, and *.test.tsx are all shown; loading and error states are wired in (not just placeholder); aria-live or equivalent for SR announce; MSW handler reflects the architect's JSON shape; tests assert both happy path and 409 inline error; types are strict (no any); senior-frontend skill referenced."
+    },
+    {
+      "id": 7,
+      "skill": "senior-qa",
+      "prompt": "Generate Jest + React Testing Library test stubs for this component: <PriceBreakdown lineItems={...} subtotalCents={...} discountCents={...} totalCents={...} />. It must format currency, show discount only when non-zero, and render a zero state when lineItems is empty. Also scaffold an MSW handler if the component fetches anything, and propose one Playwright E2E that proves the discount line appears at checkout.",
+      "expected_output": "RTL tests cover currency formatting, discount visibility logic, and empty state separately; assertions use accessible queries (getByRole/getByText) not test-ids unless necessary; MSW handler only added if component fetches (here: no, so explicitly says 'no fetch, no handler needed'); Playwright test is a thin tag-aligned scenario, not a re-test of unit logic; senior-qa skill referenced."
+    },
+    {
+      "id": 8,
+      "skill": "tdd-guide",
+      "prompt": "Walk me through TDD for a Go function `func ApplyPromoCode(basket Basket, code string) (Basket, error)`. Rules: PERCENT10 takes 10% off subtotal, MIN50 only applies when subtotal >= 5000 cents, expired codes return ErrExpired, unknown codes return ErrUnknown. Show the failing test first, then the minimum implementation to pass each test, then refactor. Use testify.",
+      "expected_output": "Strict red/green/refactor order: each test is shown failing first, then minimum code to pass, then refactor step; tests use testify (assert/require); cases cover PERCENT10 happy path, MIN50 threshold (both sides), ErrExpired, ErrUnknown; no premature abstraction (no strategy pattern day one); each refactor preserves green; tdd-guide skill referenced."
+    }
+  ]
+}

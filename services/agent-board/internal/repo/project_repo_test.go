@@ -17,7 +17,7 @@ import (
 func TestProjectRepo_CreateProject(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewProjectRepo(db)
 	now := time.Now()
@@ -48,7 +48,7 @@ func TestProjectRepo_CreateProject(t *testing.T) {
 func TestProjectRepo_GetProject(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewProjectRepo(db)
 	now := time.Now()
@@ -81,7 +81,7 @@ func TestProjectRepo_GetProject(t *testing.T) {
 func TestProjectRepo_UpdateProject(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewProjectRepo(db)
 	now := time.Now()
@@ -112,7 +112,7 @@ func TestProjectRepo_UpdateProject(t *testing.T) {
 func TestProjectRepo_DeleteProject(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewProjectRepo(db)
 	id := "123e4567-e89b-12d3-a456-426614174000"
@@ -131,7 +131,7 @@ func TestProjectRepo_DeleteProject(t *testing.T) {
 func TestProjectRepo_ListProjects(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	repo := NewProjectRepo(db)
 	now := time.Now()

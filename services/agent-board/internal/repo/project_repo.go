@@ -105,7 +105,7 @@ func (r *projectRepo) ListProjects(ctx context.Context) ([]*domain.Project, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	projects := make([]*domain.Project, 0)
 	for rows.Next() {

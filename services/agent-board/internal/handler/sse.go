@@ -36,8 +36,7 @@ func (h *Handler) HandleSSE(c echo.Context) error {
 			return nil
 		}
 
-		if _, err := c.Response().Write([]byte(fmt.Sprintf("event: message\ndata: %s\n\n", string(msg)))); err != nil {
-			return err
+		if _, err := fmt.Fprintf(c.Response(), "event: message\ndata: %s\n\n", string(msg)); err != nil {			return err
 		}
 		c.Response().Flush()
 	}

@@ -20,7 +20,7 @@ func main() {
 		log.Fatal("DB_URL environment variable is required")
 	}
 
-	db, err := sql.Open("postgres", dbURL)
+	db, err := sql.Open("pgx", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

@@ -22,9 +22,9 @@ DATABASE_URL=$DATABASE_URL PORT=$API_PORT FRONTEND_URL=$FRONTEND_URL go run cmd/
 echo $! > ../../.api.pid
 
 # 3. Start Frontend
-echo "  -> Starting Frontend..."
+echo "  -> Starting Frontend on port 3000..."
 cd ../../web
-NEXT_PUBLIC_API_BASE_URL="http://localhost:$API_PORT" npm run dev > ../web.log 2>&1 &
+PORT=3000 NEXT_PUBLIC_API_BASE_URL="http://localhost:$API_PORT" npm run dev > ../web.log 2>&1 &
 echo $! > ../.web.pid
 
 echo ""

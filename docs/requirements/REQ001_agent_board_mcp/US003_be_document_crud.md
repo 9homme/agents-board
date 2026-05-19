@@ -35,7 +35,7 @@ The dev must make these tests pass:
 
 ## Review log
 
-### Review pass 1 — 2024-05-18 — verdict: approved
+### Review pass 1 — 2026-05-18 — verdict: approved
 - All tests (`go test ./...` and `go vet ./...`) passed.
 - Implementation matches the architecture's exact JSON shape for Document Tools.
 - Good use of `domain.Document` and appropriate public doc comments.

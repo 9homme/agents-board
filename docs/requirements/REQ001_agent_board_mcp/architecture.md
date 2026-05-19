@@ -542,10 +542,10 @@ CREATE INDEX idx_tasks_user_story_id ON tasks(user_story_id);
 - **Risk:** Unbounded listing could retrieve too many records. (Mitigation: If scale increases, we may need to introduce pagination in a future iteration. Current scope explicitly excludes pagination.)
 
 ## Approval log
-### Revision 1 — 2024-05-15 — author: system-architect
+### Revision 1 — 2026-05-15 — author: system-architect
 - Initial draft.
 
-### Revision 2 — 2024-05-16 — driver: human feedback pass 1
+### Revision 2 — 2026-05-16 — driver: human feedback pass 1
 - Added `list_projects`, `list_documents`, `list_user_stories`, and `list_tasks` tools to enable agent entity discovery.
 - Added `D-003` to address SSE concurrency scaling (relying on Go's goroutines with future Redis event bus if needed, rejecting WebSockets to maintain MCP protocol adherence).
 

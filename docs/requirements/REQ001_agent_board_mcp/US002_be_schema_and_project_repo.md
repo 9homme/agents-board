@@ -34,7 +34,7 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back; tech-lead approved (status flipped to `completed`).
 
 ## Review log
-### Review pass 1 — 2024-05-16 — verdict: approved
+### Review pass 1 — 2026-05-16 — verdict: approved
 - `go vet` and `go test ./...` pass clean.
 - `migrations/000001_init_schema.up.sql` matches the architecture perfectly including `ON DELETE CASCADE`.
 - Repository methods use standard Go errors wrapping. Approved.

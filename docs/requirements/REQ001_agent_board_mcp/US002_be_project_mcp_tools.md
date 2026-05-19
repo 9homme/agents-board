@@ -6,7 +6,7 @@
 **Service:** services/agent-board-mcp
 **Status:** completed
 **Blocked by:** US001_be_mcp_server.md, US002_be_schema_and_project_repo.md
-**Worked-by:** be-dev-2024-05-15T12:00:00Z-abcd
+**Worked-by:** be-dev-2026-05-15T12:00:00Z-abcd
 **Implements:** Project Tools JSON Schemas (`create_project`, `get_project`, `update_project`, `delete_project`, `list_projects`)
 
 ## Goal

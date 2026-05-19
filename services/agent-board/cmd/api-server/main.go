@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
@@ -40,7 +41,7 @@ func main() {
 	}
 	defer func() { _ = db.Close() }()
 
-	if err := db.Ping(); err != nil {
+	if err := db.PingContext(context.Background()); err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 

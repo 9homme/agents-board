@@ -4,9 +4,9 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** US004_be_unused_handler_test_triage.md
-**Worked-by:** 
+**Worked-by:** be-dev (US004 noctx+errorlint)
 **Implements:** US004 acceptance criterion "Specific finding categories are resolved correctly, not papered over" — drives `errorlint` (3) and `noctx` (11) to zero. Total: 14 findings.
 
 ## Goal
@@ -77,6 +77,34 @@ The 11 `noctx` sites are stable and as listed in the story background:
 - `services/agent-board/internal/handler/project_handler_test.go:38,79,106,148` — `httptest.NewRequest(...)` (4 sites)
 
 (dev appends: final file list from live linter run, any call sites that needed `.WithContext` instead of `NewRequestWithContext`, any test-timing surprises under `-race`)
+
+### Dev implementation notes (2026-05-19, be-dev)
+
+**Pre-fix baseline (live linter re-run):** confirmed 3 errorlint + 11 noctx = 14 findings as documented.
+
+**errorlint fixes (3/3) — files changed:**
+- `services/agent-board/internal/handler/user_story_tools.go`: added `"errors"` import; rewrote two `err == repo.ErrNotFound` comparisons at lines 88 and 112 to `errors.Is(err, repo.ErrNotFound)`. Mechanical equivalence — sentinel error comparison, no behaviour change.
+- `services/agent-board/internal/repo/user_story_repo.go`: added `"errors"` import; rewrote `err == sql.ErrNoRows` at line 73 (inside `UpdateUserStoryStatus`) to `errors.Is(err, sql.ErrNoRows)`. Mechanical equivalence — same sentinel path, correctly handles wrapped errors.
+
+**noctx fixes (11/11) — files changed:**
+- `services/agent-board/cmd/api-server/main.go`: added `"context"` import; replaced `db.Ping()` with `db.PingContext(context.Background())`. Context choice: `context.Background()` — there is no server-lifetime context constructed at this point in the bootstrap sequence; process-startup pings do not require a cancel/deadline.
+- `services/agent-board/cmd/mcp-server/main.go`: same change, same rationale.
+- `services/agent-board/internal/handler/handler_test.go`: replaced all 5 `httptest.NewRequest(...)` calls with `httptest.NewRequestWithContext(...)`. Two of them (lines 96, 222) previously used the `.WithContext(ctx)` chained form — those were converted to `httptest.NewRequestWithContext(ctx, ...)` using the already-scoped `ctx`. The other three (lines 144, 179, 256) had no ambient context — used `context.Background()`. Context choice rationale: these are pure MCP message handler tests with no timeout semantics; `context.Background()` is the conventional choice for unit tests that do not need cancellation.
+- `services/agent-board/internal/handler/project_handler_test.go`: replaced all 4 `httptest.NewRequest(...)` calls with `httptest.NewRequestWithContext(context.Background(), ...)`. Context choice: `context.Background()` — none of the tests had an ambient context, and the handler is stateless; no timeout is needed.
+
+**No `.WithContext` chaining needed** — all 9 httptest call sites converted cleanly to `httptest.NewRequestWithContext(...)`.
+
+**Post-fix verification:**
+- `golangci-lint run --enable-only=errorlint ./...` → 0 issues.
+- `golangci-lint run --enable-only=noctx ./...` → 0 issues.
+- `golangci-lint run ./...` → 11 remaining findings (errcheck 4 + gocritic 5 + gosec 1 + revive 1). Re-baseline confirmed: started at 25, ended at 11.
+- `go vet ./...` → clean (no output).
+- `go test ./... -race -count=1` run 1 → PASS (domain ok, handler ok, mcp ok, repo ok).
+- `go test ./... -race -count=1` run 2 → PASS (domain ok, handler ok, mcp ok, repo ok). No DATA RACE reports in either run.
+- `scripts/review/run-gate.sh be services/agent-board` → REVIEW GATE: PASS.
+- `scripts/review/run-gate.sh cross` → REVIEW GATE: PASS.
+
+**No nolint directives added.** All 14 findings have clean idiomatic fixes.
 
 ## Review log
 (tech-lead appends here on each review pass)

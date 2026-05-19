@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 
 	"agent-board/internal/domain"
 )
@@ -94,7 +95,9 @@ func (r *taskRepo) UpdateTaskStatus(ctx context.Context, id, fromStatus, toStatu
 	}
 	defer func() {
 		if err != nil {
-			_ = tx.Rollback()
+			if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+				log.Printf("task tx rollback failed after error: %v", rbErr)
+			}
 		}
 	}()
 

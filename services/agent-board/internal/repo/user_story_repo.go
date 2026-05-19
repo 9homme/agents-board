@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 
 	"agent-board/internal/domain"
 )
@@ -63,7 +64,9 @@ func (r *UserStoryRepo) UpdateUserStoryStatus(ctx context.Context, id, fromStatu
 	}
 	defer func() {
 		if err != nil {
-			_ = tx.Rollback()
+			if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+				log.Printf("user_story tx rollback failed after error: %v", rbErr)
+			}
 		}
 	}()
 

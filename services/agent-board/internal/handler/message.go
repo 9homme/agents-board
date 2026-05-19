@@ -80,7 +80,11 @@ func (h *Handler) sendError(session *mcp.Session, id interface{}, code int, mess
 			Message: message,
 		},
 	}
-	respBytes, _ := json.Marshal(resp)
+	respBytes, err := json.Marshal(resp)
+	if err != nil {
+		log.Printf("failed to marshal error response: %v\n", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
 	if err := session.QueueMessage(respBytes); err != nil {
 		log.Printf("failed to queue error message: %v\n", err)
 	}
@@ -102,7 +106,11 @@ func (h *Handler) sendToolResultError(session *mcp.Session, id interface{}, mess
 			},
 		},
 	}
-	respBytes, _ := json.Marshal(resp)
+	respBytes, err := json.Marshal(resp)
+	if err != nil {
+		log.Printf("failed to marshal tool result error response: %v\n", err)
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal error")
+	}
 	if err := session.QueueMessage(respBytes); err != nil {
 		log.Printf("failed to queue tool result error: %v\n", err)
 	}

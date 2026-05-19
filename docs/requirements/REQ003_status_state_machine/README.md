@@ -17,6 +17,7 @@ To ensure data integrity and process compliance by forcing all work items to go 
 - **US001_task_state_machine**: Enforce Task status state machine.
 - **US002_story_state_machine**: Enforce User Story status state machine.
 - **US003_state_change_audit_trail**: Track historical state change audit trail for tasks and stories.
+- **US004_tech_debt_lint_zero**: Drive `golangci-lint run ./...` to zero findings inside `services/agent-board/` against the migrated v2 ruleset (34-finding baseline taken 2026-05-19; backend-only quality refinement).
 
 ## Tasks
 | Task File | Title | Blocked By | Status |

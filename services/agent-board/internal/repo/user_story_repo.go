@@ -3,6 +3,8 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"log"
 
 	"agent-board/internal/domain"
 )
@@ -62,7 +64,9 @@ func (r *UserStoryRepo) UpdateUserStoryStatus(ctx context.Context, id, fromStatu
 	}
 	defer func() {
 		if err != nil {
-			_ = tx.Rollback()
+			if rbErr := tx.Rollback(); rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone) {
+				log.Printf("user_story tx rollback failed after error: %v", rbErr)
+			}
 		}
 	}()
 
@@ -70,7 +74,7 @@ func (r *UserStoryRepo) UpdateUserStoryStatus(ctx context.Context, id, fromStatu
 	var u domain.UserStory
 	err = tx.QueryRowContext(ctx, query, toStatus, id).Scan(&u.ID, &u.ProjectID, &u.Title, &u.Description, &u.Status, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrNotFound
 		}
 		return nil, err
@@ -82,7 +86,7 @@ func (r *UserStoryRepo) UpdateUserStoryStatus(ctx context.Context, id, fromStatu
 		return nil, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
@@ -126,7 +130,7 @@ func (r *UserStoryRepo) ListUserStories(ctx context.Context, projectID string) (
 		}
 		userStories = append(userStories, &u)
 	}
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	if userStories == nil {

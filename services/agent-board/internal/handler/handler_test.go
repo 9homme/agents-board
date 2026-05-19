@@ -93,7 +93,7 @@ func TestGetSSEEndpoint(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	req := httptest.NewRequest(http.MethodGet, "/sse", nil).WithContext(ctx)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/sse", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -141,7 +141,7 @@ func TestPostMessageInvalidJSONRPC(t *testing.T) {
 	session := manager.CreateSession()
 
 	invalidJSON := []byte(`{invalid}`)
-	req := httptest.NewRequest(http.MethodPost, "/message?sessionId="+session.ID, bytes.NewReader(invalidJSON))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/message?sessionId="+session.ID, bytes.NewReader(invalidJSON))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -176,7 +176,7 @@ func TestPostMessageValidToolCall(t *testing.T) {
 	}
 	bodyBytes, _ := json.Marshal(reqPayload)
 
-	req := httptest.NewRequest(http.MethodPost, "/message?sessionId="+session.ID, bytes.NewReader(bodyBytes))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/message?sessionId="+session.ID, bytes.NewReader(bodyBytes))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -219,7 +219,7 @@ func TestITFullHandshake(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	reqSSE := httptest.NewRequest(http.MethodGet, "/sse", nil).WithContext(ctx)
+	reqSSE := httptest.NewRequestWithContext(ctx, http.MethodGet, "/sse", nil)
 	wSSE := newSafeResponseWriter()
 	cSSE := e.NewContext(reqSSE, wSSE)
 
@@ -253,7 +253,7 @@ func TestITFullHandshake(t *testing.T) {
 	}
 	bodyBytes, _ := json.Marshal(reqPayload)
 
-	reqMsg := httptest.NewRequest(http.MethodPost, "/message?sessionId="+sessionId, bytes.NewReader(bodyBytes))
+	reqMsg := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/message?sessionId="+sessionId, bytes.NewReader(bodyBytes))
 	reqMsg.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	recMsg := httptest.NewRecorder()
 	cMsg := e.NewContext(reqMsg, recMsg)

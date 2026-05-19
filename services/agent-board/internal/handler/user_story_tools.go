@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -85,7 +86,7 @@ func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStor
 
 		u, err := repository.GetUserStory(ctx, req.ID)
 		if err != nil {
-			if err == repo.ErrNotFound {
+			if errors.Is(err, repo.ErrNotFound) {
 				return nil, fmt.Errorf("user story not found")
 			}
 			return nil, err
@@ -109,7 +110,7 @@ func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStor
 
 		existing, err := repository.GetUserStory(ctx, req.ID)
 		if err != nil {
-			if err == repo.ErrNotFound {
+			if errors.Is(err, repo.ErrNotFound) {
 				return nil, fmt.Errorf("user story not found")
 			}
 			return nil, err

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
@@ -15,6 +16,13 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Printf("mcp-server exited with error: %v", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		log.Fatal("DB_URL environment variable is required")
@@ -22,12 +30,12 @@ func main() {
 
 	db, err := sql.Open("pgx", dbURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		return err
 	}
 	defer func() { _ = db.Close() }()
 
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+	if err := db.PingContext(context.Background()); err != nil {
+		return err
 	}
 
 	projectRepo := repo.NewProjectRepo(db)
@@ -66,5 +74,5 @@ func main() {
 		port = "8080"
 	}
 
-	log.Fatal(e.Start(":" + port))
+	return e.Start(":" + port)
 }

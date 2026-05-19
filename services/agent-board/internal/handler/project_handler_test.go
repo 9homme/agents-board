@@ -35,7 +35,7 @@ func (m *mockProjectRepo) ListProjects(ctx context.Context) ([]*domain.Project, 
 // UT-001 — Successfully load project list
 func TestProjectHandler_GetProjects_Success(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -76,7 +76,7 @@ func TestProjectHandler_GetProjects_Success(t *testing.T) {
 // UT-001 — Empty state
 func TestProjectHandler_GetProjects_Empty(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -103,7 +103,7 @@ func TestProjectHandler_GetProjects_Empty(t *testing.T) {
 // UT-002 — Error state
 func TestProjectHandler_GetProjects_Error(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -145,7 +145,7 @@ func TestProjectHandler_GetProjects_Integration(t *testing.T) {
 			AddRow("11111111-e89b-12d3-a456-426614174000", "P1", "D1", now, now).
 			AddRow("22222222-e89b-12d3-a456-426614174000", "P2", "D2", now, now))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 

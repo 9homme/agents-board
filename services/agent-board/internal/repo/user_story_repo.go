@@ -86,7 +86,7 @@ func (r *UserStoryRepo) UpdateUserStoryStatus(ctx context.Context, id, fromStatu
 		return nil, err
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +130,7 @@ func (r *UserStoryRepo) ListUserStories(ctx context.Context, projectID string) (
 		}
 		userStories = append(userStories, &u)
 	}
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	if userStories == nil {

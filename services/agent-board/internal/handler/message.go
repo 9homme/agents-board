@@ -12,12 +12,12 @@ import (
 
 // HandleMessage handles the POST /message endpoint.
 func (h *Handler) HandleMessage(c echo.Context) error {
-	sessionId := c.QueryParam("sessionId")
-	if sessionId == "" {
+	sessionID := c.QueryParam("sessionId")
+	if sessionID == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "sessionId is required"})
 	}
 
-	session, ok := h.sessionManager.GetSession(sessionId)
+	session, ok := h.sessionManager.GetSession(sessionID)
 	if !ok {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid sessionId"})
 	}

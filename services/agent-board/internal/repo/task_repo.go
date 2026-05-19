@@ -159,7 +159,7 @@ func (r *taskRepo) ListTasks(ctx context.Context, userStoryID string) ([]*domain
 		}
 		tasks = append(tasks, task)
 	}
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return tasks, nil

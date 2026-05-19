@@ -26,3 +26,7 @@ To ensure data integrity and process compliance by forcing all work items to go 
 | `US001_be_task_state_machine.md` | Task State Machine | `US001_be_scaffold_domain_and_migration.md` | pending |
 | `US002_be_story_state_machine.md` | Story State Machine | `US001_be_scaffold_domain_and_migration.md` | pending |
 | `US003_be_audit_trail_mcp.md` | Audit Trail MCP | `US001_be_scaffold_domain_and_migration.md` | pending |
+| `US004_be_unused_handler_test_triage.md` | US004: Triage `unused` cluster in handler_test.go (re-baseline + prune) | None | pending |
+| `US004_be_mechanical_noctx_errorlint.md` | US004: Mechanical `noctx` (11) + `errorlint` (3) fixes | `US004_be_unused_handler_test_triage.md` | pending |
+| `US004_be_errcheck_rollback_discard.md` | US004: `errcheck` rollback-discard explicit + justified (4) | `US004_be_mechanical_noctx_errorlint.md` | pending |
+| `US004_be_tail_gocritic_gosec_revive.md` | US004: Tail `gocritic` (5) + `gosec` (1) + `revive` (1) + final `golangci-lint` exit-0 gate | `US004_be_errcheck_rollback_discard.md` | pending |

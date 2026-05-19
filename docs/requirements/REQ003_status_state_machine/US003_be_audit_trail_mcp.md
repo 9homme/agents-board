@@ -4,9 +4,9 @@
 **Story:** US003
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** US001_be_scaffold_domain_and_migration.md
-**Worked-by:** 
+**Worked-by:** be-dev-2026-05-19T00:00:00Z-a6ce
 **Implements:** US003, API contracts for get_task_audit_trail and get_user_story_audit_trail
 
 ## Goal
@@ -39,5 +39,29 @@ The dev must make these tests pass:
 - Code matches the cited architecture entries (no silent deviation).
 - **Review gate green:** `scripts/review/run-gate.sh be services/agent-board` exits 0, and `scripts/review/run-gate.sh cross` exits 0.
 - Dev set status to `in_review` and reported back; tech-lead approved (status flipped to `completed`).
+
+## Notes
+### Files touched
+- `services/agent-board/internal/repo/audit_repo.go` — New `AuditRepository` interface + `auditRepo` implementation with `GetTaskAuditTrail` and `GetUserStoryAuditTrail` methods querying `status_audit_trail` ordered by `changed_at ASC`.
+- `services/agent-board/internal/repo/audit_repo_test.go` — IT-004/IT-005 at repo layer using `go-sqlmock`.
+- `services/agent-board/internal/handler/audit_tools.go` — `AuditLogResponse` type + `RegisterAuditTools` registering `get_task_audit_trail` and `get_user_story_audit_trail` MCP tools matching architecture JSON shapes exactly.
+- `services/agent-board/internal/handler/audit_tools_test.go` — IT-003/IT-004/IT-005 at handler layer with mock repos.
+- `services/agent-board/internal/mcp/server.go` — Added `ListTools()` method to `ToolRegistry`.
+
+### Tests added
+- `TestAuditRepo_GetTaskAuditTrail` (IT-004 repo layer)
+- `TestAuditRepo_GetUserStoryAuditTrail` (IT-005 repo layer)
+- `TestAuditRepo_GetTaskAuditTrail_Empty`
+- `TestAuditTools_GetTaskAuditTrail` (IT-004 handler layer)
+- `TestAuditTools_GetTaskAuditTrail_Empty`
+- `TestAuditTools_GetTaskAuditTrail_MissingTaskID`
+- `TestAuditTools_GetUserStoryAuditTrail` (IT-005 handler layer)
+- `TestAuditTools_GetUserStoryAuditTrail_MissingID`
+- `TestAuditTools_NoAuditOnInvalidTaskTransition` (IT-003)
+- `TestAuditTools_NoAuditOnInvalidUserStoryTransition` (IT-003)
+- `TestAuditTools_GetTaskAuditTrail_RepoError`
+
+### Follow-up
+- `cmd/mcp-server/main.go` needs `handler.RegisterAuditTools(toolRegistry, repo.NewAuditRepo(db))` to wire the tools at runtime. This file was not in the task's `Files touched` list and was not modified per task scope. Tech-lead should verify or add a separate task for this wiring.
 
 ## Review log

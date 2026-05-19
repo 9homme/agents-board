@@ -4,7 +4,7 @@
 **Story:** US003
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US001_be_scaffold_domain_and_migration.md
 **Worked-by:** be-dev-2026-05-19T00:00:00Z-a337
 **Implements:** US003, API contracts for get_task_audit_trail and get_user_story_audit_trail
@@ -103,3 +103,36 @@ The dev must make these tests pass:
 - `go test ./...` — all packages PASS (domain, handler, mcp, repo).
 - BE review gate: `REVIEW GATE: PASS` (gofmt -s, go vet, golangci-lint, go test, gosec, govulncheck).
 - Cross review gate: `REVIEW GATE: PASS` (semgrep, gitleaks).
+
+### Review pass 2 — 2026-05-19 — verdict: approved
+
+**Pass-1 finding — resolved:**
+- `cmd/mcp-server/main.go:57` now calls `handler.RegisterAuditTools(toolRegistry, repo.NewAuditRepo(db))`, placed immediately after `RegisterTaskTools` (line 56) and before `NewHandler` (line 59). Correct registry variable (`toolRegistry`), correct db handle (`db`), correct constructor (`repo.NewAuditRepo`). `get_task_audit_trail` and `get_user_story_audit_trail` are now reachable at runtime via `HandleMessage`.
+
+**Scope discipline:**
+- Rework commit `c6a5ee1` adds exactly one line to `cmd/mcp-server/main.go` and nothing else. `git log -p` confirms no other files touched in the rework. `cmd/mcp-server/main.go` was widened into `## Files touched` (commit `b402451`). No drive-by edits.
+
+**Tests & gates — all green:**
+- `go vet ./...` — clean. `go build ./...` — clean. `go test ./...` inside `services/agent-board` — all packages PASS (domain, handler, mcp, repo).
+- BE review gate (`scripts/review/run-gate.sh be services/agent-board`):
+  ```
+  == BE gate · services/agent-board ==
+    PASS  gofmt -s (no diff)
+    PASS  go vet ./...
+    PASS  golangci-lint run ./...
+    PASS  go test ./...
+    PASS  gosec ./... (security)
+    PASS  govulncheck ./...
+
+  REVIEW GATE: PASS
+  ```
+- Cross review gate (`scripts/review/run-gate.sh cross`):
+  ```
+  == Cross-cutting · repo ==
+    PASS  semgrep (owasp/golang/typescript)
+    PASS  gitleaks (no secrets)
+
+  REVIEW GATE: PASS
+  ```
+
+**Verdict:** approved. The sole pass-1 blocker (runtime wiring of the audit tools) is fully resolved with a minimal, correct one-line change. Implementation remains contract-faithful (`AuditLogResponse` matches architecture lines 82-94 / 105-117 field-for-field, `ORDER BY changed_at ASC`), test contract (IT-003/IT-004/IT-005) satisfied, no regressions. Streak reset on approval.

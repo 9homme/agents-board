@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US004_be_errcheck_rollback_discard.md
 **Worked-by:** be-dev (US004 tail)
 **Implements:** US004 final acceptance criterion "Scenario: Lint exits clean" — drives the remaining tail (`gocritic` 5, `gosec` 1, `revive` 1 = 7 findings) to zero AND verifies the overall `golangci-lint run ./...` exit-zero gate.
@@ -144,3 +144,56 @@ No blanket `// nolint` directives. No file-level disables.
 
 ## Review log
 (tech-lead appends here on each review pass)
+
+### Review pass 1 — 2026-05-19 — verdict: approved
+
+**Story-level acceptance gate (the headline this task owns):**
+
+```
+$ cd services/agent-board && golangci-lint run ./...
+0 issues.
+```
+Exit status: 0. **US004 story-level acceptance criterion "Scenario: Lint exits clean" is now met.** Baseline drove from 34 → 0 across all 7 linter categories (noctx, unused, gocritic, errcheck, errorlint, gosec, revive).
+
+**Per-category audits (re-run by reviewer, not trusted from dev report):**
+- `golangci-lint run --enable-only=gocritic ./...` → `0 issues.` exit 0.
+- `golangci-lint run --enable-only=gosec ./...` → `0 issues.` exit 0.
+- `golangci-lint run --enable-only=revive ./...` → `0 issues.` exit 0.
+- `go vet ./...` → clean, exit 0.
+
+**Race tests (run twice, both PASS, no DATA RACE):**
+
+Run 1 / Run 2 — both:
+```
+?   	agent-board/cmd/api-server	[no test files]
+?   	agent-board/cmd/mcp-server	[no test files]
+ok  	agent-board/internal/domain
+ok  	agent-board/internal/handler
+ok  	agent-board/internal/mcp
+ok  	agent-board/internal/repo
+```
+Exit 0 both runs; `grep -E "FAIL|DATA RACE"` returned zero matches.
+
+**Mandatory review gate scripts:**
+- `scripts/review/run-gate.sh be services/agent-board` → `REVIEW GATE: PASS` exit 0 (gofmt, go vet, golangci-lint, go test, gosec, govulncheck all PASS).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` exit 0 (semgrep, gitleaks PASS).
+
+**Behavioural-preservation checks (one bullet per code change):**
+- `cmd/api-server/main.go` `main()`→`run() error` refactor: identical CORS config, same `DATABASE_URL` env-var read, same `/api/v1/projects` route, same `PORT` defaulting, server still binds on `:" + port` (line 76) using the original un-sanitised value — `safePort` is logging-only as claimed. `defer db.Close()` now lives inside `run()` so it unwinds before `main`'s `os.Exit(1)`. No new globals, no timeouts changed, no new env-var reads.
+- `cmd/mcp-server/main.go` `main()`→`run() error` refactor: identical tool registrations (Project / Document / UserStory / Task / Audit), identical `/sse` GET and `/message` POST routes, same `DB_URL` env, same `PORT` defaulting, same `:"+port` bind. The pre-existing `log.Fatal` on missing `DB_URL` (line 28) is before any `defer` so does not re-trigger `exitAfterDefer` — correctly left as-is.
+- `cmd/api-server/main.go:68-75` gosec G706 sanitisation: `strings.Map` callback strips runes `< 0x20` AND `r == 0x7f` (DEL) as required; `safePort` used ONLY on the `log.Printf` line (75); `e.Start(":" + port)` at line 76 uses the original `port` — server actually listens on the intended port. `//nolint:gosec` directive names `gosec` explicitly and the justification on line 74 explains WHY (control chars stripped), not merely that the dev believes it is safe. Sanitise-first approach was correct; the suppression is the unavoidable secondary measure because gosec's taint analysis does not follow `strings.Map`.
+- `internal/repo/task_repo.go:162` `if err :=` rewrite: `ListTasks` — no transaction, only `defer rows.Close()`. Outer `err` from `QueryContext` (line 147) is never used after the `rows.Err()` check; the only subsequent statement is `return tasks, nil`. Shadowing is behaviour-neutral. Safe.
+- `internal/repo/user_story_repo.go:89` `if err := tx.Commit()` rewrite (highest-risk site, verified end-to-end): the deferred rollback closure (lines 65–71) captures outer `err`. At line 89 the outer `err` is guaranteed `nil` (set at line 84 by `tx.ExecContext`; line 85–87 returns on non-nil). If commit fails, the inner `err` is returned directly (line 90); the outer `err` remains `nil`, so the deferred closure's `if err != nil` correctly skips rollback — which is the right semantics, since a failed `tx.Commit()` already terminates the transaction (`sql.ErrTxDone` on rollback attempt). The rollback safety net `TestUserStoryRepo_UpdateUserStoryStatus_RollbackOnAuditFailure` (in `internal/repo`) PASSes under both race runs. Dev's analysis matches reality.
+- `internal/repo/user_story_repo.go:133` `if err :=` rewrite: `ListUserStories` — same shape as `task_repo.go:162` (no tx, `rows.Close()` defer, outer `err` from `QueryContext` not used after `rows.Err()` check). Safe.
+- `internal/handler/message.go:15` `sessionId` → `sessionID` rename: purely local. The query-param string literal `"sessionId"` (line 15 `c.QueryParam("sessionId")`) is unchanged — API contract preserved. Error message strings "sessionId is required" / "invalid sessionId" unchanged (lines 17, 22). No exported field, struct tag, JSON tag, or wire identifier touched. All four in-function references updated consistently (15, 16, 20).
+
+**Final suppression inventory (UT-010 satisfied):**
+- `grep -rn "nolint" services/agent-board/` returns exactly 1 match:
+  - `cmd/api-server/main.go:75 — //nolint:gosec` (linter named, justification on preceding line 74, not blanket, not file-level).
+- `grep -rn "// nolint$" services/agent-board/` and `grep -rn "//nolint$" services/agent-board/` both return 0 lines.
+
+**gosec sanitise+nolint choice:** Acceptable. Sanitisation was applied substantively (`strings.Map` strips control chars and DEL), satisfying the AC's preferred Form A; the `//nolint:gosec` is a necessary secondary measure because gosec's taint analysis cannot prove transformation safety statically. Justification is genuine (explains the stripping) rather than boilerplate.
+
+**Scope discipline:** Cumulative US004 diff against pre-story baseline (`ee98420`..`9769d8d`): 8 service files changed, +73 / -33 LOC. No `architecture.md`, no `.golangci.yml`, no `US004_*_tests.md` spec files, no sibling-task `.md` files modified beyond legitimate `## Notes` and `## Review log` appends.
+
+**Streak:** 4th consecutive `approved` across the US004 chain (`be_unused_handler_test_triage` → `be_mechanical_noctx_errorlint` → `be_errcheck_rollback_discard` → `be_tail_gocritic_gosec_revive`). The chain is now closed; Phase 3c (test report capture) can begin.

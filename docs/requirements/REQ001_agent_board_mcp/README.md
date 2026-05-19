@@ -26,10 +26,10 @@ Enable AI agents to seamlessly read and write project management entities (Proje
 ## Tasks
 | US ID | Task ID | Track | Service | Name | Status | Blocked By |
 |-------|---------|-------|---------|------|--------|------------|
-| US001 | be_mcp_server | BE | services/agent-board-mcp | US001_be_mcp_server.md | pending | |
-| US002 | be_schema_and_project_repo | BE | services/agent-board-mcp | US002_be_schema_and_project_repo.md | pending | |
-| US002 | be_project_mcp_tools | BE | services/agent-board-mcp | US002_be_project_mcp_tools.md | pending | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
-| US003 | be_document_crud | BE | services/agent-board-mcp | US003_be_document_crud.md | pending | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
-| US004 | be_user_story_crud | BE | services/agent-board-mcp | US004_be_user_story_crud.md | pending | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
-| US005 | be_task_crud | BE | services/agent-board-mcp | US005_be_task_crud.md | pending | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
-| US006 | be_quality_refinements | BE | services/agent-board-mcp | US006_be_quality_refinements.md | pending | |
+| US001 | be_mcp_server | BE | services/agent-board-mcp | US001_be_mcp_server.md | completed | |
+| US002 | be_schema_and_project_repo | BE | services/agent-board-mcp | US002_be_schema_and_project_repo.md | completed | |
+| US002 | be_project_mcp_tools | BE | services/agent-board-mcp | US002_be_project_mcp_tools.md | completed | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
+| US003 | be_document_crud | BE | services/agent-board-mcp | US003_be_document_crud.md | in_review | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
+| US004 | be_user_story_crud | BE | services/agent-board-mcp | US004_be_user_story_crud.md | completed | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
+| US005 | be_task_crud | BE | services/agent-board-mcp | US005_be_task_crud.md | completed | US001_be_mcp_server.md, US002_be_schema_and_project_repo.md |
+| US006 | be_quality_refinements | BE | services/agent-board-mcp | US006_be_quality_refinements.md | completed | |

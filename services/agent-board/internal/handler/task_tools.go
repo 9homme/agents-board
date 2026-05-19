@@ -53,14 +53,13 @@ func RegisterTaskTools(registry *mcp.ToolRegistry, repository repo.TaskRepositor
 		}
 
 		if req.Status == "" {
-			req.Status = "pending"
+			req.Status = domain.TaskStatusPending
 		}
 
-		task := &domain.Task{
-			UserStoryID: req.UserStoryID,
-			Title:       req.Title,
-			Description: req.Description,
-			Status:      req.Status,
+		// Enforce initial status via domain constructor -- only "pending" is valid.
+		task, err := domain.NewTask(req.UserStoryID, req.Title, req.Description, req.Status)
+		if err != nil {
+			return nil, fmt.Errorf("invalid initial status: %w", err)
 		}
 
 		created, err := repository.CreateTask(ctx, task)
@@ -109,7 +108,7 @@ func RegisterTaskTools(registry *mcp.ToolRegistry, repository repo.TaskRepositor
 			return nil, errors.New("id is required")
 		}
 
-		// First fetch the existing task
+		// First fetch the existing task.
 		existing, err := repository.GetTask(ctx, req.ID)
 		if err != nil {
 			if errors.Is(err, repo.ErrNotFound) {
@@ -118,14 +117,43 @@ func RegisterTaskTools(registry *mcp.ToolRegistry, repository repo.TaskRepositor
 			return nil, fmt.Errorf("failed to get task: %w", err)
 		}
 
+		// If a status change is requested, validate the transition first.
+		if req.Status != nil && *req.Status != existing.Status {
+			if !existing.IsValidTransition(*req.Status) {
+				return nil, fmt.Errorf("invalid transition from %s to %s", existing.Status, *req.Status)
+			}
+
+			fromStatus := existing.Status
+			toStatus := *req.Status
+
+			// Apply non-status field updates if present before the transactional status update.
+			if req.Title != nil {
+				existing.Title = *req.Title
+			}
+			if req.Description != nil {
+				existing.Description = *req.Description
+			}
+			if req.Title != nil || req.Description != nil {
+				_, err = repository.UpdateTask(ctx, existing)
+				if err != nil {
+					return nil, fmt.Errorf("failed to update task fields: %w", err)
+				}
+			}
+
+			// Atomically update status and write audit trail.
+			updated, err := repository.UpdateTaskStatus(ctx, req.ID, fromStatus, toStatus)
+			if err != nil {
+				return nil, fmt.Errorf("failed to update task status: %w", err)
+			}
+			return mapTaskToResponse(updated), nil
+		}
+
+		// No status change -- apply field updates normally.
 		if req.Title != nil {
 			existing.Title = *req.Title
 		}
 		if req.Description != nil {
 			existing.Description = *req.Description
-		}
-		if req.Status != nil {
-			existing.Status = *req.Status
 		}
 
 		updated, err := repository.UpdateTask(ctx, existing)

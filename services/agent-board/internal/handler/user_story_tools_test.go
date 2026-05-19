@@ -15,14 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// MockUserStoryRepo is a mock implementation of repo.UserStoryRepository
+// MockUserStoryRepo is a mock implementation of repo.UserStoryRepository.
 type MockUserStoryRepo struct {
 	repo.UserStoryRepository
-	CreateUserStoryFunc func(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error)
-	GetUserStoryFunc    func(ctx context.Context, id string) (*domain.UserStory, error)
-	UpdateUserStoryFunc func(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error)
-	DeleteUserStoryFunc func(ctx context.Context, id string) error
-	ListUserStoriesFunc func(ctx context.Context, projectID string) ([]*domain.UserStory, error)
+	CreateUserStoryFunc       func(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error)
+	GetUserStoryFunc          func(ctx context.Context, id string) (*domain.UserStory, error)
+	UpdateUserStoryFunc       func(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error)
+	UpdateUserStoryStatusFunc func(ctx context.Context, id, fromStatus, toStatus string) (*domain.UserStory, error)
+	DeleteUserStoryFunc       func(ctx context.Context, id string) error
+	ListUserStoriesFunc       func(ctx context.Context, projectID string) ([]*domain.UserStory, error)
 }
 
 func (m *MockUserStoryRepo) CreateUserStory(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error) {
@@ -33,6 +34,9 @@ func (m *MockUserStoryRepo) GetUserStory(ctx context.Context, id string) (*domai
 }
 func (m *MockUserStoryRepo) UpdateUserStory(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error) {
 	return m.UpdateUserStoryFunc(ctx, u)
+}
+func (m *MockUserStoryRepo) UpdateUserStoryStatus(ctx context.Context, id, fromStatus, toStatus string) (*domain.UserStory, error) {
+	return m.UpdateUserStoryStatusFunc(ctx, id, fromStatus, toStatus)
 }
 func (m *MockUserStoryRepo) DeleteUserStory(ctx context.Context, id string) error {
 	return m.DeleteUserStoryFunc(ctx, id)
@@ -78,6 +82,21 @@ func TestUserStoryTools_CreateUserStory(t *testing.T) {
 	assert.Equal(t, "draft", resResp.Status)
 }
 
+// UT-005 — create_user_story rejects non-draft initial status
+func TestUserStoryTools_CreateUserStory_InvalidInitialStatus(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockUserStoryRepo{}
+	handler.RegisterUserStoryTools(registry, mockRepo)
+
+	// Providing non-draft status should be rejected
+	args := json.RawMessage(`{"projectId":"123e4567-e89b-12d3-a456-426614174000", "title": "My Story", "description": "Desc", "status": "done"}`)
+	toolHandler, ok := registry.GetTool("create_user_story")
+	require.True(t, ok)
+	res, err := toolHandler(context.Background(), args)
+	require.Error(t, err)
+	assert.Nil(t, res)
+}
+
 func TestUserStoryTools_GetUserStory(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
@@ -110,6 +129,8 @@ func TestUserStoryTools_GetUserStory(t *testing.T) {
 	assert.Equal(t, "223e4567-e89b-12d3-a456-426614174000", resResp.ID)
 }
 
+// TestUserStoryTools_UpdateUserStory tests a valid status transition (draft -> in_development).
+// When status changes, UpdateUserStoryStatus (transactional) is called.
 func TestUserStoryTools_UpdateUserStory(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
@@ -128,6 +149,20 @@ func TestUserStoryTools_UpdateUserStory(t *testing.T) {
 		}, nil
 	}
 
+	// Status changes use UpdateUserStoryStatus (transactional audit trail).
+	mockRepo.UpdateUserStoryStatusFunc = func(ctx context.Context, id, fromStatus, toStatus string) (*domain.UserStory, error) {
+		return &domain.UserStory{
+			ID:          id,
+			ProjectID:   "123e4567-e89b-12d3-a456-426614174000",
+			Title:       "Old",
+			Description: "Old desc",
+			Status:      toStatus,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}, nil
+	}
+
+	// Non-status field changes use UpdateUserStory.
 	mockRepo.UpdateUserStoryFunc = func(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error) {
 		return &domain.UserStory{
 			ID:          u.ID,
@@ -140,7 +175,8 @@ func TestUserStoryTools_UpdateUserStory(t *testing.T) {
 		}, nil
 	}
 
-	args := json.RawMessage(`{"id":"223e4567-e89b-12d3-a456-426614174000", "title": "Updated", "description": "Updated desc", "status": "in_progress"}`)
+	// Valid transition: draft -> in_development
+	args := json.RawMessage(`{"id":"223e4567-e89b-12d3-a456-426614174000", "title": "Updated", "description": "Updated desc", "status": "in_development"}`)
 	toolHandler, ok := registry.GetTool("update_user_story")
 	require.True(t, ok)
 	res, err := toolHandler(context.Background(), args)
@@ -148,9 +184,36 @@ func TestUserStoryTools_UpdateUserStory(t *testing.T) {
 
 	resResp, ok := res.(handler.UserStoryResponse)
 	require.True(t, ok)
-	assert.Equal(t, "Updated", resResp.Title)
-	assert.Equal(t, "Updated desc", resResp.Description)
-	assert.Equal(t, "in_progress", resResp.Status)
+	assert.Equal(t, "in_development", resResp.Status)
+}
+
+// IT-001 — Reject invalid transitions at MCP layer
+func TestUserStoryTools_UpdateUserStory_InvalidTransition(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockUserStoryRepo{}
+	handler.RegisterUserStoryTools(registry, mockRepo)
+
+	now := time.Now()
+	mockRepo.GetUserStoryFunc = func(ctx context.Context, id string) (*domain.UserStory, error) {
+		return &domain.UserStory{
+			ID:          id,
+			ProjectID:   "123e4567-e89b-12d3-a456-426614174000",
+			Title:       "Story",
+			Description: "Desc",
+			Status:      "draft",
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}, nil
+	}
+
+	// draft -> done is not a valid transition for user stories
+	args := json.RawMessage(`{"id":"223e4567-e89b-12d3-a456-426614174000", "status": "done"}`)
+	toolHandler, ok := registry.GetTool("update_user_story")
+	require.True(t, ok)
+	res, err := toolHandler(context.Background(), args)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.Contains(t, err.Error(), "invalid transition")
 }
 
 func TestUserStoryTools_DeleteUserStory(t *testing.T) {

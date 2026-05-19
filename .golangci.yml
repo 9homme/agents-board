@@ -1,9 +1,86 @@
-# .golangci.yml
+# .golangci.yml — repo-wide Go linter config (v2 schema).
+#
+# Used by `scripts/review/run-gate.sh be <service-dir>`. Each service module
+# inherits this file (golangci-lint walks up to the first config it finds).
+#
+# Conservative set: high-signal linters only. Add more once the team has a
+# track record with the baseline.
+#
+# Migrated from the v1 schema (see .golangci.yml.bak) via
+# `golangci-lint migrate` on golangci-lint v2.12.2. Notes:
+#   - `gosimple` is folded into `staticcheck` in v2 and was removed here.
+#   - The v1 `run.timeout` is ignored in v2 (timeout is disabled by default).
+#   - `linters-settings:` moved under `linters.settings:`.
+#   - `issues.exclude-rules:` moved under `linters.exclusions.rules:`.
+
+version: "2"
+
+run:
+  tests: true
+
 linters:
+  default: none
   enable:
-    - errcheck
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - unused
+    - bodyclose      # http.Response.Body not closed
+    - errcheck       # unchecked errors
+    - errorlint      # %w vs %v, errors.Is/As correctness
+    - gocritic       # opinionated style + perf nits (curated)
+    - gosec          # also runs standalone in the gate; keep here for IDE feedback
+    - govet          # stdlib-quality static analysis
+    - ineffassign    # unused assignments
+    - misspell       # typos in identifiers / comments
+    - noctx          # http.Request without ctx
+    - revive         # replaces golint, public-export docs
+    - rowserrcheck   # sql.Rows.Err() not checked
+    - sqlclosecheck  # sql.Rows / sql.Stmt not closed
+    - staticcheck    # the big one: bug-finding, perf, deprecations (subsumes gosimple in v2)
+    - unused         # dead code
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true   # `_ = foo()` is also an unchecked error
+    gocritic:
+      disabled-checks:
+        - hugeParam       # noisy for value-receiver style
+        - rangeValCopy
+      enabled-tags:
+        - performance
+        - diagnostic
+    revive:
+      rules:
+        - name: exported           # public symbols need doc comments
+        - name: var-naming
+        - name: package-comments
+        - name: context-as-argument
+        - name: error-return
+        - name: error-naming
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Tests can be a bit looser on doc comments and security false positives.
+      - linters:
+          - errcheck
+          - gosec
+          - revive
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

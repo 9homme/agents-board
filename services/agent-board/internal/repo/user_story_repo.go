@@ -12,6 +12,9 @@ type UserStoryRepository interface {
 	CreateUserStory(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error)
 	GetUserStory(ctx context.Context, id string) (*domain.UserStory, error)
 	UpdateUserStory(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error)
+	// UpdateUserStoryStatus atomically updates the user story status and inserts an audit trail entry.
+	// It uses a single DB transaction to guarantee consistency.
+	UpdateUserStoryStatus(ctx context.Context, id, fromStatus, toStatus string) (*domain.UserStory, error)
 	DeleteUserStory(ctx context.Context, id string) error
 	ListUserStories(ctx context.Context, projectID string) ([]*domain.UserStory, error)
 }
@@ -47,6 +50,42 @@ func (r *UserStoryRepo) GetUserStory(ctx context.Context, id string) (*domain.Us
 		}
 		return nil, err
 	}
+	return &u, nil
+}
+
+// UpdateUserStoryStatus atomically updates the user story status and inserts an audit trail entry
+// within a single DB transaction (D-003).
+func (r *UserStoryRepo) UpdateUserStoryStatus(ctx context.Context, id, fromStatus, toStatus string) (*domain.UserStory, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	query := `UPDATE user_stories SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, project_id, title, description, status, created_at, updated_at`
+	var u domain.UserStory
+	err = tx.QueryRowContext(ctx, query, toStatus, id).Scan(&u.ID, &u.ProjectID, &u.Title, &u.Description, &u.Status, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			err = ErrNotFound
+		}
+		return nil, err
+	}
+
+	auditQuery := `INSERT INTO status_audit_trail (entity_id, entity_type, from_status, to_status) VALUES ($1, $2, $3, $4)`
+	_, err = tx.ExecContext(ctx, auditQuery, id, "user_story", fromStatus, toStatus)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return &u, nil
 }
 

@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** 
 **Worked-by:** be-dev (US004 unused triage)
 **Implements:** US004 acceptance criterion "Scenario: `unused` cluster in handler_test.go is triaged first" — drives the `unused` linter category to zero (9 findings).
@@ -102,4 +102,37 @@ None — this task is a verified no-op because the `unused` cluster was already 
 - The `errorlint` baseline showed 3 findings against `sql.ErrNoRows`; the re-baseline shows 3 findings but 2 are now against `repo.ErrNotFound` in `user_story_tools.go` (lines 88, 112) and 1 against `sql.ErrNoRows` in `user_story_repo.go` (line 73). The REQ003 implementation added handler-layer `== repo.ErrNotFound` comparisons. Follow-up `errorlint` task should address all 3 current sites.
 
 ## Review log
-(tech-lead appends here on each review pass)
+
+### Review pass 1 — 2026-05-19 — verdict: approved
+
+Verified no-op. The `unused` cluster (9 findings in the story baseline) was already eliminated by the previously merged PR #1 (`ee98420`, SSE-race fix + REQ003 implementation), which rewrote `internal/handler/handler_test.go`. The dev modified zero source files; the only commit on this task's branch (`cee0cef`) touches just this task file. The story's "Notes for the team" explicitly authorises capturing drift and proceeding against the current state, which is what the dev did.
+
+**Re-confirmed verification (run by tech-lead, not trusting captured output):**
+- `golangci-lint run --enable-only=unused ./...` inside `services/agent-board/` → `0 issues.` exit 0. PASS.
+- `golangci-lint run ./...` inside `services/agent-board/` → 25 issues, exit 1. `unused` absent. PASS (expected — remaining categories belong to follow-up tasks).
+- `go test ./... -race -count=1` inside `services/agent-board/` → all packages `ok`, exit 0, no DATA RACE. PASS.
+- `go vet ./...` inside `services/agent-board/` → clean, exit 0. PASS.
+- `scripts/review/run-gate.sh be services/agent-board` → `REVIEW GATE: PASS` (exit 0). PASS. (All checks PASS: gofmt -s, go vet, golangci-lint, go test, gosec, govulncheck.)
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (exit 0). PASS. (semgrep + gitleaks.)
+- `git diff HEAD -- docs/requirements/REQ003_status_state_machine/architecture.md .golangci.yml` → empty. Architecture and lint config untouched.
+- `grep -rn "nolint" services/agent-board/` → 0 lines. Suppression hygiene (UT-010) trivially satisfied.
+
+**Working baseline for tasks 2–4** (re-confirmed per-linter breakdown of the remaining 25 findings):
+
+| Linter | Count | Sites |
+|---|---|---|
+| `noctx` | 11 | `cmd/api-server/main.go:43`, `cmd/mcp-server/main.go:29` (db.Ping); `internal/handler/handler_test.go:96,144,179,222,256` + `internal/handler/project_handler_test.go:38,79,106,148` (httptest.NewRequest) |
+| `gocritic` | 5 | `cmd/api-server/main.go:44`, `cmd/mcp-server/main.go:30` (exitAfterDefer, log.Fatalf after defer); `internal/repo/task_repo.go:159`, `internal/repo/user_story_repo.go:85,129` (sloppyReassign on err) |
+| `errcheck` | 4 | `internal/handler/message.go:83,105` (json.Marshal unchecked — NEW from PR #1); `internal/repo/task_repo.go:97`, `internal/repo/user_story_repo.go:65` (`_ = tx.Rollback()` flagged because `check-blank: true`) |
+| `errorlint` | 3 | `internal/handler/user_story_tools.go:88,112` (`== repo.ErrNotFound` — NEW from PR #1); `internal/repo/user_story_repo.go:73` (`== sql.ErrNoRows`) |
+| `gosec` | 1 | `cmd/api-server/main.go:57` (G706, log-injection on port) |
+| `revive` | 1 | `internal/handler/message.go:15` (var-naming: `sessionId` → `sessionID`) |
+| **Total** | **25** | unused absent |
+
+**Coverage acknowledgement:** UT-004 (zero `unused` findings) is satisfied. UT-001 (zero overall) and UT-002 (race PASS) are story-wide gates this task contributes to; both remain story-level until the chain completes. UT-010 (suppression hygiene) is vacuously satisfied with zero `nolint` directives.
+
+**Scope-shift notes patched into downstream tasks** (rather than relayed via orchestrator, since editing task files is within tech-lead's scope and lowers handoff friction):
+- `US004_be_errcheck_rollback_discard.md` — `## Notes` now lists the 4 actual sites including the two new `json.Marshal` sites in `internal/handler/message.go` (not just the original `*_repo.go` rollback sites). The handler-layer sites need a different per-site decision (handle vs explicit-discard) than the rollback pattern.
+- `US004_be_mechanical_noctx_errorlint.md` — `## Notes` now lists the 3 actual `errorlint` sites including the two new `repo.ErrNotFound` comparisons in `internal/handler/user_story_tools.go` (note: under `internal/handler/`, NOT `internal/mcp/` as the orchestrator's brief stated). The 11 `noctx` sites are stable and enumerated.
+
+**Verified no-op due to upstream drift** — acknowledged. No code or test changes by this task; closing as approved.

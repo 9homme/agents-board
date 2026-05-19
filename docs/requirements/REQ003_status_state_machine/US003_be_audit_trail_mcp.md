@@ -22,6 +22,7 @@ Add new MCP tools to fetch the state change audit trail for tasks and user stori
 - `services/agent-board/internal/handler/audit_tools.go`
 - `services/agent-board/internal/handler/audit_tools_test.go`
 - `services/agent-board/internal/mcp/server.go`
+- `services/agent-board/cmd/mcp-server/main.go` (added by orchestrator on review pass 1 — wire `RegisterAuditTools` at runtime)
 
 ## Test contract
 The dev must make these tests pass:

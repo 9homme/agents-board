@@ -4,7 +4,7 @@
 **Story:** US002
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US001_be_scaffold_domain_and_migration.md
 **Worked-by:** be-dev-2026-05-19-a41074
 **Implements:** US002, D-003, part of US003
@@ -57,3 +57,14 @@ The dev must make these tests pass:
 - `cmd/api-server/main.go` middleware fix was pre-existing lint debt; tech-lead may wish to verify this is acceptable.
 
 ## Review log
+
+### Review pass 1 — 2026-05-19 — verdict: approved
+- Test contract satisfied. UT-001..UT-005 (UserStory `IsValidTransition` / `NewUserStory`) and IT-001 (`update_user_story` rejects invalid transition) all implemented and passing. Repo-layer transactional coverage added: `TestUserStoryRepo_UpdateUserStoryStatus` (happy path) and `TestUserStoryRepo_UpdateUserStoryStatus_RollbackOnAuditFailure`.
+- Architecture conformance: `UpdateUserStoryStatus` (user_story_repo.go:58-90) wraps `UPDATE user_stories` + `INSERT INTO status_audit_trail` in a single `BeginTx`/`Commit` transaction with rollback on error — satisfies D-003. Audit row uses `entity_type = "user_story"` and the exact schema columns from the architecture's data model (D-002).
+- `create_user_story` (user_story_tools.go:53-66) enforces initial `draft`: empty status defaults to `draft`, non-draft status rejected via `domain.NewUserStory` — satisfies UT-005.
+- Transition validation lives in `internal/domain` and is invoked by the handler before the repo call (D-001). Error text `"invalid transition from %s to %s"` matches the architecture's descriptive-error guidance.
+- Gate (BE): gofmt -s, go vet, golangci-lint, go test, gosec, govulncheck all PASS — `REVIEW GATE: PASS`. (Initial run reported exit 2 only because `gosec`/`govulncheck` were not on `PATH`; both exist in `$GOPATH/bin` and pass once exported — not a code defect.)
+- Gate (cross): semgrep + gitleaks PASS — `REVIEW GATE: PASS`.
+- `go vet ./...` and `go test ./...` clean across all packages in `services/agent-board`.
+- OUT-OF-SCOPE DEVIATION (noted, non-blocking): the dev edited `services/agent-board/cmd/api-server/main.go` (deprecated `middleware.Logger()` lint fix) — this file is NOT in the task's `## Files touched`. The dev disclosed it honestly in `## Notes`. The stray edit was discarded at merge in favor of main's version; the gate still passes without it, so no rework is required. Future tasks should route shared-scaffold/unrelated lint debt through a dedicated task rather than bundling it.
+- Follow-up (non-blocking): in `update_user_story`, a combined status + title/description change triggers two DB round-trips (`UpdateUserStoryStatus` then `UpdateUserStory`); the field update is not transactional relative to the audit write. Architecture only mandates status+audit atomicity (satisfied), so acceptable — flagged for future hardening.

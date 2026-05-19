@@ -17,11 +17,11 @@ Connect And Create Base Entities
     Set Suite Variable    ${SESSION_ID}    ${session_id}
     
     ${proj_resp}=    Create Project Tool    ${SESSION_ID}    Test Project US003    Audit Trail Test Project
-    ${proj_content}=    Evaluate    json.loads('''${proj_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${proj_content}=    Evaluate    json.loads('''${proj_resp.json()['result']['content'][0]['text']}''')    json
     Set Suite Variable    ${PROJECT_ID}    ${proj_content['id']}
 
     ${story_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    Test Story US003    Story for task audit testing    draft
-    ${story_content}=    Evaluate    json.loads('''${story_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${story_content}=    Evaluate    json.loads('''${story_resp.json()['result']['content'][0]['text']}''')    json
     Set Suite Variable    ${STORY_ID}    ${story_content['id']}
 
 Get Task Audit Trail Tool
@@ -41,18 +41,18 @@ E2E-001 Retrieve task audit trail after valid transitions
     [Tags]    US003    regression
     # 1. Create task
     ${create_resp}=    Create Task Tool    ${SESSION_ID}    ${STORY_ID}    Task 1    Test task audit    pending
-    ${task_content}=    Evaluate    json.loads('''${create_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${task_content}=    Evaluate    json.loads('''${create_resp.json()['result']['content'][0]['text']}''')    json
     ${task_id}=    Set Variable    ${task_content['id']}
 
     # 2. Update to in_progress
     Update Task Tool    ${SESSION_ID}    ${task_id}    status=in_progress
-    
+
     # 3. Update to in_review
     Update Task Tool    ${SESSION_ID}    ${task_id}    status=in_review
-    
+
     # 4. Get audit trail
     ${audit_resp}=    Get Task Audit Trail Tool    ${SESSION_ID}    ${task_id}
-    ${audit_content}=    Evaluate    json.loads('''${audit_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${audit_content}=    Evaluate    json.loads('''${audit_resp.json()['result']['content'][0]['text']}''')    json
     
     # Expected at least 2 entries. 
     # Entry 1: pending -> in_progress
@@ -71,7 +71,7 @@ E2E-002 Retrieve story audit trail after valid transitions
     [Tags]    US003    regression
     # 1. Create story
     ${create_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    Story 2    Test story audit    draft
-    ${story_content}=    Evaluate    json.loads('''${create_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${story_content}=    Evaluate    json.loads('''${create_resp.json()['result']['content'][0]['text']}''')    json
     ${story_id}=    Set Variable    ${story_content['id']}
 
     # 2. Update to in_development
@@ -79,7 +79,7 @@ E2E-002 Retrieve story audit trail after valid transitions
 
     # 3. Get audit trail
     ${audit_resp}=    Get User Story Audit Trail Tool    ${SESSION_ID}    ${story_id}
-    ${audit_content}=    Evaluate    json.loads('''${audit_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${audit_content}=    Evaluate    json.loads('''${audit_resp.json()['result']['content'][0]['text']}''')    json
     
     ${trail}=    Set Variable    ${audit_content['auditTrail']}
     Length Should Be    ${trail}    1
@@ -92,15 +92,15 @@ E2E-003 Audit record not created on invalid transition
     [Tags]    US003
     # 1. Create task
     ${create_resp}=    Create Task Tool    ${SESSION_ID}    ${STORY_ID}    Task 3    Test invalid audit    pending
-    ${task_content}=    Evaluate    json.loads('''${create_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${task_content}=    Evaluate    json.loads('''${create_resp.json()['result']['content'][0]['text']}''')    json
     ${task_id}=    Set Variable    ${task_content['id']}
 
     # 2. Invalid update to completed
     Update Task Tool    ${SESSION_ID}    ${task_id}    status=completed
-    
+
     # 3. Get audit trail
     ${audit_resp}=    Get Task Audit Trail Tool    ${SESSION_ID}    ${task_id}
-    ${audit_content}=    Evaluate    json.loads('''${audit_resp.json()['params']['result']['content'][0]['text']}''')    json
+    ${audit_content}=    Evaluate    json.loads('''${audit_resp.json()['result']['content'][0]['text']}''')    json
     
     # Trail should be empty
     ${trail}=    Set Variable    ${audit_content['auditTrail']}

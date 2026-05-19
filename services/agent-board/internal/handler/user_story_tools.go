@@ -46,15 +46,23 @@ func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStor
 		if err := json.Unmarshal(args, &req); err != nil {
 			return nil, fmt.Errorf("invalid arguments: %w", err)
 		}
-		if req.ProjectID == "" || req.Title == "" || req.Status == "" {
+		if req.ProjectID == "" || req.Title == "" {
 			return nil, fmt.Errorf("missing required fields")
 		}
 
+		// Default to "draft" if no status provided; reject any non-draft initial status (UT-005, D-001).
+		if req.Status == "" {
+			req.Status = domain.UserStoryStatusDraft
+		}
 		u := &domain.UserStory{
 			ProjectID:   req.ProjectID,
 			Title:       req.Title,
 			Description: req.Description,
 			Status:      req.Status,
+		}
+		// Enforce initial state via domain constructor.
+		if _, err := domain.NewUserStory(req.ProjectID, req.Title, req.Description, req.Status); err != nil {
+			return nil, fmt.Errorf("invalid initial status: %w", err)
 		}
 
 		created, err := repository.CreateUserStory(ctx, u)
@@ -99,7 +107,7 @@ func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStor
 			return nil, fmt.Errorf("missing id")
 		}
 
-		u, err := repository.GetUserStory(ctx, req.ID)
+		existing, err := repository.GetUserStory(ctx, req.ID)
 		if err != nil {
 			if err == repo.ErrNotFound {
 				return nil, fmt.Errorf("user story not found")
@@ -107,17 +115,43 @@ func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStor
 			return nil, err
 		}
 
-		if req.Title != nil {
-			u.Title = *req.Title
-		}
-		if req.Description != nil {
-			u.Description = *req.Description
-		}
-		if req.Status != nil {
-			u.Status = *req.Status
+		// If a status change is requested, validate the transition (IT-001, D-001, D-003).
+		if req.Status != nil && *req.Status != existing.Status {
+			if !existing.IsValidTransition(*req.Status) {
+				return nil, fmt.Errorf("invalid transition from %s to %s", existing.Status, *req.Status)
+			}
+			// Perform the transactional status update + audit log insertion.
+			updated, err := repository.UpdateUserStoryStatus(ctx, existing.ID, existing.Status, *req.Status)
+			if err != nil {
+				return nil, err
+			}
+			// Apply any non-status field updates on top of the status-updated entity.
+			if req.Title != nil {
+				updated.Title = *req.Title
+			}
+			if req.Description != nil {
+				updated.Description = *req.Description
+			}
+			// If there are additional field changes, persist them.
+			if req.Title != nil || req.Description != nil {
+				saved, err := repository.UpdateUserStory(ctx, updated)
+				if err != nil {
+					return nil, err
+				}
+				return toUserStoryResponse(saved), nil
+			}
+			return toUserStoryResponse(updated), nil
 		}
 
-		updated, err := repository.UpdateUserStory(ctx, u)
+		// No status change — apply non-status field updates normally.
+		if req.Title != nil {
+			existing.Title = *req.Title
+		}
+		if req.Description != nil {
+			existing.Description = *req.Description
+		}
+
+		updated, err := repository.UpdateUserStory(ctx, existing)
 		if err != nil {
 			return nil, err
 		}

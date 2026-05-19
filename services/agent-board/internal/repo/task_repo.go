@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"agent-board/internal/domain"
 )
@@ -13,6 +14,9 @@ type TaskRepository interface {
 	CreateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
 	GetTask(ctx context.Context, id string) (*domain.Task, error)
 	UpdateTask(ctx context.Context, task *domain.Task) (*domain.Task, error)
+	// UpdateTaskStatus atomically updates the task's status and inserts an audit log entry
+	// in a single database transaction.
+	UpdateTaskStatus(ctx context.Context, id, fromStatus, toStatus string) (*domain.Task, error)
 	DeleteTask(ctx context.Context, id string) error
 	ListTasks(ctx context.Context, userStoryID string) ([]*domain.Task, error)
 }
@@ -79,6 +83,47 @@ func (r *taskRepo) UpdateTask(ctx context.Context, task *domain.Task) (*domain.T
 		return nil, err
 	}
 	return updated, nil
+}
+
+// UpdateTaskStatus atomically updates the task's status and inserts an audit log entry
+// in a single database transaction, enforcing consistency between task state and audit trail.
+func (r *taskRepo) UpdateTaskStatus(ctx context.Context, id, fromStatus, toStatus string) (*domain.Task, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	updateQuery := `
+		UPDATE tasks SET status = $1, updated_at = NOW()
+		WHERE id = $2
+		RETURNING id, user_story_id, title, description, status, created_at, updated_at
+	`
+	task := &domain.Task{}
+	err = tx.QueryRowContext(ctx, updateQuery, toStatus, id).
+		Scan(&task.ID, &task.UserStoryID, &task.Title, &task.Description, &task.Status, &task.CreatedAt, &task.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to update task status: %w", err)
+	}
+
+	auditQuery := `INSERT INTO status_audit_trail (entity_id, entity_type, from_status, to_status) VALUES ($1, $2, $3, $4)`
+	_, err = tx.ExecContext(ctx, auditQuery, id, "task", fromStatus, toStatus)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert audit log: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return task, nil
 }
 
 // DeleteTask deletes a task by ID.

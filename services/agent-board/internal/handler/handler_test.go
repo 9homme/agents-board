@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,13 +19,81 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// safeResponseWriter is a thread-safe http.ResponseWriter used by tests that
+// spawn the SSE handler in a goroutine and inspect the captured output from
+// the main goroutine. It guards writes/reads with a mutex so the race
+// detector does not flag overlapping access to the underlying buffer / header
+// map / status code.
+type safeResponseWriter struct {
+	mu     sync.Mutex
+	header http.Header
+	body   bytes.Buffer
+	code   int
+}
+
+func newSafeResponseWriter() *safeResponseWriter {
+	return &safeResponseWriter{
+		header: make(http.Header),
+		code:   http.StatusOK,
+	}
+}
+
+func (w *safeResponseWriter) Header() http.Header {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.header
+}
+
+func (w *safeResponseWriter) Write(b []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.body.Write(b)
+}
+
+func (w *safeResponseWriter) WriteHeader(statusCode int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.code = statusCode
+}
+
+// Flush implements http.Flusher so the SSE handler's c.Response().Flush()
+// calls have something to dispatch to. There is no real buffering here.
+func (w *safeResponseWriter) Flush() {}
+
+func (w *safeResponseWriter) Code() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.code
+}
+
+func (w *safeResponseWriter) HeaderSnapshot() http.Header {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	out := make(http.Header, len(w.header))
+	for k, v := range w.header {
+		vv := make([]string, len(v))
+		copy(vv, v)
+		out[k] = vv
+	}
+	return out
+}
+
+func (w *safeResponseWriter) BodyString() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.body.String()
+}
+
 func TestGetSSEEndpoint(t *testing.T) {
 	// UT-002: GET /sse endpoint
 	e := echo.New()
 	manager := mcp.NewSessionManager()
 	h := handler.NewHandler(manager, mcp.NewToolRegistry())
 
-	req := httptest.NewRequest(http.MethodGet, "/sse", nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req := httptest.NewRequest(http.MethodGet, "/sse", nil).WithContext(ctx)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -34,6 +103,12 @@ func TestGetSSEEndpoint(t *testing.T) {
 	}()
 
 	time.Sleep(50 * time.Millisecond) // Allow SSE headers to be flushed
+
+	// Signal the SSE goroutine to stop and wait for it to return before
+	// reading the recorder. This avoids a data race between the goroutine's
+	// writes to rec and the test's reads of rec.Code/Header()/Body.
+	cancel()
+	<-errCh
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, "text/event-stream", rec.Header().Get("Content-Type"))
@@ -137,17 +212,25 @@ func TestITFullHandshake(t *testing.T) {
 	})
 
 	// 1. GET /sse
-	reqSSE := httptest.NewRequest(http.MethodGet, "/sse", nil)
-	recSSE := httptest.NewRecorder()
-	cSSE := e.NewContext(reqSSE, recSSE)
+	// Use a safeResponseWriter so the test can snapshot the SSE body while
+	// the handler goroutine is still writing to it, without tripping the
+	// race detector. Use a cancellable context so we can deterministically
+	// join the goroutine at the end of the test.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	reqSSE := httptest.NewRequest(http.MethodGet, "/sse", nil).WithContext(ctx)
+	wSSE := newSafeResponseWriter()
+	cSSE := e.NewContext(reqSSE, wSSE)
+
+	errCh := make(chan error, 1)
 	go func() {
-		_ = h.HandleSSE(cSSE)
+		errCh <- h.HandleSSE(cSSE)
 	}()
 
 	time.Sleep(50 * time.Millisecond) // Allow endpoint event to be sent
 
-	bodySSE := recSSE.Body.String()
+	bodySSE := wSSE.BodyString()
 	lines := strings.Split(bodySSE, "\n")
 	var sessionId string
 	for _, line := range lines {
@@ -182,7 +265,13 @@ func TestITFullHandshake(t *testing.T) {
 	// Wait a little for the SSE stream to receive the response
 	time.Sleep(50 * time.Millisecond)
 
-	bodySSEUpdated := recSSE.Body.String()
+	// Stop the SSE goroutine and wait for it to return before reading the
+	// final body snapshot. (BodyString is mutex-protected, but joining here
+	// also pins down the assertion to a stable point in the stream.)
+	cancel()
+	<-errCh
+
+	bodySSEUpdated := wSSE.BodyString()
 	assert.Contains(t, bodySSEUpdated, "event: message\n")
 	assert.Contains(t, bodySSEUpdated, "world")
 }

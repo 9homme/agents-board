@@ -33,7 +33,7 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back; tech-lead approved (status flipped to `completed`).
 
 ## Review log
-### Review pass 1 — 2024-05-18 — verdict: approved
+### Review pass 1 — 2026-05-18 — verdict: approved
 - Checked internal/handler/user_story_tools.go schemas against architecture JSON specifications. They match.
 - Checked domain types and SQL data structures.
 - All tests green.

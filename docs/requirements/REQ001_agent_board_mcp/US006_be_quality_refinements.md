@@ -43,12 +43,12 @@ The dev must make these tests pass:
 
 ## Review log
 
-### Review pass 1 — 2024-05-20 — verdict: changes_requested
+### Review pass 1 — 2026-05-20 — verdict: changes_requested
 - The driver name in `sql.Open` inside `cmd/agent-board-mcp/main.go` was not updated. The `github.com/jackc/pgx/v5/stdlib` package registers its driver under the name `"pgx"`, but the code still uses `"postgres"`. This causes a runtime panic/error: `sql: unknown driver "postgres"`. Please update `sql.Open("postgres", dbURL)` to `sql.Open("pgx", dbURL)`. [cmd/agent-board-mcp/main.go:21]
 
 **Response:** Updated driver name from `"postgres"` to `"pgx"` in `cmd/agent-board-mcp/main.go`. `go vet` and `go test` are clean.
 
-### Review pass 2 — 2024-05-20 — verdict: approved
+### Review pass 2 — 2026-05-20 — verdict: approved
 - Driver name correctly updated to `pgx`.
 - `go vet ./...` and `go test ./...` are clean and passing.
 - Good job on fixing the database connection string.

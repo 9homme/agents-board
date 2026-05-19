@@ -137,6 +137,61 @@ func TestUserStoryRepo_DeleteUserStory(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// IT-001 (repo layer): UpdateUserStoryStatus transactionally updates status + audit trail
+func TestUserStoryRepo_UpdateUserStoryStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	now := time.Now()
+	id := "223e4567-e89b-12d3-a456-426614174000"
+	fromStatus := "draft"
+	toStatus := "in_development"
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`^UPDATE user_stories SET status = \$1, updated_at = NOW\(\) WHERE id = \$2 RETURNING id, project_id, title, description, status, created_at, updated_at$`).
+		WithArgs(toStatus, id).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}).
+			AddRow(id, "proj-id", "Title", "Desc", toStatus, now, now))
+	mock.ExpectExec(`^INSERT INTO status_audit_trail \(entity_id, entity_type, from_status, to_status\) VALUES \(\$1, \$2, \$3, \$4\)$`).
+		WithArgs(id, "user_story", fromStatus, toStatus).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	updated, err := r.UpdateUserStoryStatus(context.Background(), id, fromStatus, toStatus)
+	require.NoError(t, err)
+	require.NotNil(t, updated)
+	assert.Equal(t, id, updated.ID)
+	assert.Equal(t, toStatus, updated.Status)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// IT-001 (repo layer): UpdateUserStoryStatus rolls back on audit trail failure
+func TestUserStoryRepo_UpdateUserStoryStatus_RollbackOnAuditFailure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	id := "223e4567-e89b-12d3-a456-426614174000"
+	fromStatus := "draft"
+	toStatus := "in_development"
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`^UPDATE user_stories SET status = \$1, updated_at = NOW\(\) WHERE id = \$2 RETURNING id, project_id, title, description, status, created_at, updated_at$`).
+		WithArgs(toStatus, id).
+		WillReturnError(sql.ErrConnDone)
+	mock.ExpectRollback()
+
+	updated, err := r.UpdateUserStoryStatus(context.Background(), id, fromStatus, toStatus)
+	require.Error(t, err)
+	assert.Nil(t, updated)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // UT-019: List user stories by Project
 func TestUserStoryRepo_ListUserStories(t *testing.T) {
 	db, mock, err := sqlmock.New()

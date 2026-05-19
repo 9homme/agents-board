@@ -54,6 +54,7 @@ func main() {
 	handler.RegisterDocumentTools(toolRegistry, documentRepo)
 	handler.RegisterUserStoryTools(toolRegistry, userStoryRepo)
 	handler.RegisterTaskTools(toolRegistry, taskRepo)
+	handler.RegisterAuditTools(toolRegistry, repo.NewAuditRepo(db))
 
 	h := handler.NewHandler(sessionManager, toolRegistry)
 

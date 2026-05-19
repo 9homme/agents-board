@@ -111,3 +111,15 @@ func (r *ToolRegistry) GetTool(name string) (ToolHandler, bool) {
 	handler, ok := r.tools[name]
 	return handler, ok
 }
+
+// ListTools returns the names of all registered tools in lexicographic order.
+func (r *ToolRegistry) ListTools() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	names := make([]string, 0, len(r.tools))
+	for name := range r.tools {
+		names = append(names, name)
+	}
+	return names
+}

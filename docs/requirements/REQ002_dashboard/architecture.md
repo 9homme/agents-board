@@ -124,11 +124,11 @@ No changes to the existing database schema. Both applications read from the exis
 ### Revision 3 — 2026-05-15 — driver: human feedback pass 2
 - Renamed the service directory from `services/agent-board-mcp` to `services/agent-board` to better reflect its broadened scope encompassing both the MCP server and REST API backend.
 
-### Revision 2 — 2024-05-24 — driver: human feedback pass 1
+### Revision 2 — 2026-05-24 — driver: human feedback pass 1
 - Refactored architecture to split the single application into two separate executables (`mcp-server` and `api-server`) within the single Go module.
 - Clarified that `internal/repo` is the shared layer for database access.
 - Added explicit D-001 ADR-lite decision for the binary split.
 - Confirmed CORS requirement and no authentication for the REST API.
 
-### Revision 1 — 2024-05-24 — author: system-architect
+### Revision 1 — 2026-05-24 — author: system-architect
 - Initial draft.

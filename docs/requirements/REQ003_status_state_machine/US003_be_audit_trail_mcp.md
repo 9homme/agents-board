@@ -4,9 +4,9 @@
 **Story:** US003
 **Track:** BE
 **Service:** services/agent-board
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** US001_be_scaffold_domain_and_migration.md
-**Worked-by:** be-dev-2026-05-19T00:00:00Z-a6ce
+**Worked-by:** be-dev-2026-05-19T00:00:00Z-a337
 **Implements:** US003, API contracts for get_task_audit_trail and get_user_story_audit_trail
 
 ## Goal
@@ -91,3 +91,15 @@ The dev must make these tests pass:
    - The dev correctly left the file untouched given the original `## Files touched` list and disclosed the gap in `## Notes` — good discipline. The remediation is to widen scope, not to penalize the disclosure.
 
 **Verdict:** changes_requested. Implementation is otherwise correct, contract-faithful, well-tested, and gate-clean; the single remaining gap is runtime wiring of the delivered tools.
+
+### Rework — 2026-05-19 — response to Review pass 1
+
+**Finding addressed:**
+- `cmd/mcp-server/main.go` — added `handler.RegisterAuditTools(toolRegistry, repo.NewAuditRepo(db))` on line 57, immediately after the existing `RegisterTaskTools` call. This wires `get_task_audit_trail` and `get_user_story_audit_trail` into the live MCP server, making them reachable at runtime. No other changes were made.
+
+**Verification:**
+- `go vet ./...` — clean.
+- `go build ./...` — clean.
+- `go test ./...` — all packages PASS (domain, handler, mcp, repo).
+- BE review gate: `REVIEW GATE: PASS` (gofmt -s, go vet, golangci-lint, go test, gosec, govulncheck).
+- Cross review gate: `REVIEW GATE: PASS` (semgrep, gitleaks).

@@ -4,7 +4,7 @@
 **Story:** US003
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** US001_be_scaffold_domain_and_migration.md
 **Worked-by:** be-dev-2026-05-19T00:00:00Z-a6ce
 **Implements:** US003, API contracts for get_task_audit_trail and get_user_story_audit_trail
@@ -65,3 +65,28 @@ The dev must make these tests pass:
 - `cmd/mcp-server/main.go` needs `handler.RegisterAuditTools(toolRegistry, repo.NewAuditRepo(db))` to wire the tools at runtime. This file was not in the task's `Files touched` list and was not modified per task scope. Tech-lead should verify or add a separate task for this wiring.
 
 ## Review log
+
+### Review pass 1 — 2026-05-19 — verdict: changes_requested
+
+**Tests & gates (all green):**
+- `go vet ./...` — clean. `go test ./...` inside `services/agent-board` — all packages PASS (domain, handler, mcp, repo).
+- BE review gate: `REVIEW GATE: PASS` — gofmt -s, go vet, golangci-lint, go test, gosec, govulncheck all PASS.
+- Cross review gate: `REVIEW GATE: PASS` — semgrep (owasp/golang/typescript), gitleaks all PASS.
+
+**Test contract — satisfied:**
+- IT-004 (repo): `TestAuditRepo_GetTaskAuditTrail` (audit_repo_test.go:14) — chronological order verified.
+- IT-005 (repo): `TestAuditRepo_GetUserStoryAuditTrail` (audit_repo_test.go:52).
+- IT-004 (handler): `TestAuditTools_GetTaskAuditTrail` (audit_tools_test.go:32) — exact JSON shape verified.
+- IT-005 (handler): `TestAuditTools_GetUserStoryAuditTrail` (audit_tools_test.go:121).
+- IT-003: `TestAuditTools_NoAuditOnInvalidTaskTransition` / `TestAuditTools_NoAuditOnInvalidUserStoryTransition` (audit_tools_test.go:185, :224).
+- JSON contract conformance: `AuditLogResponse` (audit_tools.go:17-24) matches architecture lines 82-94 / 105-117 field-for-field; `changedAt` formatted RFC3339; `entityType` carried through ('task' / 'user_story'); `auditTrail` empty slice (not nil) on no results. No deviation.
+- Chronological ordering: `ORDER BY changed_at ASC` (audit_repo.go:29) — matches architecture index intent (line 133).
+- Scope discipline: `git diff` confirms only the 5 declared `## Files touched` paths were modified.
+
+**Required change (blocking):**
+1. `cmd/mcp-server/main.go` — the two new tools are never registered with the running server. `RegisterAuditTools` (audit_tools.go:39) is implemented but never called. `main.go:53-56` registers project/document/user-story/task tools but not audit tools, so `get_task_audit_trail` and `get_user_story_audit_trail` resolve to "Tool not found" in `HandleMessage` (message.go:34-37) at runtime — the tools are unreachable.
+   - This is incomplete delivery, not a separate integration task: this task's own `## Scope: In` (line 16) explicitly includes "**and registration of these tools**", the architecture lists "Add new MCP tools ..." as `internal/handler` responsibility and "Provide MCP tools to retrieve the audit trail" as in-scope (architecture lines 8, 51, 71), US003 AC "Retrieve audit trail" requires the backend to answer the query, and no separate wiring task exists in the REQ003 README task table. The US001/US002 precedent registered their tools in `main.go` (lines 55-56).
+   - Fix: add `handler.RegisterAuditTools(toolRegistry, repo.NewAuditRepo(db))` to `cmd/mcp-server/main.go` after line 56. `cmd/mcp-server/main.go` must be added to `## Files touched` — the orchestrator will widen the list before re-spawning the dev.
+   - The dev correctly left the file untouched given the original `## Files touched` list and disclosed the gap in `## Notes` — good discipline. The remediation is to widen scope, not to penalize the disclosure.
+
+**Verdict:** changes_requested. Implementation is otherwise correct, contract-faithful, well-tested, and gate-clean; the single remaining gap is runtime wiring of the delivered tools.

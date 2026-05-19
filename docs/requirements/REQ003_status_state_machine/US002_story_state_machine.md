@@ -1,7 +1,7 @@
 # US002 — Story state machine
 
 **Requirement:** REQ003 — status_state_machine
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As an API client, I want the backend to enforce the User Story status state machine, so that stories follow the designated workflow.

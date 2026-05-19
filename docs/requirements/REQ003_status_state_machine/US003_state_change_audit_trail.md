@@ -1,7 +1,7 @@
 # US003 — State change audit trail
 
 **Requirement:** REQ003 — status_state_machine
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As an API client, I want the backend to track the history of state changes for tasks and user stories, so that there is an audit trail of when a status was changed and what the transitions were.

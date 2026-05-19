@@ -1,7 +1,7 @@
 # US001 — Task state machine
 
 **Requirement:** REQ003 — status_state_machine
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As an API client, I want the backend to enforce the Task status state machine, so that tasks cannot bypass required states or enter invalid states.

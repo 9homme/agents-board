@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US004_be_unused_handler_test_triage.md
 **Worked-by:** be-dev (US004 noctx+errorlint)
 **Implements:** US004 acceptance criterion "Specific finding categories are resolved correctly, not papered over" — drives `errorlint` (3) and `noctx` (11) to zero. Total: 14 findings.
@@ -108,3 +108,27 @@ The 11 `noctx` sites are stable and as listed in the story background:
 
 ## Review log
 (tech-lead appends here on each review pass)
+
+### Review pass 1 — 2026-05-19 — verdict: approved
+
+**Verification (re-run by tech-lead, not trusting dev report):**
+- `golangci-lint run --enable-only=errorlint ./...` → `0 issues.` exit 0.
+- `golangci-lint run --enable-only=noctx ./...` → `0 issues.` exit 0.
+- `golangci-lint run ./...` → `11 issues:` exit 1. Per-linter breakdown: `errcheck: 4, gocritic: 5, gosec: 1, revive: 1`. `unused`, `errorlint`, `noctx` all absent — no regression, no category drift.
+- `go vet ./...` → clean (exit 0, no output).
+- `go test ./... -race -count=1` run 1 → `ok` for domain/handler/mcp/repo; cmd packages have no tests; no `FAIL`, no `DATA RACE`. Exit 0.
+- `go test ./... -race -count=1` run 2 (back-to-back) → same result. Exit 0. `noctx` rewrites did not perturb timing under `-race`, as the story flagged might happen.
+- `grep -rn "nolint" services/agent-board/` → exit 1 (no matches). Module-wide `// nolint` count: 0. UT-010 hygiene contract still satisfied.
+- `scripts/review/run-gate.sh be services/agent-board` → `REVIEW GATE: PASS` exit 0 (gofmt, go vet, golangci-lint --no-config, go test, gosec, govulncheck all PASS).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` exit 0 (semgrep, gitleaks PASS).
+
+**Diff-quality observations:**
+- Worktree commit `1a383f1` modified exactly 7 files: 6 source + 1 task file. No edits to `architecture.md`, `.golangci.yml`, the test specs (`US004_be_unit_tests.md` et al.), or sibling task files. Scope: tight.
+- All 9 `httptest.NewRequestWithContext` rewrites are constructor-only — assertions, recorder, downstream handler calls untouched. Verified by reading diffs in `handler_test.go` and `project_handler_test.go`.
+- Context-choice quality: spot-on. `handler_test.go:96` (`TestGetSSEEndpoint`) and `:222` (`TestITFullHandshake`) correctly reuse the in-scope `ctx` from `context.WithCancel(context.Background())` (cancellation propagation preserved); the other 7 sites correctly use `context.Background()` for tests with no cancellation semantics. `cmd/*/main.go` both use `context.Background()` without a timeout — no behaviour change to startup ping.
+- `errors.Is` semantics preserved: `repo.ErrNotFound` and `sql.ErrNoRows` are sentinels reached via direct equality in both repo and handler paths; `errors.Is` is a superset that handles wrapping too. No test relied on identity-only comparison (verified by reading the affected handler code path).
+- `exitAfterDefer` gocritic findings now appearing on `cmd/api-server/main.go:45` and `cmd/mcp-server/main.go:31` are pre-existing (lines 44/30 at parent `1a383f1^`, shifted by 1 due to the added `"context"` import). Same 2 findings, same 5-count `gocritic` baseline — no new debt introduced.
+
+**Working baseline for the next task** (`US004_be_tail_gocritic_gosec_revive.md`): **11 findings remaining** — errcheck 4 (`message.go:83`, `message.go:105`, `task_repo.go:97`, `user_story_repo.go:66`), gocritic 5 (`api-server/main.go:45` exitAfterDefer, `mcp-server/main.go:31` exitAfterDefer, `task_repo.go:159` sloppyReassign, `user_story_repo.go:86` sloppyReassign, `user_story_repo.go:130` sloppyReassign), gosec 1 (`api-server/main.go:58` G706 log injection), revive 1 (`message.go:15` var-naming sessionId → sessionID). Note: 2 of the 4 errcheck findings (`message.go:83,105` json.Marshal) are NEW vs. the original story background which listed all 4 errcheck as `tx.Rollback` — the tail task will need to handle both shapes; the `tx.Rollback` form-A/form-B guidance in UT-006 still applies for the repo-layer pair.
+
+Streak: 2 approved across this story (US004 unused triage + this one). Clean.

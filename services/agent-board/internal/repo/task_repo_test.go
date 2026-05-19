@@ -137,6 +137,65 @@ func TestTaskRepo_DeleteTask(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// IT-001 (repo): UpdateTaskStatus atomically updates task status and inserts audit log
+func TestTaskRepo_UpdateTaskStatus(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewTaskRepo(db)
+	now := time.Now()
+	id := "223e4567-e89b-12d3-a456-426614174000"
+	userStoryID := "123e4567-e89b-12d3-a456-426614174000"
+
+	// Expect a transaction
+	mock.ExpectBegin()
+	// Expect the task update
+	mock.ExpectQuery(`^UPDATE tasks SET status = \$1, updated_at = NOW\(\) WHERE id = \$2 RETURNING id, user_story_id, title, description, status, created_at, updated_at$`).
+		WithArgs("in_progress", id).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}).
+			AddRow(id, userStoryID, "Test Task", "Desc", "in_progress", now, now))
+	// Expect the audit log insert
+	mock.ExpectExec(`^INSERT INTO status_audit_trail \(entity_id, entity_type, from_status, to_status\) VALUES \(\$1, \$2, \$3, \$4\)$`).
+		WithArgs(id, "task", "pending", "in_progress").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	updated, err := repo.UpdateTaskStatus(context.Background(), id, "pending", "in_progress")
+	require.NoError(t, err)
+	require.NotNil(t, updated)
+	assert.Equal(t, "in_progress", updated.Status)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// IT-001b (repo): UpdateTaskStatus rolls back if audit insert fails
+func TestTaskRepo_UpdateTaskStatus_RollbackOnAuditFail(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewTaskRepo(db)
+	id := "223e4567-e89b-12d3-a456-426614174000"
+	now := time.Now()
+	userStoryID := "123e4567-e89b-12d3-a456-426614174000"
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`^UPDATE tasks SET status = \$1, updated_at = NOW\(\) WHERE id = \$2 RETURNING id, user_story_id, title, description, status, created_at, updated_at$`).
+		WithArgs("in_progress", id).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}).
+			AddRow(id, userStoryID, "Test Task", "Desc", "in_progress", now, now))
+	mock.ExpectExec(`^INSERT INTO status_audit_trail \(entity_id, entity_type, from_status, to_status\) VALUES \(\$1, \$2, \$3, \$4\)$`).
+		WithArgs(id, "task", "pending", "in_progress").
+		WillReturnError(sql.ErrConnDone)
+	mock.ExpectRollback()
+
+	_, err = repo.UpdateTaskStatus(context.Background(), id, "pending", "in_progress")
+	require.Error(t, err)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // UT-024: List tasks by User Story
 func TestTaskRepo_ListTasks(t *testing.T) {
 	db, mock, err := sqlmock.New()

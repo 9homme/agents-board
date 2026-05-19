@@ -15,7 +15,7 @@ import (
 
 func main() {
 	e := echo.New()
-	e.Use(middleware.Logger())
+	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
 	// Configure CORS

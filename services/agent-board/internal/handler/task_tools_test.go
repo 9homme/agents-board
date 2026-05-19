@@ -55,6 +55,14 @@ func (m *MockTaskRepo) ListTasks(ctx context.Context, userStoryID string) ([]*do
 	return args.Get(0).([]*domain.Task), args.Error(1)
 }
 
+func (m *MockTaskRepo) UpdateTaskStatus(ctx context.Context, id, fromStatus, toStatus string) (*domain.Task, error) {
+	args := m.Called(ctx, id, fromStatus, toStatus)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Task), args.Error(1)
+}
+
 // IT-017: `create_task` tool call
 func TestTaskTools_CreateTask(t *testing.T) {
 	mockRepo := new(MockTaskRepo)
@@ -138,7 +146,7 @@ func TestTaskTools_GetTask(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
-// IT-019: `update_task` tool call
+// IT-019: `update_task` tool call -- title-only update (no status change)
 func TestTaskTools_UpdateTask(t *testing.T) {
 	mockRepo := new(MockTaskRepo)
 	registry := mcp.NewToolRegistry()
@@ -149,9 +157,8 @@ func TestTaskTools_UpdateTask(t *testing.T) {
 	id := "223e4567-e89b-12d3-a456-426614174000"
 
 	req := map[string]interface{}{
-		"id":     id,
-		"title":  "Updated Task",
-		"status": "in_progress",
+		"id":    id,
+		"title": "Updated Task",
 	}
 	reqBytes, _ := json.Marshal(req)
 
@@ -170,14 +177,14 @@ func TestTaskTools_UpdateTask(t *testing.T) {
 		UserStoryID: "123e4567-e89b-12d3-a456-426614174000",
 		Title:       "Updated Task",
 		Description: "Desc",
-		Status:      "in_progress",
+		Status:      "pending",
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
 	mockRepo.On("GetTask", ctx, id).Return(existingTask, nil)
 	mockRepo.On("UpdateTask", ctx, mock.MatchedBy(func(t *domain.Task) bool {
-		return t.Title == "Updated Task" && t.Status == "in_progress" && t.Description == "Desc"
+		return t.Title == "Updated Task" && t.Status == "pending" && t.Description == "Desc"
 	})).Return(updatedTask, nil)
 
 	toolHandler, ok := registry.GetTool("update_task")
@@ -220,6 +227,126 @@ func TestTaskTools_DeleteTask(t *testing.T) {
 	assert.True(t, resp["success"].(bool))
 
 	mockRepo.AssertExpectations(t)
+}
+
+// IT-001: Reject invalid state transition in update_task
+func TestTaskTools_UpdateTask_InvalidTransition(t *testing.T) {
+	mockRepo := new(MockTaskRepo)
+	registry := mcp.NewToolRegistry()
+	RegisterTaskTools(registry, mockRepo)
+
+	ctx := context.Background()
+	now := time.Now()
+	id := "223e4567-e89b-12d3-a456-426614174000"
+
+	// Request: pending -> completed (invalid)
+	req := map[string]interface{}{
+		"id":     id,
+		"status": "completed",
+	}
+	reqBytes, _ := json.Marshal(req)
+
+	existingTask := &domain.Task{
+		ID:          id,
+		UserStoryID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:       "Test Task",
+		Description: "Desc",
+		Status:      "pending",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	mockRepo.On("GetTask", ctx, id).Return(existingTask, nil)
+	// UpdateTask and UpdateTaskStatus should NOT be called because the transition is invalid
+
+	toolHandler, ok := registry.GetTool("update_task")
+	assert.True(t, ok)
+	result, err := toolHandler(ctx, reqBytes)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid transition")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// IT-001b: Valid transition is accepted in update_task and uses UpdateTaskStatus
+func TestTaskTools_UpdateTask_ValidTransition(t *testing.T) {
+	mockRepo := new(MockTaskRepo)
+	registry := mcp.NewToolRegistry()
+	RegisterTaskTools(registry, mockRepo)
+
+	ctx := context.Background()
+	now := time.Now()
+	id := "223e4567-e89b-12d3-a456-426614174000"
+
+	// Request: pending -> in_progress (valid)
+	req := map[string]interface{}{
+		"id":     id,
+		"status": "in_progress",
+	}
+	reqBytes, _ := json.Marshal(req)
+
+	existingTask := &domain.Task{
+		ID:          id,
+		UserStoryID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:       "Test Task",
+		Description: "Desc",
+		Status:      "pending",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	updatedTask := &domain.Task{
+		ID:          id,
+		UserStoryID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:       "Test Task",
+		Description: "Desc",
+		Status:      "in_progress",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	mockRepo.On("GetTask", ctx, id).Return(existingTask, nil)
+	mockRepo.On("UpdateTaskStatus", ctx, id, "pending", "in_progress").Return(updatedTask, nil)
+
+	toolHandler, ok := registry.GetTool("update_task")
+	assert.True(t, ok)
+	result, err := toolHandler(ctx, reqBytes)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	resp, ok := result.(TaskResponse)
+	assert.True(t, ok)
+	assert.Equal(t, "in_progress", resp.Status)
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-005b: create_task enforces pending initial status (handler layer)
+func TestTaskTools_CreateTask_EnforcesInitialStatus(t *testing.T) {
+	mockRepo := new(MockTaskRepo)
+	registry := mcp.NewToolRegistry()
+	RegisterTaskTools(registry, mockRepo)
+
+	ctx := context.Background()
+
+	// Providing non-pending status should fail
+	req := map[string]interface{}{
+		"userStoryId": "123e4567-e89b-12d3-a456-426614174000",
+		"title":       "Test Task",
+		"description": "Desc",
+		"status":      "in_progress",
+	}
+	reqBytes, _ := json.Marshal(req)
+
+	toolHandler, ok := registry.GetTool("create_task")
+	assert.True(t, ok)
+	result, err := toolHandler(ctx, reqBytes)
+	assert.Error(t, err)
+	assert.Nil(t, result)
+
+	// Repo should NOT be called
+	mockRepo.AssertNotCalled(t, "CreateTask")
 }
 
 // IT-021: `list_tasks` tool call

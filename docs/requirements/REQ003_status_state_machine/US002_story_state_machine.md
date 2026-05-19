@@ -1,7 +1,7 @@
 # US002 — Story state machine
 
 **Requirement:** REQ003 — status_state_machine
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As an API client, I want the backend to enforce the User Story status state machine, so that stories follow the designated workflow.
@@ -42,3 +42,14 @@ No UI: Operations are exposed via MCP/Backend APIs. Any UI calling these APIs wi
 - Ensure API error messages are descriptive so clients understand which transitions are allowed.
 
 ## Sign-off log
+
+### Sign-off pass 1 — 2026-05-19 — verdict: approved
+- **Spec review:** All five acceptance criteria are mapped to concrete tests in the specs.
+  - AC "Valid forward transitions" → UT-001 (covers `draft` -> `in_development` -> `in_signoff` -> `done` and `changes_requested` -> `done`) + E2E-001 steps 1-3, 6.
+  - AC "Sign-off cycle transitions" → UT-002 (covers `in_signoff` <-> `changes_requested` and `changes_requested` -> `in_development`) + E2E-001 steps 4-5.
+  - AC "Circuit breaker transition" → UT-003 (`changes_requested` -> `blocked_circuit_breaker`).
+  - AC "Invalid transitions are rejected" → UT-004 (domain layer) + IT-001 (MCP layer returns `isError: true`) + E2E-002 over live HTTP/SSE.
+  - AC "Enforce initial state on creation" → UT-005 (`NewUserStory` / `create_user_story` handler) + E2E-003.
+  - E2E justification is honest: only the user-observable lifecycle and error-marshalling cases are promoted to e2e; transition rule permutations stay at unit layer.
+- **Result review:** Test report (commit `f86fa43`) shows UT-001..005 + IT-001 all PASS, supporting repo-layer tests `TestUserStoryRepo_UpdateUserStoryStatus` and `TestUserStoryRepo_UpdateUserStoryStatus_RollbackOnAuditFailure` PASS, and E2E-001..003 all PASS (3/3 after the tester fixed the JSON-path regression). No skipped tests. Counts match specs.
+- **Routed to:** none — story approved.

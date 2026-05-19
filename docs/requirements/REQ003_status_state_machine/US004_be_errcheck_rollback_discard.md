@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US004_be_mechanical_noctx_errorlint.md
 **Worked-by:** be-dev (US004 errcheck)
 **Implements:** US004 acceptance criterion "Specific finding categories are resolved correctly, not papered over" — drives `errcheck` (4) to zero, specifically the ignored `tx.Rollback()` returns in `user_story_repo` / `task_repo`.
@@ -126,3 +126,36 @@ No drift from the documented inventory.
 
 ## Review log
 (tech-lead appends here on each review pass)
+
+### Review pass 1 — 2026-05-19 — verdict: approved
+
+**Verification (re-run by tech-lead, not trusting dev report):**
+- `golangci-lint run --enable-only=errcheck ./...` → `0 issues.` exit 0. UT-006 PASS.
+- `golangci-lint run ./...` → `7 issues:` exit 1. Per-linter breakdown: `gocritic: 5, gosec: 1, revive: 1`. `errcheck`, `errorlint`, `noctx`, `unused` all absent — no regression across previously-cleared categories. Exact remaining inventory for task 4:
+  - `cmd/api-server/main.go:45` `exitAfterDefer` (gocritic)
+  - `cmd/mcp-server/main.go:31` `exitAfterDefer` (gocritic)
+  - `internal/repo/task_repo.go:162` `sloppyReassign` (gocritic)
+  - `internal/repo/user_story_repo.go:89` `sloppyReassign` (gocritic)
+  - `internal/repo/user_story_repo.go:133` `sloppyReassign` (gocritic)
+  - `cmd/api-server/main.go:58` `G706` log injection (gosec)
+  - `internal/handler/message.go:15` `var-naming sessionId → sessionID` (revive)
+- `go vet ./...` → clean (exit 0, no output).
+- `go test ./... -race -count=1` run 1 → `ok` for domain/handler/mcp/repo; cmd packages have no tests; no `FAIL`, no `DATA RACE`. Exit 0. UT-002 PASS.
+- `go test ./... -race -count=1` run 2 (back-to-back) → identical result, exit 0. No timing perturbation.
+- `go test ./internal/repo/... -race -run "Rollback" -v` → `TestTaskRepo_UpdateTaskStatus_RollbackOnAuditFail PASS`, `TestUserStoryRepo_UpdateUserStoryStatus_RollbackOnAuditFailure PASS`. `sqlmock.ExpectRollback()` satisfied — Form B rewrite still drives the rollback call, no "unexpected" or "missing" mock errors.
+- `scripts/review/run-gate.sh be services/agent-board` → `REVIEW GATE: PASS` exit 0 (gofmt, go vet, golangci-lint (gate runs `--no-config` defaults), go test, gosec, govulncheck all PASS).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` exit 0 (semgrep owasp/golang/typescript/react, gitleaks all PASS).
+- `grep -rn "tx\.Rollback()" services/agent-board/internal/repo/` → both matches are inside `if rbErr :=` blocks. UT-006 grep contract satisfied.
+- `grep -rn "nolint" services/agent-board/` → exit 1 (no matches). Module-wide `// nolint` count remains **0**. UT-010 hygiene contract intact.
+
+**Diff-quality observations:**
+- Worktree commit `1de1e75` modified exactly 4 files: 3 source (`handler/message.go`, `repo/task_repo.go`, `repo/user_story_repo.go`) + 1 task file. No edits to `architecture.md`, `.golangci.yml`, test files, sibling task files, or anything in `cmd/`. Scope: tight, matches the dev's claim verbatim.
+- Test files (`*_test.go` under `internal/repo/` and `internal/handler/`) are byte-for-byte unchanged across the commit — verified via `git diff 5a0857a..1de1e75 -- *_test.go`. No test weakening.
+- **`message.go` error-handling quality:** the dev chose Form B / handle-the-error consistently across both `sendError` and `sendToolResultError`. The 500 fallback uses `echo.NewHTTPError(http.StatusInternalServerError, "internal error")` with a plain string body — no recursive call back into `json.Marshal` on the same value, so the error path cannot infinitely recurse. The log lines use `%v` on the marshaling error itself (an internal Go-runtime value, not user input), so no log-injection vector is introduced — gosec G706 in task 4 stays scoped to its existing `cmd/api-server/main.go:58` site. External contract of both functions on the success path is byte-identical to pre-change.
+- **Form B choice for the rollback sites:** correct call, consistently applied. Both repo functions use a `defer func() { if err != nil { ... } }` pattern, so Form B is the right pick per UT-006 ("preferred if rollback failures should be visible in logs", and the only safe form for deferred rollbacks where `sql.ErrTxDone` is a legitimate non-error). The `sql.ErrTxDone` guard is correct — it suppresses the noise for already-committed transactions while surfacing genuine rollback failures. Log strings include operation context (`task tx` / `user_story tx`) without exposing row data, IDs, or secrets.
+- **Logger choice:** standard library `log.Printf` — idiomatic for this codebase. `internal/handler/project_handler.go:28` already uses `log.Printf` for an analogous "failed sub-operation, surface to operator" log. No structured logger is in use anywhere under `services/agent-board/internal/`, so matching `log` is correct.
+- **Caller-visible error semantics:** preserved exactly. `UpdateTaskStatus` still returns `fmt.Errorf("failed to update task status: %w", err)` / `ErrNotFound` / `fmt.Errorf("failed to insert audit log: %w", err)` / `fmt.Errorf("failed to commit transaction: %w", err)` chains as before. `UpdateUserStoryStatus` still returns the `ErrNotFound` sentinel via the `err = ErrNotFound` assignment then `return nil, err`. The rollback log is fire-and-forget; it does not shadow, replace, or wrap the original error the caller cares about.
+
+**Working baseline for the next (final) task** (`US004_be_tail_gocritic_gosec_revive.md`): **7 findings remaining** — gocritic 5, gosec 1, revive 1 — fully listed above with file:line. Task 4 must drive this to 0 and satisfy UT-001 (lint exits clean), UT-005, UT-008, UT-009, UT-010.
+
+Streak: **3 consecutive approved across this story** (unused triage → noctx/errorlint mechanical → errcheck). Clean.

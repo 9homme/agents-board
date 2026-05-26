@@ -25,7 +25,7 @@ export const useProjects = () => {
         if (mounted) {
           setData(response.projects);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (mounted) {
           setIsError(true);
           setError(err instanceof Error ? err : new Error('Failed to load projects'));

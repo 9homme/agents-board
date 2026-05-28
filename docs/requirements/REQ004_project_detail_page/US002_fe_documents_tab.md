@@ -1,7 +1,7 @@
 ---
 US: US002
 Title: Documents tab — sidebar + previewer (plain rendering) + hooks + API client + types + MSW + signal pass-through
-Status: in_review
+Status: completed
 Track: FE
 Implements: US002 AC "Documents tab loads the list for the project", "Selecting a document loads its content into the previewer", "Deep-link to a specific document", "Deep-link to a document that doesn't exist for this project", "Empty state — project has no documents", "Loading state — list is being fetched", "Loading state — content is being fetched" (including race-cancellation), "Error — list fetch fails", "Error — content fetch fails"
 Blocked by: US001_fe_detail_page_with_tabs.md
@@ -155,4 +155,47 @@ US002 new files:
 **Spec gap noted (not blocking):** FCT-US002-002's first assertion `screen.findByText(/No documents yet/i)` would match both the sidebar text "No documents yet" AND the previewer text "This project has no documents yet" (the latter also contains the substring "no documents yet"). The test was implemented using `within(getByTestId('documents-sidebar-area'))` for the sidebar assertion to correctly scope it and avoid the ambiguity. The tester should update the spec to use `within()` or a more specific selector for clarity.
 
 ## Review log
-(left for tech-lead review pass entries)
+
+### Review pass 1 — 2026-05-28 — verdict: approved
+
+**Gate summary (run against canonical state at commit e17cf19, on `main`):**
+- `cd web && npm run typecheck` → clean (no output).
+- `cd web && npm test -- --watchAll=false --forceExit` → `Test Suites: 15 passed, 15 total / Tests: 86 passed, 86 total`. (The "worker process has failed to exit gracefully" message is the known MSW open-handle artifact that `--forceExit` exists to absorb — not a test failure.)
+- `cd web && npm run lint -- --max-warnings=0` → `ESLint: No issues found`.
+- `scripts/review/run-gate.sh cross` →
+  - `PASS  semgrep (owasp/golang/typescript)`
+  - `PASS  gitleaks (no secrets)`
+  - `REVIEW GATE: PASS`
+
+**Architecture conformance (the high-risk pieces, all clean):**
+- `web/lib/api/types.ts:18-40` — `DocumentListItem` / `DocumentsListResponse` / `Document` match architecture §"Frontend TypeScript interface mapping" field-for-field (no extra fields, no missing fields, `content: string` only on `Document`, all timestamps typed as ISO-8601 UTC strings).
+- `web/lib/api/client.ts:22-38` — `signal` pass-through is backward-compatible (`options: RequestInit = {}`; `signal: options.signal` explicitly listed under the spread for readability). Existing zero-arg callers untouched.
+- `web/lib/api/documents.ts` — both `fetchProjectDocuments` and `fetchDocument` URL-encode the id and pass `signal` straight through to `fetchClient`. URL strings exactly match endpoints #2 and #3 in the contract.
+- `web/test/msw/handlers.ts:97-177` — handlers for `*/api/v1/projects/:id/documents` (p1 happy, proj-001 happy, ghost-project 404, broken-project 500) and `*/api/v1/documents/:id` (d111aaaa, d222bbbb, doc-B, broken-document 500, not-found-document 404). Bodies mirror the architecture's example JSON exactly — including the mermaid fence in `d111aaaa.content` that the architecture sample uses, and `{ documents: [...] }` (never `null`, never bare array). D-006 honored (ghost-project returns 404, not `{ documents: [] }`).
+- `web/hooks/useDocument.ts:50-94` — D-005 implemented correctly: abort previous controller → new `AbortController` → write `latestIdRef.current = documentId` → fetch with signal → on `.then` only commit when `latestIdRef.current === documentId` → on `.catch` skip when `controller.signal.aborted`. Cleanup function aborts on unmount. The belt-and-braces (abort + stale-id check) is exactly what the architecture and the implementation notes called for.
+- `web/hooks/useDocument.test.ts:94-147` — FCT-US002-007 is real: spies on `AbortController.prototype.abort`, uses MSW `delay('infinite')` for doc-A, rerenders to doc-B, asserts (a) final `data.id === 'doc-B'`, (b) `data.id !== 'doc-A'`, (c) abort was called. This is the load-bearing race-cancellation proof; it actually exercises the abort path rather than just asserting the final state.
+- `web/components/ProjectDetail/DocumentsTab.tsx:48-86` — bogus-deep-link logic is correct: `isBogusDeepLink = docParam set AND list non-empty AND docInList === undefined`, and `useDocument(isBogusDeepLink ? undefined : selectedDocId)` correctly suppresses the network call for a bogus id (no wasted 404 round-trip; matches the implementation note). 404 from the detail endpoint is folded into `isContentNotFound` via `docError instanceof ApiError && docError.code === 'NOT_FOUND'` — friendly copy, no Retry, exactly as specified.
+- `web/components/ProjectDetail/DocumentsTab.tsx:63-78` — auto-select effect guards correctly (`documents.length > 0 && docParam === undefined`), uses shallow `router.replace`. The eslint-disable on `exhaustive-deps` for `router` is the standard Next.js Pages Router pattern and acceptable.
+- `web/components/ProjectDetail/DocumentsTab.tsx:201` — `key={selectedDocId}` is passed to `<DocumentPreviewer>` — pre-paying for US003's mermaid mount/unmount cleanup, as the architecture asked.
+- `web/pages/projects/[id].tsx:80` — placeholder slot replaced with `<DocumentsTab projectId={project.id} />`; no content state passed (tab owns its data fetching, per the scope).
+
+**Hard invariants (all clean):**
+- CSR-only: no `getServerSideProps` / `getStaticProps` / `getInitialProps` anywhere under `web/pages/` (greps clean). No `web/pages/api/` directory exists.
+- All backend calls go through `web/lib/api/`: greps for `fetch(` under `components/ProjectDetail/`, `hooks/`, `pages/projects/` are clean (only doc-comment mentions of `refetch`).
+- No `any` introduced (grep clean across the new files).
+- Doc comments on every new public export (`fetchProjectDocuments`, `fetchDocument`, `useDocument`, `useProjectDocuments`, `DocumentSidebar`, `DocumentPreviewer`, `DocumentsTab`).
+
+**Test contract:** FCT-US002-001 through FCT-US002-015 are all present and green across the 15 suites / 86 tests. Test counts exceed the spec minimum because the dev added internal coverage (e.g. multiple cases per FCT) — fine.
+
+**Position on the FCT-US002-002 ambiguous-selector spec gap (flagged by dev):**
+
+The dev's read is correct. The spec literally says `screen.findByText(/No documents yet/i)` "is visible in the sidebar area" AND `screen.findByText(/This project has no documents yet/i)` "is visible in the previewer area". With the as-implemented (and architecturally-required) copy in `DocumentsTab.tsx:178` ("No documents yet") and `:182` ("This project has no documents yet"), the second string contains the first as a substring, so an un-scoped `findByText(/No documents yet/i)` would match both nodes and throw RTL's `TestingLibraryElementError: Found multiple elements ...`. The dev resolved this with `within(getByTestId('documents-sidebar-area')).getByText(/No documents yet/i)` — that is the textbook RTL fix and it preserves the spec's intent (one assertion per pane). The previewer assertion remains unambiguous because the longer string is unique.
+
+**Verdict on the spec gap: accept-as-is for this task; route to tester for a non-blocking spec touch-up.** The implementation is right; the spec just needs a one-line clarification so future devs / future story refactors don't re-hit the ambiguity. Suggested wording for the tester to apply in `US002_fe_unit_tests.md` FCT-US002-002:
+
+> Use `within(getByTestId('documents-sidebar-area')).getByText(/No documents yet/i)` for the sidebar assertion to scope past the previewer's longer copy `/This project has no documents yet/i` which contains the same substring. The previewer assertion can remain unscoped because its full string is unique.
+
+This is a tester revision, not a code change. The task itself is complete and approved.
+
+**No findings requiring rework.** Status flipped to `completed`.
+

@@ -4,7 +4,7 @@ Documentation    E2E tests for US002 — Documents tab: list documents and view 
 ...              and URL; browser refresh with ?doc= rehydrates same document.
 Library          Browser
 Library          String
-Resource         ../../REQ001_agent_board_mcp/mcp_keywords.resource
+Resource         ../REQ001_agent_board_mcp/mcp_keywords.resource
 Resource         resources/project_detail_keywords.resource
 
 Suite Setup      Setup US002 Suite

@@ -5,7 +5,7 @@ Documentation    E2E tests for US003 — Markdown and mermaid rendering in the p
 ...              is not visible to the user.
 Library          Browser
 Library          String
-Resource         ../../REQ001_agent_board_mcp/mcp_keywords.resource
+Resource         ../REQ001_agent_board_mcp/mcp_keywords.resource
 Resource         resources/project_detail_keywords.resource
 
 Suite Setup      Setup US003 Suite

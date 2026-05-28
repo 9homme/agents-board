@@ -4,7 +4,7 @@ Documentation    E2E tests for US001 — Navigate to project detail page with ta
 ...              with URL persistence; browser refresh preserves active tab.
 Library          Browser
 Library          String
-Resource         ../../REQ001_agent_board_mcp/mcp_keywords.resource
+Resource         ../REQ001_agent_board_mcp/mcp_keywords.resource
 Resource         resources/project_detail_keywords.resource
 
 Suite Setup      Setup US001 Suite

@@ -59,7 +59,7 @@ Give human users a read-only knowledge-base view into a project's documents that
 |---|---|---|---|---|---|---|
 | `US001_be_get_project_endpoint.md` | US001 | GET /api/v1/projects/{id} single-project endpoint | BE | services/agent-board | None | pending |
 | `US001_fe_project_card_link.md` | US001 | Make ProjectCard clickable as a link to /projects/{id} | FE | — | None | pending |
-| `US001_fe_detail_page_with_tabs.md` | US001 | /projects/[id] page shell — header + tab switcher + useProject + MSW | FE | — | None | pending |
+| `US001_fe_detail_page_with_tabs.md` | US001 | /projects/[id] page shell — header + tab switcher + useProject + MSW | FE | — | None | completed |
 | `US002_be_list_documents_endpoint.md` | US002 | GET /api/v1/projects/{id}/documents endpoint + ListDocuments SQL ordering change | BE | services/agent-board | `US001_be_get_project_endpoint.md` | pending |
 | `US002_be_get_document_endpoint.md` | US002 | GET /api/v1/documents/{id} single-document endpoint | BE | services/agent-board | `US002_be_list_documents_endpoint.md` | pending |
 | `US002_fe_documents_tab.md` | US002 | Documents tab — sidebar + previewer (plain) + hooks + API client + types + MSW + signal pass-through | FE | — | `US001_fe_detail_page_with_tabs.md` | pending |

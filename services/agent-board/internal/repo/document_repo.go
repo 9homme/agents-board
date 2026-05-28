@@ -100,7 +100,7 @@ func (r *documentRepo) DeleteDocument(ctx context.Context, id string) error {
 }
 
 func (r *documentRepo) ListDocuments(ctx context.Context, projectID string) ([]*domain.Document, error) {
-	query := `SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id = $1 ORDER BY created_at DESC`
+	query := `SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id = $1 ORDER BY updated_at DESC, id DESC`
 	rows, err := r.db.QueryContext(ctx, query, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list documents: %w", err)

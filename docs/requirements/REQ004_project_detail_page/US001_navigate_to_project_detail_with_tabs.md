@@ -1,7 +1,7 @@
 # US001 — Navigate to project detail page with tabs
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** in_signoff
+**Status:** changes_requested
 
 ## Story
 As a user browsing the dashboard, I want to click a project card and land on a per-project detail page with a Documents tab and a User Stories tab, so that I have a single place to drill into a project's content.
@@ -145,3 +145,38 @@ As a user browsing the dashboard, I want to click a project card and land on a p
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-05-28 — verdict: changes_requested
+
+**Spec review (AC ↔ spec coverage):**
+- Every AC scenario has at least one mapped spec case across `US001_be_unit_tests.md` (UT-/IT-) and `US001_fe_unit_tests.md` (FCT-). Mapping confirmed:
+  - Cards clickable / focusable / visual preserved → FCT-US001-001..004.
+  - Click → `/projects/{id}` → FCT-US001-001 (href) + E2E-US001-001 (real navigation).
+  - Header name + description (+ empty-description placeholder) → FCT-US001-005, FCT-US001-006.
+  - Two tabs, Documents active by default → FCT-US001-008.
+  - Switch to User Stories (URL + verbatim text + no network) → FCT-US001-009, -012, -013; E2E-US001-001.
+  - Switch back to Documents → FCT-US001-010.
+  - **Refresh preserves active tab** → FCT-US001-011 covers `?tab=…` query restoring active tab on mount, but only **E2E-US001-002** actually performs a real browser reload. That AC is not fully exercised until the e2e suite runs.
+  - Loading state → FCT-US001-007.
+  - 404 not-found → UT-US001-002, IT-US001-002, FCT-US001-014.
+  - 5xx fetch failure → UT-US001-003, FCT-US001-015.
+- BE-side: UT-US001-001 (happy + empty-description edge), IT-US001-001 (round-trip), IT-US001-003 (route registration) all justified and present.
+- Spec quality: no AC-irrelevant filler; e2e is honestly scoped to the two journeys JSDOM cannot prove (real router URL change + survives real refresh). Pyramid is honest.
+
+**Result review (against `US001_test_report.md`):**
+- Backend: **7/7 mapped Go tests PASS** (UT-001 happy, UT-001 empty-description edge, UT-002 404, UT-003 500, IT-001 found, IT-002 not-found, IT-003 route registration); full `go test ./...` = 90 PASS, no skips. `go vet`, `golangci-lint`, `gofmt` all clean.
+- Frontend: **15/15 FCT cases PASS**; full Jest run 44/44 PASS (3.3 s); `npm run typecheck`, `npm run lint --max-warnings=0` clean; `scripts/review/run-gate.sh cross` PASS.
+- E2E: **E2E-US001-001 and E2E-US001-002 are BLOCKED at suite parse**. Root cause confirmed independently: `tests/e2e/REQ004_project_detail_page/US001_navigate.robot` line 7 reads `Resource    ../../REQ001_agent_board_mcp/mcp_keywords.resource`, but from `tests/e2e/REQ004_project_detail_page/` the resource lives at `../REQ001_agent_board_mcp/mcp_keywords.resource` (verified by `ls tests/e2e/`). Robot then can't resolve `Connect To MCP SSE` / `Create Project Tool`, so suite setup fails. The same wrong-`..` import is also present in `US002_documents_tab.robot` and `US003_markdown_mermaid.robot` per the report; tester should fix all three in one revision pass.
+- No tests are tagged `[Tags] skip` / `t.Skip` / `it.skip`. The 0 e2e executions are environmental + spec defect, not silent skipping.
+- Tooling tech-debt noted: `scripts/review/run-gate.sh` FE half hangs without `--forceExit` due to MSW open handles. Not a blocker for this sign-off (tech-leads worked around it and all individual gates were verified green); should be tracked as a separate REQ.
+
+**Verdict:** changes_requested — **spec defect only** (e2e import path). Application code is fully green at the unit/component/integration layer. The "refresh preserves active tab" AC is the only one whose user-observable proof depends on e2e actually running, so this needs to be resolved before `done`.
+
+**Routed to:** **tester (spec issue — e2e)**
+- Fix the relative import on line 7 of `tests/e2e/REQ004_project_detail_page/US001_navigate.robot` from `../../REQ001_agent_board_mcp/mcp_keywords.resource` → `../REQ001_agent_board_mcp/mcp_keywords.resource`.
+- Apply the same one-character fix to `US002_documents_tab.robot` and `US003_markdown_mermaid.robot` if the orchestrator wants those suites un-blocked at the same time (out of strict scope for US001, but identical defect — tester's call).
+- After the fix, orchestrator stands up `cd services/agent-board && go run ./cmd/api-server` + `cd web && npm run dev` + DB, re-runs `robot --include US001 tests/e2e/REQ004_project_detail_page/`, appends real outcomes to `US001_test_report.md`, and re-triggers po-ba sign-off pass 2.
+
+**No task changes_requested.** All three tasks (`US001_be_get_project_endpoint`, `US001_fe_detail_page_with_tabs`, `US001_fe_project_card_link`) remain `Status: completed`; their implementations are not at fault.
+
+**Circuit breaker:** sign-off pass 1 — streak count = 1. Not tripped.

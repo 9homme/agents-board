@@ -1,7 +1,7 @@
 ---
 US: US002
 Title: GET /api/v1/projects/{id}/documents endpoint + ListDocuments SQL ordering change
-Status: in_review
+Status: completed
 Track: BE
 Service: services/agent-board
 Implements: US002 AC "Documents tab loads the list for the project", "Empty state — project has no documents", "Loading state — list is being fetched" (server side), "Error — list fetch fails" (server side 500); plus the project-existence 404 semantic from architecture D-006
@@ -88,4 +88,49 @@ The dev must make the matching cases in `US002_be_unit_tests.md` pass — coveri
 **Review gate:** `golangci-lint run ./...` exits 0. `go vet ./...` exits 0. `gofmt -s -d .` exits 0. `scripts/review/run-gate.sh be services/agent-board` exits 2 (MISSING_TOOL: gosec is not installed in this environment) — all static analysis is covered via golangci-lint's built-in gosec linter which passes.
 
 ## Review log
-(left for tech-lead review pass entries)
+
+### Review pass 1 — 2026-05-28 — verdict: approved
+
+**Gate summary**
+- `go vet ./...` — clean (no issues).
+- `go test ./...` — 101 tests pass across 6 packages.
+- `gofmt -s -d .` — clean (no diff).
+- `golangci-lint run ./...` — clean (no issues found). gosec linter is included in this project's golangci-lint config, so security coverage is exercised here.
+- `scripts/review/run-gate.sh be services/agent-board` — exit 2 with `MISSING TOOL: gosec` (host-installed `gosec` binary not present). Per workflow this is `REVIEW_GATE_TOOL_MISSING` and is treated as advisory because the equivalent gosec ruleset runs inside golangci-lint and passed. Reported alongside this verdict for orchestrator awareness.
+- `scripts/review/run-gate.sh cross` — `REVIEW GATE: PASS` (semgrep + gitleaks both PASS).
+
+**Architecture conformance (architecture.md cross-check)**
+- §"API contracts" endpoint #2 — 200 envelope `{ "documents": [...] }` with per-item `id`, `projectId`, `title`, `createdAt`, `updatedAt` (no `content`) — matches `documentListItem` struct (`internal/handler/document_handler.go:29-35`).
+- `documents` always an array via `make([]documentListItem, 0, len(documents))` (`document_handler.go:72`) — matches the explicit `make(..., 0)` requirement.
+- D-006 (project-existence check first; 404 with `{"code":"NOT_FOUND","message":"Project not found"}` for missing project; do NOT return `{"documents":[]}`) — implemented at `document_handler.go:46-58`; integration test `TestDocumentHandler_IT_ListProjectDocuments_MissingProject_404` additionally asserts body does NOT contain a `documents` key.
+- 500 envelope `{"code":"INTERNAL_ERROR","message":"Failed to fetch documents"}` for both project-lookup failure and document-list failure — `document_handler.go:53-57` and `:62-67`.
+- ISO-8601 UTC timestamps formatted as `2006-01-02T15:04:05Z` — `document_handler.go:78-79`.
+- §"Data access" ORDER BY change from `created_at DESC` to `updated_at DESC, id DESC` — `internal/repo/document_repo.go:103` (one-line SQL change, no interface change).
+- Route registration `e.GET("/api/v1/projects/:id/documents", documentHandler.ListProjectDocuments)` grouped with existing project routes — `cmd/api-server/main.go:59,63`. Constructor injects both repos (`projectRepo` + `repo.NewDocumentRepo(db)`).
+- `GetDocument` correctly NOT implemented in this task (left for sibling `US002_be_get_document_endpoint` per the file-collision sequencing note).
+
+**Test contract verification**
+- UT-US002-001 (200 multi-doc happy path) — `TestDocumentHandler_ListProjectDocuments_200_MultipleDocuments` PASS.
+- UT-US002-002 (200 empty list, asserts `documents:[]` not null via both `JSONEq` and typed cast) — `TestDocumentHandler_ListProjectDocuments_200_EmptyList` PASS.
+- UT-US002-003 (404 project not found AND `ListDocuments` not called) — `TestDocumentHandler_ListProjectDocuments_404_ProjectNotFound` PASS; `listCallCount == 0` asserted (line 194).
+- UT-US002-004 (500 on project lookup failure) — `TestDocumentHandler_ListProjectDocuments_500_ProjectLookupFailure` PASS.
+- UT-US002-005 (500 on document list failure) — `TestDocumentHandler_ListProjectDocuments_500_DocumentListFailure` PASS.
+- UT-US002-006 (content key absent — explicit key-presence check via `json.RawMessage`, not value-absence) — `TestDocumentHandler_ListProjectDocuments_ContentFieldAbsent` PASS; spec requirement honoured exactly.
+- UT-US002-010 (repo ORDER BY assertion with three-row tiebreaker) — `TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc` PASS; regex matches `ORDER BY updated_at DESC, id DESC$`.
+- IT-US002-001 (integration: missing project 404, no `documents` key in body) — `TestDocumentHandler_IT_ListProjectDocuments_MissingProject_404` PASS.
+- IT-US002-002 (integration: project exists, empty list returns `{"documents":[]}`) — `TestDocumentHandler_IT_ListProjectDocuments_EmptyProject_200` PASS.
+- IT-US002-003 (integration: ordering A2 → A1 → B via ServeHTTP) — `TestDocumentHandler_IT_ListProjectDocuments_OrderingVerified` PASS.
+- IT-US002-006 (route registration smoke — list route only) — `TestDocumentHandler_IT_RouteRegistration_ListDocuments` PASS. The `/api/v1/documents/:id` half of IT-US002-006 is correctly out-of-scope and deferred to the sibling task, as flagged in the implementation log.
+
+**Code quality observations**
+- Doc comments on `DocumentHandler`, `NewDocumentHandler`, `documentListItem`, and `ListProjectDocuments` — all present and informative (citing D-002 and D-006).
+- Error wrapping correct in repo (`fmt.Errorf("...: %w", err)`).
+- `defer func() { _ = rows.Close() }()` correctly used (matches the lint-zero pattern established in US004).
+- No TODOs, no commented-out code, no log spam.
+- Mock pattern (`mockProjectRepoForHandler` / `mockDocumentRepoForHandler` embedding the interface) is clean and avoids implementing the full surface.
+- Scope respected: zero edits under `web/`; zero changes to `project_repo.go`; no migrations; no MCP `list_documents` test changes (correctly verified that the existing MCP test does not assert ordering).
+
+**Notes for the next task in the chain**
+- `cmd/api-server/main.go:59` only constructs `documentHandler` and registers ONE route. The sibling `US002_be_get_document_endpoint` task will add the `GetDocument` method to `document_handler.go` and register the second route `e.GET("/api/v1/documents/:id", documentHandler.GetDocument)`. Both files (`document_handler.go` and `main.go`) are still single-writer for that next task — the sequencing in `Blocked by` is respected.
+
+**Verdict:** approved. Status flipped to `completed`.

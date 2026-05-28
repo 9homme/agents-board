@@ -151,4 +151,43 @@ describe('ProjectDetailPage', () => {
       expect(backLink).toBeInTheDocument();
     });
   });
+
+  // FCT-US002-005 — Deep-link ?doc= pre-selects and loads that document
+  describe('FCT-US002-005 — Detail page: deep-link ?doc= pre-selects and loads that document', () => {
+    it('pre-selects the specified document and does not call router.replace for auto-selection', async () => {
+      mockQuery = { id: 'p1', tab: 'documents', doc: 'd222bbbb-2222-2222-2222-222222222222' };
+      render(<ProjectDetailPage />);
+
+      // Wait for sidebar to render
+      const onboardingOption = await screen.findByRole('option', { name: /Onboarding guide/i });
+      expect(onboardingOption).toHaveAttribute('aria-selected', 'true');
+
+      const archOption = screen.getByRole('option', { name: /Architecture overview/i });
+      expect(archOption).toHaveAttribute('aria-selected', 'false');
+
+      // Previewer shows the selected document's title
+      expect(await screen.findByRole('heading', { level: 2, name: /Onboarding guide/i })).toBeInTheDocument();
+
+      // router.replace must NOT be called for auto-selection (doc is already set and valid)
+      expect(mockReplace).not.toHaveBeenCalledWith(
+        expect.objectContaining({ query: expect.objectContaining({ doc: expect.any(String) }) }),
+        undefined,
+        { shallow: true }
+      );
+    });
+  });
+
+  // FCT-US002-015 — 404 from list endpoint surfaces page-level error state
+  describe('FCT-US002-015 — Detail page: 404 from list endpoint surfaces page-level missing state', () => {
+    it('shows "Project not found" when useProject returns 404, regardless of documents endpoint', async () => {
+      mockQuery = { id: 'ghost-project', tab: 'documents' };
+      render(<ProjectDetailPage />);
+
+      // useProject for ghost-project returns 404, so the whole page shows "Project not found"
+      expect(await screen.findByText(/Project not found/i)).toBeInTheDocument();
+
+      // Tab switcher must be hidden
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+  });
 });

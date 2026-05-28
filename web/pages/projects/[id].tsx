@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { ProjectHeader } from '../../components/ProjectDetail/ProjectHeader';
 import { TabSwitcher, TabId } from '../../components/ProjectDetail/TabSwitcher';
 import { UserStoriesTab } from '../../components/ProjectDetail/UserStoriesTab';
+import { DocumentsTab } from '../../components/ProjectDetail/DocumentsTab';
 import { useProject } from '../../hooks/useProject';
 
 /**
@@ -15,9 +16,6 @@ import { useProject } from '../../hooks/useProject';
  * Renders:
  * - ProjectHeader (with loading skeleton / 404 / error states)
  * - TabSwitcher + active tab body (only when project is found)
- *
- * The Documents tab body is an opaque placeholder slot — US002 will replace
- * it with the real DocumentsTab component.
  *
  * NO getServerSideProps / getStaticProps / getInitialProps — CSR-only.
  */
@@ -79,13 +77,7 @@ export default function ProjectDetailPage() {
               {activeTab === 'user-stories' ? (
                 <UserStoriesTab />
               ) : (
-                /* Documents tab placeholder — US002 will replace this */
-                <div
-                  data-testid="documents-tab-placeholder"
-                  role="tabpanel"
-                  id="tabpanel-documents"
-                  aria-labelledby="tab-documents"
-                />
+                <DocumentsTab projectId={project.id} />
               )}
             </div>
           </>

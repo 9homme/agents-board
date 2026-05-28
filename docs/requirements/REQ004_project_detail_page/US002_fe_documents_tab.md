@@ -1,11 +1,11 @@
 ---
 US: US002
 Title: Documents tab — sidebar + previewer (plain rendering) + hooks + API client + types + MSW + signal pass-through
-Status: pending
+Status: in_review
 Track: FE
 Implements: US002 AC "Documents tab loads the list for the project", "Selecting a document loads its content into the previewer", "Deep-link to a specific document", "Deep-link to a document that doesn't exist for this project", "Empty state — project has no documents", "Loading state — list is being fetched", "Loading state — content is being fetched" (including race-cancellation), "Error — list fetch fails", "Error — content fetch fails"
 Blocked by: US001_fe_detail_page_with_tabs.md
-Worked-by:
+Worked-by: fe-dev-2026-05-28T00-00-00Z-adbf
 ---
 
 ## Goal
@@ -118,6 +118,41 @@ The dev must make the matching cases in `US002_fe_unit_tests.md` pass — coveri
 - Race-cancellation test for `useDocument` is present and passing (this AC is load-bearing).
 - **Review gate green:** `scripts/review/run-gate.sh fe` exits 0, and `scripts/review/run-gate.sh cross` exits 0.
 - Dev set status to `in_review` and reported back; tech-lead approved.
+
+## Notes
+
+**Files touched (worktree `agent-adbdfeb811813d1e6`):**
+
+Foundation files from US001 (copied into worktree since US001 commits were in a later commit not yet in this worktree branch):
+- `web/lib/api/types.ts` — added `DocumentListItem`, `DocumentsListResponse`, `Document`
+- `web/lib/api/projects.ts` — added `fetchProject`
+- `web/lib/api/client.ts` — added optional `signal: AbortSignal` pass-through via `RequestInit.signal`
+- `web/hooks/useProject.ts` — new (from US001 foundation)
+- `web/components/ProjectDetail/ProjectHeader.tsx` — copied from US001
+- `web/components/ProjectDetail/TabSwitcher.tsx` — copied from US001
+- `web/components/ProjectDetail/UserStoriesTab.tsx` — copied from US001
+- `web/components/Dashboard/ProjectCard.tsx` — updated with Link (from US001)
+- `web/test/msw/handlers.ts` — extended with documents endpoints and ghost-project 404
+
+US002 new files:
+- `web/lib/api/documents.ts` — new: `fetchProjectDocuments`, `fetchDocument`
+- `web/lib/api/documents.test.ts` — new: 7 tests
+- `web/hooks/useProjectDocuments.ts` — new
+- `web/hooks/useProjectDocuments.test.ts` — new: 5 tests
+- `web/hooks/useDocument.ts` — new (AbortController + stale-id race-safe pattern)
+- `web/hooks/useDocument.test.ts` — new: 6 tests incl. FCT-US002-007 race test
+- `web/components/ProjectDetail/DocumentSidebar.tsx` — new
+- `web/components/ProjectDetail/DocumentSidebar.test.tsx` — new: 4 tests
+- `web/components/ProjectDetail/DocumentPreviewer.tsx` — new
+- `web/components/ProjectDetail/DocumentPreviewer.test.tsx` — new: 5 tests
+- `web/components/ProjectDetail/DocumentsTab.tsx` — new
+- `web/components/ProjectDetail/DocumentsTab.test.tsx` — new: 7 tests
+- `web/pages/projects/[id].tsx` — placeholder replaced with `<DocumentsTab />`
+- `web/pages/projects/[id].test.tsx` — extended with FCT-US002-005 and FCT-US002-015
+
+**Test counts:** 82 tests across 15 suites — all pass. TypeScript clean. FE gate + cross gate pass.
+
+**Spec gap noted (not blocking):** FCT-US002-002's first assertion `screen.findByText(/No documents yet/i)` would match both the sidebar text "No documents yet" AND the previewer text "This project has no documents yet" (the latter also contains the substring "no documents yet"). The test was implemented using `within(getByTestId('documents-sidebar-area'))` for the sidebar assertion to correctly scope it and avoid the ambiguity. The tester should update the spec to use `within()` or a more specific selector for clarity.
 
 ## Review log
 (left for tech-lead review pass entries)

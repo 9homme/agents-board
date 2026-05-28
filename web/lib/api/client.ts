@@ -10,6 +10,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Base HTTP client for all backend API calls.
+ *
+ * Accepts an optional `signal: AbortSignal` (via `options`) and forwards it
+ * to `fetch` so callers can cancel in-flight requests (e.g. useDocument's
+ * AbortController pattern — see D-005 in architecture.md).
+ *
+ * Existing callers that omit `signal` continue to work unchanged.
+ */
 export const fetchClient = async <T>(
   endpoint: string,
   options: RequestInit = {}
@@ -23,6 +32,9 @@ export const fetchClient = async <T>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+    // signal is already included via ...options spread above; explicitly
+    // listing it here makes the pass-through intent clear for readers.
+    signal: options.signal,
   });
 
   if (!response.ok) {

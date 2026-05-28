@@ -1,7 +1,7 @@
 # US001 — Navigate to project detail page with tabs
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a user browsing the dashboard, I want to click a project card and land on a per-project detail page with a Documents tab and a User Stories tab, so that I have a single place to drill into a project's content.

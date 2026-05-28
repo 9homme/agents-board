@@ -56,8 +56,11 @@ func run() error {
 	projectRepo := repo.NewProjectRepo(db)
 	projectHandler := handler.NewProjectHandler(projectRepo)
 
+	documentHandler := handler.NewDocumentHandler(repo.NewDocumentRepo(db), projectRepo)
+
 	e.GET("/api/v1/projects", projectHandler.GetProjects)
 	e.GET("/api/v1/projects/:id", projectHandler.GetProject)
+	e.GET("/api/v1/projects/:id/documents", documentHandler.ListProjectDocuments)
 
 	// Start server
 	port := os.Getenv("PORT")

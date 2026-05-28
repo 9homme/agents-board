@@ -133,29 +133,71 @@ func TestDocumentRepo_DeleteDocument(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// UT-014: List documents by Project
+// UT-014: List documents by Project (ordering: updated_at DESC, id DESC)
 func TestDocumentRepo_ListDocuments(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
-	repo := NewDocumentRepo(db)
+	r := NewDocumentRepo(db)
 	now := time.Now()
 	projectID := "123e4567-e89b-12d3-a456-426614174000"
 	id1 := "11111111-e89b-12d3-a456-426614174000"
 	id2 := "22222222-e89b-12d3-a456-426614174000"
 
-	mock.ExpectQuery(`^SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id = \$1 ORDER BY created_at DESC$`).
+	mock.ExpectQuery(`^SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id = \$1 ORDER BY updated_at DESC, id DESC$`).
 		WithArgs(projectID).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "content", "created_at", "updated_at"}).
 			AddRow(id1, projectID, "D1", "C1", now, now).
 			AddRow(id2, projectID, "D2", "C2", now, now))
 
-	documents, err := repo.ListDocuments(context.Background(), projectID)
+	documents, err := r.ListDocuments(context.Background(), projectID)
 	assert.NoError(t, err)
 	assert.Len(t, documents, 2)
 	assert.Equal(t, id1, documents[0].ID)
 	assert.Equal(t, id2, documents[1].ID)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)
+func TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewDocumentRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	// Three documents:
+	// Doc A: updated_at = 2026-05-20T10:00:00Z, id = "aaaa0001-..."
+	// Doc B: updated_at = 2026-05-19T10:00:00Z, id = "bbbb0002-..."
+	// Doc C: updated_at = 2026-05-20T10:00:00Z, id = "cccc0003-..." (same updated_at as A — tiebreaker)
+	//
+	// Expected order from SQL: C (same updated_at as A, cccc > aaaa so id DESC puts C before A), A, B.
+	tHigh := time.Date(2026, 5, 20, 10, 0, 0, 0, time.UTC)
+	tLow := time.Date(2026, 5, 19, 10, 0, 0, 0, time.UTC)
+
+	idA := "aaaa0001-0000-0000-0000-000000000001"
+	idB := "bbbb0002-0000-0000-0000-000000000002"
+	idC := "cccc0003-0000-0000-0000-000000000003"
+
+	// The SQL mock verifies the ORDER BY clause is correct.
+	// The rows are returned already sorted (simulating what the DB would return).
+	mock.ExpectQuery(`^SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id = \$1 ORDER BY updated_at DESC, id DESC$`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "content", "created_at", "updated_at"}).
+			AddRow(idC, projectID, "C", "", tHigh, tHigh). // C first: same updated_at as A, but cccc > aaaa
+			AddRow(idA, projectID, "A", "", tHigh, tHigh). // A second
+			AddRow(idB, projectID, "B", "", tLow, tLow))   // B last: older updated_at
+
+	documents, err := r.ListDocuments(context.Background(), projectID)
+	require.NoError(t, err)
+	require.Len(t, documents, 3)
+
+	assert.Equal(t, idC, documents[0].ID, "C must come first (same updated_at as A, but id cccc > aaaa)")
+	assert.Equal(t, idA, documents[1].ID, "A must come second")
+	assert.Equal(t, idB, documents[2].ID, "B must come last (oldest updated_at)")
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

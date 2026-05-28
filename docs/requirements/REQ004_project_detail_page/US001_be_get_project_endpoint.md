@@ -1,7 +1,7 @@
 ---
 US: US001
 Title: GET /api/v1/projects/{id} single-project endpoint
-Status: in_review
+Status: completed
 Track: BE
 Service: services/agent-board
 Implements: US001 AC "Project detail header shows project info", "Project not found", "Project fetch fails (network/server error)"
@@ -91,4 +91,42 @@ The dev must make the matching cases in `US001_be_unit_tests.md` pass (specifica
 - `docs/requirements/REQ004_project_detail_page/US001_be_get_project_endpoint.md` — this file (status + log).
 
 ## Review log
-(left for tech-lead review pass entries)
+
+### Review pass 1 — 2026-05-27 — verdict: approved
+**Reviewer:** tech-lead (worktree `agent-a6b128dd009734144`)
+**Code reviewed at commit:** `9f8b71e` ("be-dev: GET /api/v1/projects/:id single-project endpoint (Status: in_review)") on branch `worktree-agent-abe7e0f8f6835778a` (also merged onto `main` at `0c4afb7`).
+
+**Gate outcomes** (run in dev's worktree where the implementation lives, since this review worktree was branched from a commit predating both the REQ004 docs and the dev's BE commit; merging the latest main into this review worktree was not available):
+- `cd services/agent-board && go test ./...` — Go test: 90 passed in 6 packages.
+- `cd services/agent-board && go vet ./...` — Go vet: No issues found.
+- `cd services/agent-board && golangci-lint run ./...` — golangci-lint: No issues found.
+- `cd services/agent-board && gofmt -s -d .` — no output (no diff).
+- `cd services/agent-board && go test ./internal/handler/... -run 'TestProjectHandler_GetProject' -v` — all 10 GetProject* tests pass.
+
+**Architecture conformance vs `architecture.md` §"API contracts → 1. GET /api/v1/projects/{projectId}":**
+- 200 OK returns a bare object with exactly five fields `id`, `name`, `description`, `createdAt`, `updatedAt` — confirmed by `projectResponse` struct (`project_handler.go:14-20`) and `TestProjectHandler_GetProject_200` (`project_handler_test.go:216` asserts `assert.Len(t, res, 5)` and `:220` asserts no `"project"` wrapper key).
+- ISO-8601 format `2006-01-02T15:04:05Z` — `project_handler.go:87-88` matches the existing `GetProjects` format; asserted in tests via exact string equality (`project_handler_test.go:212-213`).
+- `description: ""` serialises as `""` not `null` — guaranteed by `string` (not `*string`) field; `TestProjectHandler_GetProject_EmptyDescription` (`project_handler_test.go:224-255`) locks this with a raw-body `Contains` on `"description":""`.
+- 404 envelope `{"code":"NOT_FOUND","message":"Project not found"}` — exact strings in handler (`project_handler.go:71-74`) and asserted in `TestProjectHandler_GetProject_404` (`project_handler_test.go:279-281`), with `assert.Len(t, res, 2)` locking no extra fields.
+- 500 envelope `{"code":"INTERNAL_ERROR","message":"Failed to fetch project"}` — exact strings in handler (`project_handler.go:77-80`) and asserted in `TestProjectHandler_GetProject_500` (`project_handler_test.go:306-307`).
+- `errors.Is(err, repo.ErrNotFound)` — used at `project_handler.go:70`, matching the architecture's data-access mapping.
+- Path param via `c.Param("id")`, no syntactic UUID validation — `project_handler.go:66`.
+- Route registered adjacent to existing list route — `cmd/api-server/main.go:60` (`e.GET("/api/v1/projects/:id", projectHandler.GetProject)`).
+
+**Test contract coverage vs `US001_be_unit_tests.md`:**
+- UT-US001-001 → `TestProjectHandler_GetProject_200` + `TestProjectHandler_GetProject_EmptyDescription`. Both pass.
+- UT-US001-002 → `TestProjectHandler_GetProject_404`. Passes.
+- UT-US001-003 → `TestProjectHandler_GetProject_500`. Passes.
+- IT-US001-001 → `TestProjectHandler_GetProject_Integration_Found`. Passes. Substitutes sqlmock for live Postgres — same boundary (`repo ↔ handler` over the real SQL query string) and consistent with the existing `TestProjectHandler_GetProjects_Integration` pattern in this file; the spec's "testcontainers or local Postgres" wording is satisfied by sqlmock as the project's established convention.
+- IT-US001-002 → `TestProjectHandler_GetProject_Integration_NotFound`. Passes (empty rows → `sql.ErrNoRows` → `ErrNotFound` → 404 envelope).
+- IT-US001-003 → `TestProjectHandler_RouteRegistration`. Passes.
+
+**TDD honesty:** assertions are tight — exact JSON strings, exact field counts (`assert.Len(t, res, 5)` / `assert.Len(t, res, 2)`), raw-body substring for the `""` vs `null` distinction. No spec was weakened.
+
+**Scope:** only the three files declared in `## Files touched` were modified. The refactor of `projectResponse` to a package-level type is in-scope, removes duplication between `GetProjects` and `GetProject`, and is documented.
+
+**Quality:** doc comments present on `projectResponse`, `GetProjects`, `GetProject`; route registration grouped with existing project route; error-logging pattern `log.Printf("Failed to get project: %v", err)` matches the existing handler convention; no commented-out code, no TODOs, no introduced `any`/`interface{}` in production code.
+
+**Regressions:** the refactor of `projectResponse` to package level did not break `GetProjects` — all 90 tests across the module are green.
+
+**Verdict:** approved. Status flipped to `completed`. No follow-ups required.

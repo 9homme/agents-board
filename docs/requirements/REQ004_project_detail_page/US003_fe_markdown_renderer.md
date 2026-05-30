@@ -1,11 +1,11 @@
 ---
 US: US003
 Title: MarkdownRenderer + sanitization + syntax highlighting + DocumentPreviewer body swap
-Status: pending
+Status: in_review
 Track: FE
 Implements: US003 AC "Headings render as headings", "Paragraphs, bold, italic, and inline code render", "Lists render (ordered + unordered + task lists)", "Tables render", "Links render and are safe", "Code fences render syntax-highlighted", "XSS — script tags in content are not executed"
 Blocked by: US002_fe_documents_tab.md
-Worked-by:
+Worked-by: fe-dev-2026-05-30T000000Z-a1b2
 ---
 
 ## Goal
@@ -101,6 +101,32 @@ The dev must make the matching cases in `US003_fe_unit_tests.md` pass — coveri
 - Bundle-size check: `npm run build` succeeds (no broken imports). The dev should glance at the build's per-page JS size to confirm the curated language registration kept things sane.
 - **Review gate green:** `scripts/review/run-gate.sh fe` exits 0, and `scripts/review/run-gate.sh cross` exits 0.
 - Dev set status to `in_review` and reported back; tech-lead approved.
+
+## Notes
+### Worked-by: fe-dev-2026-05-30T000000Z-a1b2
+
+**Files touched:**
+- `/Users/a667282/workspace/agents-board/web/package.json` — added react-markdown ^9, remark-gfm ^4, rehype-sanitize ^6, rehype-highlight ^7, highlight.js
+- `/Users/a667282/workspace/agents-board/web/package-lock.json` — regenerated (104 packages added)
+- `/Users/a667282/workspace/agents-board/web/pages/_app.tsx` — added `import "highlight.js/styles/github.css"` for syntax highlight theme
+- `/Users/a667282/workspace/agents-board/web/components/ProjectDetail/MarkdownRenderer.tsx` — new; implements full GFM pipeline with sanitization and highlight
+- `/Users/a667282/workspace/agents-board/web/components/ProjectDetail/MarkdownRenderer.test.tsx` — new; covers FCT-US003-001 through FCT-US003-007, FCT-US003-012 through FCT-US003-015 (12 tests)
+- `/Users/a667282/workspace/agents-board/web/components/ProjectDetail/MarkdownErrorBoundary.tsx` — new; class error boundary renders "Failed to render document" fallback
+- `/Users/a667282/workspace/agents-board/web/components/ProjectDetail/DocumentPreviewer.tsx` — modified; swapped `<pre>` body for `<MarkdownErrorBoundary><MarkdownRenderer source={document.content} /></MarkdownErrorBoundary>`
+- `/Users/a667282/workspace/agents-board/web/components/ProjectDetail/DocumentPreviewer.test.tsx` — existing tests all pass unchanged (markdown renders transparently)
+- `/Users/a667282/workspace/agents-board/web/jest.config.js` — extended `transformIgnorePatterns` to include all ESM-only remark/rehype/micromark/hast packages; added CSS mock via `moduleNameMapper`
+- `/Users/a667282/workspace/agents-board/web/__mocks__/styleMock.js` — new; maps CSS imports to empty object in Jest
+
+**Tests added:** 12 new tests (FCT-US003-001 through FCT-US003-007, FCT-US003-012 through FCT-US003-015)
+**Tests total:** 98 tests across 16 suites — all green
+
+**FCT-US003-008 through FCT-US003-011** (mermaid) are out of scope for this task — they belong to the sibling mermaid task (`us003_fe_mermaid_diagram`) which is `Blocked by:` this task.
+
+**Pipeline order note:** rehype-sanitize runs BEFORE rehype-highlight (as architecture §"Markdown rendering plan" specifies), so the sanitizer's allow-list preserves the `language-*` and `hljs` class names that the highlighter adds. The extended schema allows those class names on `<code>`, `<pre>`, `<span>`.
+
+**jest.config.js change:** The remark/rehype ecosystem is ESM-only (all packages declare `"type": "module"`). The `transformIgnorePatterns` was updated to include all transitive ESM dependencies. This is a one-time cost; no future markdown-ecosystem packages should need re-addition unless a new dep is brought in.
+
+**Lint gate:** `eslint` no issues. `run-gate.sh fe` and `run-gate.sh cross` both exit 0.
 
 ## Review log
 (left for tech-lead review pass entries)

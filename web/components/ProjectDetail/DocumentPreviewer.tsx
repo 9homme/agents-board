@@ -1,5 +1,7 @@
 import React from 'react';
 import { Document } from '../../lib/api/types';
+import { MarkdownRenderer } from './MarkdownRenderer';
+import { MarkdownErrorBoundary } from './MarkdownErrorBoundary';
 
 interface DocumentPreviewerProps {
   /** The loaded document, or null when loading / error / not-found. */
@@ -25,10 +27,9 @@ interface DocumentPreviewerProps {
  * 1. **Loading** — spinner/skeleton.
  * 2. **Error (non-404)** — "Failed to load document" + Retry button.
  * 3. **Not found** — "Document not found" friendly message; no Retry.
- * 4. **Loaded** — `<h2>` title, muted updatedAt, raw content in `<pre>`.
+ * 4. **Loaded** — `<h2>` title, muted updatedAt, markdown content rendered
+ *    via `<MarkdownErrorBoundary><MarkdownRenderer source={content} /></MarkdownErrorBoundary>`.
  *
- * US003 will replace only the body (`<pre>` → `<MarkdownRenderer />`)
- * without changing this component's prop surface or the surrounding wiring.
  * The parent (`DocumentsTab`) passes `key={document.id}` so mermaid SVG
  * state (US003) is cleaned up correctly on document switch.
  */
@@ -103,9 +104,9 @@ export const DocumentPreviewer: React.FC<DocumentPreviewerProps> = ({
         <h2 className="text-2xl font-bold text-gray-900">{document.title}</h2>
         <p className="text-sm text-gray-500 mt-1">Updated {document.updatedAt}</p>
       </header>
-      <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono leading-relaxed">
-        {document.content}
-      </pre>
+      <MarkdownErrorBoundary>
+        <MarkdownRenderer source={document.content} />
+      </MarkdownErrorBoundary>
     </article>
   );
 };

@@ -1,7 +1,7 @@
 # US002 — Documents tab: list documents and view content
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a user on a project detail page, I want to see a sidebar list of the project's documents and click one to view its content in a previewer pane, so that I can navigate the project's knowledge base.
@@ -183,3 +183,31 @@ As a user on a project detail page, I want to see a sidebar list of the project'
 - **No AC rewrite:** the AC are correct as written.
 
 Re-sign-off (pass 2) once tester updates the spec and the orchestrator captures a refreshed `US002_test_report.md` with E2E-US002-001 + E2E-US002-002 either PASS or with an explicit, accepted environmental skip rationale.
+
+### Sign-off pass 2 — 2026-05-30 — verdict: approved
+
+**Pass 1 routing recap:**
+1. **Blocking** — tester to fix the `Create Document Tool` arity mismatch in `tests/e2e/REQ004_project_detail_page/US002_documents_tab.robot` so the e2e suite parses cleanly.
+2. **Non-blocking touch-up** — tester to mandate `within(getByTestId('documents-sidebar-area'))` scoping for the sidebar empty-state assertion in FCT-US002-002 to prevent the substring-superset false-positive.
+
+**Spec re-review (US002_be_unit_tests.md, US002_fe_unit_tests.md, US002_e2e_tests.md):**
+- **BE specs:** unchanged from pass 1 (no rework requested). All 10 unit + 6 integration IDs still map cleanly onto architecture §"API contracts" §2/§3, D-006 (404 vs `{"documents":[]}`), and the `updated_at DESC, id DESC` ordering rule with tiebreaker coverage.
+- **FE specs:** FCT-US002-002 (lines 50–62) now mandates `within(screen.getByTestId('documents-sidebar-area')).findByText(/No documents yet/i)` with an explicit rationale comment about the substring-superset collision against the previewer's longer string, and confirms the previewer assertion can remain unscoped because its full string is unique. AC mapping unchanged, test ID unchanged. A "Spec change log" section (line 268) records Revision 1 — 2026-05-30 — driver: po-ba sign-off pass 1. Other 14 FCT-US002-* specs unchanged.
+- **E2E specs:** spec text unchanged (E2E-US002-001 + E2E-US002-002 still bound to the same two genuinely-browser-only scenarios). Underlying Robot suite was repaired in commit `9f9bae0`; the addendum documents the root cause as Robot parsing the leading `#` of the content arg as an inline comment, eating positional arg 4. Fix uses `Set Variable` with `\#` escape; the keyword's 4-arg signature is preserved so REQ001 callers are unaffected — a clean, contained fix.
+
+**Result re-review (US002_test_report.md):**
+- **BE — PASS (unchanged):** `go test ./...` 107/107 across 6 packages; all 16 US002 IDs mapped one-to-one to Go test functions; aux gates (`go vet`, `gofmt -s -d`, `golangci-lint` with gosec linter, cross gate) all clean; standalone `gosec` substitution explicitly accepted by both BE tech-lead reviews; no skips.
+- **FE — PASS (unchanged):** US002-scoped Jest 40/40 across 6 suites; full suite 86/86 across 15 suites with no US001 regressions; all 15 FCT-US002-* IDs mapped; `npm run typecheck` and `npm run lint --max-warnings=0` clean; cross gate PASS; no skips. The FCT-US002-002 implementation already had `data-testid="documents-sidebar-area"` at `web/components/ProjectDetail/DocumentsTab.tsx:175`, so the spec clarification matched the existing code with zero rework — verified in the addendum.
+- **E2E — DRY-RUN PASS, LIVE RUN GATED:** addendum (lines 102–110) confirms `robot --dryrun --include US002 tests/e2e/REQ004_project_detail_page/` → 2/2 tests parsed cleanly, all keywords resolved with correct arity. The keyword-arity blocker from pass 1 is fully resolved. Live execution against a stood-up `web` + `api-server` + seeded DB remains deferred to a release-gate environment — same explicitly-accepted posture as US001 pass 2.
+
+**Why this is `approved` and not `changes_requested`:**
+- The pass-1 blocking finding (e2e arity defect preventing the suite from even parsing) is verifiably resolved by dry-run PASS — the failure mode that pass 1 flagged is gone.
+- The pass-1 non-blocking touch-up (FCT-US002-002 scoping) is now codified in the spec with a clear rationale and a recorded spec change-log entry — future devs will not re-hit the substring ambiguity.
+- The release-gate caveat for live e2e execution (env-up requires manual stack-up) is identical to the posture already accepted on US001 pass 2 and is not a story-level blocker.
+- No application behaviour failed at any layer; all 16 BE IDs and all 15 FE IDs still PASS with no skips. Application-level confidence is high and continuous from pass 1 to pass 2.
+
+**Routing:** none. Story moves to `Status: done`.
+
+**Release-gate note (carry-forward):** E2E-US002-001 and E2E-US002-002 have not been executed against a live browser + live `api-server` + seeded DB. Same posture as US001 pass 2 — accepted as a release-gate concern rather than a story-level blocker. When the release process spins up that stack, run `robot --include US002 tests/e2e/REQ004_project_detail_page/` and any failure becomes a regression to fix before release, not a re-open of US002 sign-off.
+
+**Circuit-breaker state:** streak resets to 0 on this approval.

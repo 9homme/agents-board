@@ -1,7 +1,7 @@
 ---
 US: US003
 Title: MermaidDiagram lazy-loaded component + wire into MarkdownRenderer code override
-Status: in_review
+Status: completed
 Track: FE
 Implements: US003 AC "Mermaid diagrams render as SVG", "Invalid mermaid source does not crash the page", "Switching documents re-renders mermaid for the new content"
 Blocked by: US003_fe_markdown_renderer.md
@@ -111,4 +111,32 @@ Used pattern 2 (inline `useEffect` + `await import('mermaid')`) rather than `nex
 - The worker-process warning in Jest (`A worker process has failed to exit gracefully`) is pre-existing — the same warning appears in the full suite before this task's changes. It is caused by the MSW server's open handles and not introduced by mermaid.
 
 ## Review log
-(left for tech-lead review pass entries)
+
+### Review pass 1 — 2026-05-30 — verdict: approved
+
+**Reviewer:** tech-lead (worktree-agent `a9635ed9b942b4c32`). Reviewer stalled before appending this entry; entry transcribed by orchestrator verbatim from the reviewer's returned report (the `Status: completed` flip was applied by the reviewer itself before the stall).
+
+**Gate summary:**
+- `cd web && npm run typecheck` — clean.
+- `cd web && npm test -- --watchAll=false --forceExit` — **107 tests passing** (16 suites; pre-existing MSW open-handle warning absorbed by `--forceExit`).
+- `cd web && npm run lint -- --max-warnings=0` — `ESLint: No issues found`.
+- `bash scripts/review/run-gate.sh cross` — `REVIEW GATE: PASS` (semgrep + gitleaks).
+
+**Hard invariants verified:**
+1. **CSR-only:** `MermaidDiagram.tsx:86` does `await import('mermaid')` inside `useEffect`; module never executes on the server. PASS.
+2. **Cleanup + key-driven swap (FCT-US003-011):** `MermaidDiagram.tsx:112-114` returns a `() => { cancelled = true }` cleanup; setters gated on `if (cancelled) return`. `DocumentPreviewer.test.tsx:174-238` proves doc-A SVG is gone and doc-B SVG present after `rerender` with a new `key`. PASS.
+3. **Error fallback non-propagating (FCT-US003-009):** try/catch wraps both `import('mermaid')` and `mermaid.render`; failure sets `status: 'error'`; success path emits SVG without raw source (the `<pre>` only appears in the error branch). PASS.
+4. **`mermaid.render` not called for non-mermaid (FCT-US003-010):** `CodeBlock` in `MarkdownRenderer.tsx:137` only branches to `<MermaidDiagram>` when `className?.includes('language-mermaid')`. Test at `MarkdownRenderer.test.tsx:347-356` asserts `expect(mermaid.render).not.toHaveBeenCalled()` after rendering a Go fence. PASS.
+5. **Sanctioned `dangerouslySetInnerHTML`:** `MermaidDiagram.tsx:139` uses `dangerouslySetInnerHTML` on the mermaid-emitted SVG. Explicitly sanctioned by architecture D-004 and the task's scope note. Dev chose `securityLevel: 'strict'` (`MermaidDiagram.tsx:93`) and skipped the optional double-sanitize through `rehype-sanitize` — architecture allows this. Accepted.
+
+**Other spot-checks (all PASS):**
+- `useId()` per-instance with `mermaid-` prefix; characters sanitized for valid HTML ids.
+- `mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })`.
+- Code-override order: mermaid checked FIRST, default highlighter branch SECOND.
+- Trailing newline strip in `MarkdownRenderer.tsx:139`.
+- ariaLabel derived from first line if SVG has no `<title>`.
+
+**Follow-up (non-blocking tech-debt):**
+- `@testing-library/dom ^10.4.1` was added to `dependencies` because npm flagged it as a missing peer during the mermaid install. Mermaid does NOT depend on it; npm's peer-resolver surfaced an unrelated missing peer. Purely a test-time tool — should be moved to `devDependencies`. Doesn't break the build, doesn't ship to browser (Next won't bundle since nothing in `web/pages` or `web/components` imports it).
+
+**Verdict:** approved. `Status: completed`.

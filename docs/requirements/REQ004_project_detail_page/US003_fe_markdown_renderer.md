@@ -1,7 +1,7 @@
 ---
 US: US003
 Title: MarkdownRenderer + sanitization + syntax highlighting + DocumentPreviewer body swap
-Status: in_review
+Status: completed
 Track: FE
 Implements: US003 AC "Headings render as headings", "Paragraphs, bold, italic, and inline code render", "Lists render (ordered + unordered + task lists)", "Tables render", "Links render and are safe", "Code fences render syntax-highlighted", "XSS — script tags in content are not executed"
 Blocked by: US002_fe_documents_tab.md
@@ -129,4 +129,51 @@ The dev must make the matching cases in `US003_fe_unit_tests.md` pass — coveri
 **Lint gate:** `eslint` no issues. `run-gate.sh fe` and `run-gate.sh cross` both exit 0.
 
 ## Review log
-(left for tech-lead review pass entries)
+
+### Review pass 1 — 2026-05-30 — verdict: approved
+
+**Gate summary:**
+- `cd web && npm run typecheck` → clean (no output, exit 0).
+- `cd web && npm test -- --watchAll=false --forceExit` → `Test Suites: 16 passed, 16 total` / `Tests: 98 passed, 98 total` / `Time: 4.767 s`. (The Jest "worker process has failed to exit gracefully" line is the MSW open-handle workaround for which `--forceExit` is mandated by the review brief — not a real failure.)
+- `cd web && npm run lint -- --max-warnings=0` → `ESLint: No issues found`.
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep + gitleaks both PASS).
+
+**FCT coverage verified (all in `web/components/ProjectDetail/MarkdownRenderer.test.tsx`):**
+- FCT-US003-001 headings h1/h2/h3 — green.
+- FCT-US003-002 strong/em/del/inline code — green.
+- FCT-US003-003 GFM task list disabled checkboxes — green.
+- FCT-US003-004 GFM table thead/tbody/columnheader/cell — green.
+- FCT-US003-005 safe link `target=_blank rel=noopener noreferrer` + `javascript:` stripped — green.
+- FCT-US003-006 `language-go` + `hljs` classes + `<span>` tokens — green (proves sanitize-then-highlight pipeline order preserved the highlighter's classes).
+- FCT-US003-007 unlabeled fence renders `<pre><code>` without `hljs` and without throw — green.
+- FCT-US003-012 `<script>alert(1)</script>` → 0 script elements AND `alert` spy not called AND safe paragraph survives — green; this is the load-bearing XSS test and it exercises an actual attacker payload, not just an allow-list check.
+- FCT-US003-013 `[link](javascript:alert('xss'))` → no anchor has `href` starting with `javascript:` — green.
+- FCT-US003-014 `<img onerror="alert(...)">` → 0 `[onerror]` elements AND `alert` not called — green.
+- FCT-US003-015 error boundary catches throw and renders `role="alert"` "Failed to render document" fallback (plus passthrough when no error) — green.
+
+Mermaid FCTs (008-011) are explicitly out of scope for this task and correctly deferred to the sibling `us003_fe_mermaid_diagram` task per `Blocked by:` chain.
+
+**Architecture conformance (D-004 + §"Markdown rendering plan"):**
+- `MarkdownRenderer.tsx:204-207` — `rehypePlugins=[[rehypeSanitize, extendedSchema], [rehypeHighlight, rehypeHighlightOpts]]`. Sanitize FIRST, highlight SECOND — matches the architecture pipeline diagram exactly. If swapped, the sanitizer would strip the `hljs`/`language-*` classes the highlighter adds.
+- `MarkdownRenderer.tsx:38-94` — `extendedSchema` patches `defaultSchema` to allow `language-*`/`hljs(-*)` on `<code>`/`<pre>`/`<span>`, `target`/`rel` on `<a>`, and the SVG element set mermaid will emit. `<script>` is NOT added to `tagNames`; no `on*` attribute is added to any element's allow-list. javascript:/vbscript:/data:text/html URI rejection comes free from `defaultSchema`'s built-in URL protocol allow-list (verified by FCT-US003-013).
+- `MarkdownRenderer.tsx:96-107` — `rehypeHighlight` configured with the curated language subset (Go/TS/JSON/Bash/SQL/YAML/Markdown) per the architecture's bundle-size posture.
+- `MarkdownRenderer.tsx:153-174` — anchor override sets `target=_blank rel=noopener noreferrer` only for `http(s)` prefixes; relative/`mailto:` left untouched.
+- `MarkdownRenderer.tsx:129-141` — `code` override is the stub the task specified; it renders default `<code>` and leaves the `language-mermaid` branch open for the sibling mermaid task to fill in.
+- No `dangerouslySetInnerHTML` anywhere — confirmed.
+- `MarkdownErrorBoundary.tsx` — proper React class boundary (`getDerivedStateFromError` + `componentDidCatch`); renders `<div role="alert">Failed to render document</div>` fallback.
+- `DocumentPreviewer.tsx:107-109` — body correctly swapped to `<MarkdownErrorBoundary><MarkdownRenderer source={document.content} /></MarkdownErrorBoundary>`. Prop surface unchanged. The `key={document.id}` invariant lives at the DocumentsTab call site (US002) and is preserved.
+- `pages/_app.tsx:3` — `highlight.js/styles/github.css` imported once globally per the task's CSS-theme choice. Mocked in Jest via `__mocks__/styleMock.js` (sensible).
+
+**Hard invariants:**
+- CSR-only: no `getServerSideProps`/`getStaticProps`/`getInitialProps` introduced; no `web/pages/api/*` added. `MarkdownRenderer` is a pure function component with no SSR coupling.
+- No `dangerouslySetInnerHTML` in the markdown renderer.
+- No `any` introduced (typecheck clean; explicit interfaces for `CodeProps`, `MarkdownRendererProps`, `MarkdownErrorBoundaryProps`/`State`). The two `as Components['code']` / `as Components['a']` casts at lines 180-181 are narrow and well-justified by the comment immediately above them (react-markdown's typed `ComponentProps` differ slightly from raw HTML element props); these are not `any` leaks.
+- Scope discipline: no edits under `services/`; DocumentsTab / DocumentSidebar / hooks / API client untouched. Mermaid is correctly deferred.
+
+**Cosmetic deviation (not a finding):**
+- The scope list mentioned a separate `MarkdownErrorBoundary.test.tsx` file; the dev folded both boundary cases (FCT-US003-015 + a passthrough case) into `MarkdownRenderer.test.tsx`. Both required cases are present and green — the contract is the FCT IDs, not the file split. Approved as-is.
+
+**Jest config / ESM transform broadening (`jest.config.js`):** the dev extended `transformIgnorePatterns` to whitelist the entire remark/rehype/micromark/hast/unist ecosystem so SWC transpiles their ESM. This is a one-time scaffold cost that future markdown-stack additions will inherit. Acceptable and well-documented in the task notes.
+
+Verdict: **approved**. Status flipped to `completed`. No follow-up required for this task; mermaid wiring is the next sibling task's responsibility per the existing `Blocked by:` chain.
+

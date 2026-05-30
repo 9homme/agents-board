@@ -22,6 +22,7 @@ import (
 type mockDocumentRepoForHandler struct {
 	repo.DocumentRepository
 	ListDocumentsFunc func(ctx context.Context, projectID string) ([]*domain.Document, error)
+	GetDocumentFunc   func(ctx context.Context, id string) (*domain.Document, error)
 	listCallCount     int
 }
 
@@ -31,6 +32,13 @@ func (m *mockDocumentRepoForHandler) ListDocuments(ctx context.Context, projectI
 		return m.ListDocumentsFunc(ctx, projectID)
 	}
 	return nil, nil
+}
+
+func (m *mockDocumentRepoForHandler) GetDocument(ctx context.Context, id string) (*domain.Document, error) {
+	if m.GetDocumentFunc != nil {
+		return m.GetDocumentFunc(ctx, id)
+	}
+	return nil, repo.ErrNotFound
 }
 
 // mockProjectRepoForHandler is a mock for repo.ProjectRepository used in document handler tests.
@@ -421,27 +429,232 @@ func TestDocumentHandler_IT_ListProjectDocuments_OrderingVerified(t *testing.T) 
 	assert.Equal(t, "B", d2["title"])
 }
 
-// IT-US002-006 — Route registration smoke test: list-documents route is registered
-// Note: The sibling task (US002_be_get_document_endpoint) adds GET /api/v1/documents/:id
-// and completes the full IT-US002-006 spec (both routes). This test covers the list route.
-func TestDocumentHandler_IT_RouteRegistration_ListDocuments(t *testing.T) {
+// IT-US002-006 — Route registration smoke test: both document routes are registered
+func TestDocumentHandler_IT_RouteRegistration_BothDocumentRoutes(t *testing.T) {
 	// Build an Echo instance the same way main.go does (minus the DB).
 	e := echo.New()
 
-	// Use nil repos — we're only checking route registration, not handler logic.
+	// Use stub repos — we're only checking route registration, not handler logic.
 	docRepo := &mockDocumentRepoForHandler{}
 	projectRepo := &mockProjectRepoForHandler{}
 	h := handler.NewDocumentHandler(docRepo, projectRepo)
 
 	e.GET("/api/v1/projects/:id/documents", h.ListProjectDocuments)
+	e.GET("/api/v1/documents/:id", h.GetDocument)
 
 	routes := e.Routes()
-	var found bool
+	routeSet := make(map[string]bool)
 	for _, r := range routes {
-		if r.Method == http.MethodGet && r.Path == "/api/v1/projects/:id/documents" {
-			found = true
-			break
-		}
+		routeSet[r.Method+":"+r.Path] = true
 	}
-	assert.True(t, found, "route GET /api/v1/projects/:id/documents must be registered")
+
+	assert.True(t, routeSet["GET:/api/v1/projects/:id/documents"],
+		"route GET /api/v1/projects/:id/documents must be registered")
+	assert.True(t, routeSet["GET:/api/v1/documents/:id"],
+		"route GET /api/v1/documents/:id must be registered")
+}
+
+// UT-US002-007 — GetDocument handler: 200 happy path (includes content field)
+func TestDocumentHandler_GetDocument_200_HappyPath(t *testing.T) {
+	e := echo.New()
+	docID := "d111aaaa-1111-1111-1111-111111111111"
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	content := "# Architecture\n\nThis project uses…\n\n```mermaid\ngraph TD; A-->B;\n```\n"
+
+	docRepo := &mockDocumentRepoForHandler{
+		GetDocumentFunc: func(ctx context.Context, id string) (*domain.Document, error) {
+			return &domain.Document{
+				ID:        docID,
+				ProjectID: projectID,
+				Title:     "Architecture overview",
+				Content:   content,
+				CreatedAt: mustParseTime("2026-05-18T08:30:00Z"),
+				UpdatedAt: mustParseTime("2026-05-20T09:45:00Z"),
+			}, nil
+		},
+	}
+	projectRepo := &mockProjectRepoForHandler{}
+
+	h := handler.NewDocumentHandler(docRepo, projectRepo)
+	c, rec := newDocumentHandlerContext(e, http.MethodGet, "/api/v1/documents/"+docID, docID)
+
+	err := h.GetDocument(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var res map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+
+	assert.Equal(t, docID, res["id"])
+	assert.Equal(t, projectID, res["projectId"])
+	assert.Equal(t, "Architecture overview", res["title"])
+	assert.Equal(t, content, res["content"])
+	assert.Equal(t, "2026-05-18T08:30:00Z", res["createdAt"])
+	assert.Equal(t, "2026-05-20T09:45:00Z", res["updatedAt"])
+
+	// All six fields must be present.
+	for _, field := range []string{"id", "projectId", "title", "content", "createdAt", "updatedAt"} {
+		_, ok := res[field]
+		assert.True(t, ok, "field %q must be present in response", field)
+	}
+}
+
+// UT-US002-007 (edge case) — GetDocument handler: 200 with empty content serialises as "" not null
+func TestDocumentHandler_GetDocument_200_EmptyContent(t *testing.T) {
+	e := echo.New()
+	docID := "d111aaaa-1111-1111-1111-111111111111"
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	docRepo := &mockDocumentRepoForHandler{
+		GetDocumentFunc: func(ctx context.Context, id string) (*domain.Document, error) {
+			return &domain.Document{
+				ID:        docID,
+				ProjectID: projectID,
+				Title:     "Empty doc",
+				Content:   "",
+				CreatedAt: mustParseTime("2026-05-18T08:30:00Z"),
+				UpdatedAt: mustParseTime("2026-05-20T09:45:00Z"),
+			}, nil
+		},
+	}
+	projectRepo := &mockProjectRepoForHandler{}
+
+	h := handler.NewDocumentHandler(docRepo, projectRepo)
+	c, rec := newDocumentHandlerContext(e, http.MethodGet, "/api/v1/documents/"+docID, docID)
+
+	err := h.GetDocument(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// content must be "" (empty string), not null.
+	// Use raw JSON to assert absence of null.
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &raw))
+
+	contentRaw, hasContent := raw["content"]
+	require.True(t, hasContent, "content field must be present")
+	assert.Equal(t, `""`, string(contentRaw), "content must serialise as empty string, not null")
+}
+
+// UT-US002-008 — GetDocument handler: 404 not found
+func TestDocumentHandler_GetDocument_404_NotFound(t *testing.T) {
+	e := echo.New()
+
+	docRepo := &mockDocumentRepoForHandler{
+		GetDocumentFunc: func(ctx context.Context, id string) (*domain.Document, error) {
+			return nil, repo.ErrNotFound
+		},
+	}
+	projectRepo := &mockProjectRepoForHandler{}
+
+	h := handler.NewDocumentHandler(docRepo, projectRepo)
+	c, rec := newDocumentHandlerContext(e, http.MethodGet, "/api/v1/documents/no-such-doc", "no-such-doc")
+
+	err := h.GetDocument(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "NOT_FOUND", res["code"])
+	assert.Equal(t, "Document not found", res["message"])
+}
+
+// UT-US002-009 — GetDocument handler: 500 internal error
+func TestDocumentHandler_GetDocument_500_InternalError(t *testing.T) {
+	e := echo.New()
+
+	docRepo := &mockDocumentRepoForHandler{
+		GetDocumentFunc: func(ctx context.Context, id string) (*domain.Document, error) {
+			return nil, errors.New("db connection dropped")
+		},
+	}
+	projectRepo := &mockProjectRepoForHandler{}
+
+	h := handler.NewDocumentHandler(docRepo, projectRepo)
+	c, rec := newDocumentHandlerContext(e, http.MethodGet, "/api/v1/documents/any-id", "any-id")
+
+	err := h.GetDocument(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+	assert.Equal(t, "Failed to fetch document", res["message"])
+}
+
+// IT-US002-004 — GET /api/v1/documents/{id} — integration round-trip (found)
+func TestDocumentHandler_IT_GetDocument_Found(t *testing.T) {
+	e := echo.New()
+	docID := "d111aaaa-1111-1111-1111-111111111111"
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	docRepo := &mockDocumentRepoForHandler{
+		GetDocumentFunc: func(ctx context.Context, id string) (*domain.Document, error) {
+			if id == docID {
+				return &domain.Document{
+					ID:        docID,
+					ProjectID: projectID,
+					Title:     "Hello",
+					Content:   "# Hello",
+					CreatedAt: mustParseTime("2026-05-18T08:30:00Z"),
+					UpdatedAt: mustParseTime("2026-05-20T09:45:00Z"),
+				}, nil
+			}
+			return nil, repo.ErrNotFound
+		},
+	}
+	projectRepo := &mockProjectRepoForHandler{}
+
+	h := handler.NewDocumentHandler(docRepo, projectRepo)
+	e.GET("/api/v1/documents/:id", h.GetDocument)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/documents/"+docID, nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var res map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+
+	assert.Equal(t, docID, res["id"])
+	assert.Equal(t, projectID, res["projectId"])
+	assert.Equal(t, "Hello", res["title"])
+	assert.Equal(t, "# Hello", res["content"])
+
+	// Timestamps must be in ISO-8601 UTC format (2006-01-02T15:04:05Z).
+	assert.Equal(t, "2026-05-18T08:30:00Z", res["createdAt"])
+	assert.Equal(t, "2026-05-20T09:45:00Z", res["updatedAt"])
+
+	// All six fields present.
+	for _, field := range []string{"id", "projectId", "title", "content", "createdAt", "updatedAt"} {
+		_, ok := res[field]
+		assert.True(t, ok, "field %q must be present in integration response", field)
+	}
+}
+
+// IT-US002-005 — GET /api/v1/documents/{id} — integration 404
+func TestDocumentHandler_IT_GetDocument_NotFound(t *testing.T) {
+	e := echo.New()
+
+	docRepo := &mockDocumentRepoForHandler{
+		GetDocumentFunc: func(ctx context.Context, id string) (*domain.Document, error) {
+			return nil, repo.ErrNotFound
+		},
+	}
+	projectRepo := &mockProjectRepoForHandler{}
+
+	h := handler.NewDocumentHandler(docRepo, projectRepo)
+	e.GET("/api/v1/documents/:id", h.GetDocument)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/documents/00000000-0000-0000-0000-000000000000", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.JSONEq(t, `{"code":"NOT_FOUND","message":"Document not found"}`, rec.Body.String())
 }

@@ -84,3 +84,28 @@ func (h *DocumentHandler) ListProjectDocuments(c echo.Context) error {
 		"documents": items,
 	})
 }
+
+// GetDocument handles GET /api/v1/documents/:id.
+// It returns the full document including its markdown content.
+// Maps repo.ErrNotFound to 404; any other error to 500, following the shared error envelope.
+func (h *DocumentHandler) GetDocument(c echo.Context) error {
+	ctx := c.Request().Context()
+	id := c.Param("id")
+
+	doc, err := h.documentRepo.GetDocument(ctx, id)
+	if err != nil {
+		if errors.Is(err, repo.ErrNotFound) {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"code":    "NOT_FOUND",
+				"message": "Document not found",
+			})
+		}
+		log.Printf("Failed to get document: %v", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"code":    "INTERNAL_ERROR",
+			"message": "Failed to fetch document",
+		})
+	}
+
+	return c.JSON(http.StatusOK, mapDocumentToResponse(doc))
+}

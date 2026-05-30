@@ -1,12 +1,12 @@
 ---
 US: US002
 Title: GET /api/v1/documents/{id} single-document endpoint
-Status: pending
+Status: in_review
 Track: BE
 Service: services/agent-board
 Implements: US002 AC "Selecting a document loads its content into the previewer" (server side), "Deep-link to a specific document" (server side), "Deep-link to a document that doesn't exist for this project" (404 surface), "Loading state — content is being fetched" (server side), "Error — content fetch fails" (server side 500)
 Blocked by: US002_be_list_documents_endpoint.md
-Worked-by:
+Worked-by: be-dev-2026-05-30T00:00:00Z-accf
 ---
 
 ## Goal
@@ -53,6 +53,23 @@ The dev must make the matching cases in `US002_be_unit_tests.md` pass — coveri
 - API contract field-for-field correct (status codes + envelope + ISO-8601 format + bare-object response shape including `content`).
 - **Review gate green:** `scripts/review/run-gate.sh be services/agent-board` exits 0, and `scripts/review/run-gate.sh cross` exits 0.
 - Dev set status to `in_review` and reported back; tech-lead approved.
+
+## Notes
+
+### Implementation log — 2026-05-30
+
+**Files touched:**
+- `services/agent-board/internal/handler/document_handler.go` — added `GetDocument` method; reused existing `mapDocumentToResponse` and `DocumentResponse` from `document_tools.go` in the same package (no redeclaration needed)
+- `services/agent-board/internal/handler/document_handler_test.go` — added `GetDocumentFunc` to `mockDocumentRepoForHandler` + `GetDocument` method on the mock; added tests: UT-US002-007 (happy path + empty-content edge case), UT-US002-008 (404), UT-US002-009 (500), IT-US002-004 (integration found), IT-US002-005 (integration 404), IT-US002-006 (both routes registered — replaced partial test from sibling task)
+- `services/agent-board/cmd/api-server/main.go` — added `e.GET("/api/v1/documents/:id", documentHandler.GetDocument)` route registration
+
+**Tests added:** 8 new test functions covering all 6 required IDs (UT-US002-007/008/009, IT-US002-004/005/006); UT-US002-007 covers the empty-content edge case as a separate sub-test.
+
+**Test results:** 107 total tests pass (`go test ./...`). `go vet ./...` clean. `golangci-lint run ./...` clean. `gofmt -s -d .` clean.
+
+**Implementation note:** `GetDocument` reuses `mapDocumentToResponse(d)` from `document_tools.go` (same package) which formats timestamps with `time.RFC3339`. For UTC-stored timestamps this produces the identical `...Z` format as the architecture contract. Tests assert exact `2026-05-20T09:45:00Z` values and pass.
+
+**Environment note:** `gosec` binary is not installed in this environment so `run-gate.sh be services/agent-board` cannot complete. Core quality gates (go vet, golangci-lint, gofmt, go test) are all clean. Tech-lead may need to install gosec before running the full gate script.
 
 ## Review log
 (left for tech-lead review pass entries)

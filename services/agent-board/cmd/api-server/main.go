@@ -61,6 +61,7 @@ func run() error {
 	e.GET("/api/v1/projects", projectHandler.GetProjects)
 	e.GET("/api/v1/projects/:id", projectHandler.GetProject)
 	e.GET("/api/v1/projects/:id/documents", documentHandler.ListProjectDocuments)
+	e.GET("/api/v1/documents/:id", documentHandler.GetDocument)
 
 	// Start server
 	port := os.Getenv("PORT")

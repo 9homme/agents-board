@@ -1,7 +1,7 @@
 # US001 — Navigate to project detail page with tabs
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a user browsing the dashboard, I want to click a project card and land on a per-project detail page with a Documents tab and a User Stories tab, so that I have a single place to drill into a project's content.
@@ -180,3 +180,31 @@ As a user browsing the dashboard, I want to click a project card and land on a p
 **No task changes_requested.** All three tasks (`US001_be_get_project_endpoint`, `US001_fe_detail_page_with_tabs`, `US001_fe_project_card_link`) remain `Status: completed`; their implementations are not at fault.
 
 **Circuit breaker:** sign-off pass 1 — streak count = 1. Not tripped.
+
+### Sign-off pass 2 — 2026-05-30 — verdict: approved
+
+**Context.** Pass 1 routed to tester for a single spec defect (wrong relative import path on line 7 of the three REQ004 robot suites). All application code at the unit/component/integration layer was already green.
+
+**Spec review (delta since pass 1):**
+- Tester committed the fix as `31f162d` ("tester: fix wrong relative import path in REQ004 robot suites (US001/US002/US003)"). Same one-character fix in all three suites, exactly as routed.
+- No change to AC, no change to UT-/IT-/FCT-/E2E- spec coverage. Mapping confirmed in pass 1 still holds.
+
+**Result review (delta since pass 1):**
+- Backend: unchanged from pass 1 — 7/7 mapped Go tests PASS; full suite 90/90 PASS; vet / lint / fmt clean. No skips.
+- Frontend: unchanged from pass 1 — 15/15 FCT cases PASS; full Jest 44/44 PASS; typecheck / lint / cross gate clean. No skips.
+- E2E: `robot --dryrun --include US001 tests/e2e/REQ004_project_detail_page/` now **PASSES** (2/2 tests parsed; all keywords — including `Connect To MCP SSE` and `Create Project Tool` — resolve cleanly). Captured in test report addendum "Addendum (2026-05-30) — e2e import-path fix verified".
+- Live e2e execution of E2E-US001-001 / E2E-US001-002 against a real stack was **NOT** performed. Orchestrator does not currently automate `web` + `api-server` + seeded DB stack-up; that requires a human-driven smoke run.
+
+**Why approving without live e2e execution:**
+- The pass-1 blocker was a spec defect (parse failure), not application behavior. That defect is fixed and verified.
+- The AC most reliant on a real browser — "Refresh preserves the active tab" — is exercised at the component layer by FCT-US001-011 (rendering `[id].tsx` with `query = { id, tab: "user-stories" }` activates the User Stories tab on mount). A real browser refresh reduces to "remount the page component with the URL query intact", which is precisely what FCT-US001-011 simulates. The remaining e2e-only gap is the actual browser URL bar update during the click→navigate journey, which is mechanically guaranteed by using `<Link href="/projects/{id}">` (verified structurally by FCT-US001-001..003) and by `router.replace(..., { shallow: true })` for tab changes (verified by FCT-US001-009).
+- The pyramid is honest: e2e exists to prove the two cross-stack journeys (real router URL change + real refresh survival). The dry-run proves the e2e spec is mechanically sound; live execution is a release-gate concern, not a sign-off-gate concern, given the strength of unit + component coverage already in place.
+- No tests are silently skipped (`t.Skip` / `it.skip` / `[Tags] skip` — all absent). The 0 live-e2e executions are environmental and called out explicitly in the test report.
+
+**Recommendation (not blocking sign-off, surfacing to the orchestrator/human):**
+- Before the next REQ004-touching release, a human should stand up the stack (`cd services/agent-board && go run ./cmd/api-server` + DB + `cd web && npm run dev`) and run `robot --include US001 tests/e2e/REQ004_project_detail_page/` to capture live e2e outcomes. The dry-run guarantees the suite is parseable; it does not guarantee the live cross-stack flow works under real browser conditions.
+- Tech-debt items already noted across the three task reviews (FE gate `--forceExit`; potential automation of e2e stack-up) remain open and should be tracked as a separate requirement.
+
+**Verdict:** approved. **Story `Status: done`.** No tasks rolled back; all three (`US001_be_get_project_endpoint`, `US001_fe_detail_page_with_tabs`, `US001_fe_project_card_link`) remain `completed`.
+
+**Circuit breaker:** sign-off pass 2 verdict was `approved`, so the consecutive-`changes_requested` streak resets to 0. Not tripped.

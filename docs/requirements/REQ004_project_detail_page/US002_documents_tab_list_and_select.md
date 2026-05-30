@@ -1,7 +1,7 @@
 # US002 — Documents tab: list documents and view content
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** in_signoff
+**Status:** changes_requested
 
 ## Story
 As a user on a project detail page, I want to see a sidebar list of the project's documents and click one to view its content in a previewer pane, so that I can navigate the project's knowledge base.
@@ -159,3 +159,27 @@ As a user on a project detail page, I want to see a sidebar list of the project'
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-05-30 — verdict: changes_requested
+
+**Spec review (US002_be_unit_tests.md, US002_fe_unit_tests.md, US002_e2e_tests.md):**
+- **BE specs:** every AC scenario with a server-side surface is covered. UT-US002-001..010 + IT-US002-001..006 map cleanly onto the architecture §"API contracts" §2/§3 envelopes, ordering rule (`updated_at DESC, id DESC`), and D-006 (404 vs `{documents:[]}` for missing project). Edge cases present: empty-list serialisation (`[]` not `null`), content-key absence on list response, content `""` on detail response, ordering tiebreaker. Mock-call assertion on UT-US002-003 (ListDocuments not invoked when project missing) is the right shape — clean.
+- **FE specs:** FCT-US002-001..015 cover sidebar ordering / empty / loading / error / Retry, auto-select via shallow router.replace, deep-link valid + bogus, AbortController race-cancellation (D-005), previewer states, signal pass-through, and the page-level 404 cascade. The architecture's "do not fetch a bogus deep-linked doc" rule (avoid wasted 404 round-trip) is asserted in FCT-US002-006. Race-cancellation test (FCT-US002-007) actually verifies abort, not just the final state — load-bearing AC is honestly proved.
+- **E2E specs:** the two E2E cases (auto-select + click + URL update; refresh rehydrates deep-link) correctly limit themselves to the scenarios that genuinely require a real browser. Race-cancellation, envelopes, ordering, and per-state UI are correctly left at the unit layer — pyramid is honest.
+- **Spec gap (blocking for e2e execution):** `tests/e2e/REQ004_project_detail_page/US002_documents_tab.robot` calls `Create Document Tool` with 3 positional arguments; the keyword definition in `tests/e2e/REQ001_agent_board_mcp/mcp_keywords.resource` expects 4. Robot dry-run fails at suite setup with `Keyword 'mcp_keywords.Create Document Tool' expected 4 arguments, got 3.` Neither E2E-US002-001 nor E2E-US002-002 actually run — both load-bearing browser AC (auto-select round-trip + refresh deep-link survival) are unproved at e2e.
+- **Spec touch-up (non-blocking, FCT-US002-002):** the spec writes `screen.findByText(/No documents yet/i)` for the sidebar AND `screen.findByText(/This project has no documents yet/i)` for the previewer, but the first regex is a substring of the second so an unscoped `findByText` matches both nodes and throws. FE dev correctly resolved with `within(getByTestId('documents-sidebar-area'))`; spec should mandate that scoping (or a more specific selector) so future devs / refactors don't re-hit the ambiguity.
+
+**Result review (US002_test_report.md):**
+- **BE — PASS:** `go test ./...` 107 / 107 pass across 6 packages, including all 16 US002 IDs mapped one-to-one to Go test functions in the report's table. No skips. `go vet`, `gofmt -s -d`, `golangci-lint` (with gosec linter) all clean. Cross gate (semgrep + gitleaks) PASS. The standalone `gosec` binary is missing on the runner — accepted by both BE tech-lead reviews because the same ruleset is exercised inside golangci-lint; documented in both task review logs.
+- **FE — PASS:** US002-scoped Jest run 40 / 40 pass across 6 suites; full FE suite 86 / 86 pass across 15 suites with no regressions to US001. All 15 FCT-US002-* IDs mapped to tests. `npm run typecheck` clean, `npm run lint --max-warnings=0` clean. Cross gate PASS. No skips.
+- **E2E — BLOCKED:** both E2E-US002-001 and E2E-US002-002 are BLOCKED at suite setup by the keyword-arity defect above; neither test executes. Application code itself is fully exercised by the passing BE + FE pyramid, but the architecture's "real browser round-trip through Next.js shallow routing + real api-server" assurance for AC "Documents tab loads the list for the project" / "Selecting a document loads its content" / "Deep-link to a specific document" is currently not demonstrated end-to-end.
+
+**Verdict:** changes_requested.
+
+**Routing:**
+- **Spec (e2e), blocking → tester (revision mode).** Fix the `Create Document Tool` arity mismatch in `tests/e2e/REQ004_project_detail_page/US002_documents_tab.robot` — either supply the missing 4th positional argument at every call site in this suite, or align the keyword signature in `tests/e2e/REQ001_agent_board_mcp/mcp_keywords.resource` to match what the REQ004 suites are calling (US001 already hit the same family of glue defects per the test report). After the fix, re-attempt `robot --include US002 tests/e2e/REQ004_project_detail_page/` against a live stack (`cd web && npm run dev` + `cd services/agent-board && go run ./cmd/api-server` against a seeded DB) and capture the run in an updated `US002_test_report.md`.
+- **Spec (FCT-US002-002), non-blocking touch-up → tester (revision mode).** Update FCT-US002-002 to mandate `within(getByTestId('documents-sidebar-area'))` (or an equivalently-scoped query / `data-testid`-narrowed selector) for the sidebar assertion. Previewer assertion may remain unscoped because its full string is unique. No code change required; do not flip any task status for this item.
+- **No code rework:** no BE or FE task is flipped to `changes_requested` — application behaviour is correct and fully covered at unit/integration/component levels; the only outstanding work is in the e2e test spec/glue itself.
+- **No AC rewrite:** the AC are correct as written.
+
+Re-sign-off (pass 2) once tester updates the spec and the orchestrator captures a refreshed `US002_test_report.md` with E2E-US002-001 + E2E-US002-002 either PASS or with an explicit, accepted environmental skip rationale.

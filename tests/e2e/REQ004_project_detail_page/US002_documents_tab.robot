@@ -30,13 +30,16 @@ Setup US002 Suite
     Set Suite Variable    ${PROJECT_ID}    ${proj_content['id']}
 
     # Create Doc1 first (older updated_at)
-    ${doc1_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    First Document    # First\n\nHello from doc 1.
+    ${doc1_content_body}=    Set Variable    \# First\n\nHello from doc 1.
+    ${doc1_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    First Document    ${doc1_content_body}
     ${doc1_content}=    Evaluate    json.loads('''${doc1_resp.json()['result']['content'][0]['text']}''')    json
     Set Suite Variable    ${DOC1_ID}    ${doc1_content['id']}
 
     # Create Doc2 second (newer updated_at — will be listed first by the API)
-    ${doc2_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    Second Document    # Second\n\nHello from doc 2.
+    ${doc2_content_body}=    Set Variable    \# Second\n\nHello from doc 2.
+    ${doc2_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    Second Document    ${doc2_content_body}
     ${doc2_content}=    Evaluate    json.loads('''${doc2_resp.json()['result']['content'][0]['text']}''')    json
+
     Set Suite Variable    ${DOC2_ID}    ${doc2_content['id']}
 
     New Browser    headless=True

@@ -56,8 +56,8 @@
   - (Assert that `GET /api/v1/documents/*` is NOT called.)
 - **User interactions (RTL):** await list load.
 - **Expect:**
-  - `screen.findByText(/No documents yet/i)` is visible in the sidebar area.
-  - `screen.findByText(/This project has no documents yet/i)` is visible in the previewer area.
+  - `within(screen.getByTestId('documents-sidebar-area')).findByText(/No documents yet/i)` is visible. Use the scoped query to avoid a false-positive match against the previewer's longer string `/This project has no documents yet/i`, which is a superset substring match.
+  - `screen.findByText(/This project has no documents yet/i)` is visible in the previewer area (full string is unique; no scoping needed).
   - MSW receives zero calls to `GET /api/v1/documents/*`.
 - **Architecture cite:** US002 AC "Empty state — project has no documents"; §"Empty / loading / error states".
 
@@ -264,3 +264,8 @@
   - Tab switcher hidden (same behavior as FCT-US001-014).
 - **Notes:** The primary guard for "project not found" is the `useProject` hook (US001). This test verifies the coordination: even if the documents list endpoint also returns 404, the page surfaces the project-not-found state (not a documents-specific error message). The `useProject` hook fires in parallel with the documents list fetch; its 404 takes precedence.
 - **Architecture cite:** §"State strategy" — `useProject` discriminates `error.code === 'NOT_FOUND'`; D-006.
+
+## Spec change log
+
+### Revision 1 — 2026-05-30 — driver: po-ba sign-off pass 1
+- changed FCT-US002-002 — scoped the sidebar "No documents yet" assertion to `within(screen.getByTestId('documents-sidebar-area'))` to prevent a false-positive substring match against the previewer's longer string "This project has no documents yet". The previewer assertion remains unscoped because its full string is unique. Test ID unchanged; AC mapping unchanged.

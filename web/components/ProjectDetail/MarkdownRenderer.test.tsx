@@ -8,15 +8,30 @@
  * FCT-US003-005: Safe links + javascript: href sanitization
  * FCT-US003-006: Fenced code block with language gets language-X + hljs classes and <span> tokens
  * FCT-US003-007: Code fence with no language tag renders plain <pre><code> without error
+ * FCT-US003-008 (code-override routing): mermaid fence renders MermaidDiagram (role="img") not raw <code>
+ * FCT-US003-010: mermaid dynamic import NOT executed for non-mermaid docs
  * FCT-US003-012: XSS — <script>alert(1)</script> not added to DOM
  * FCT-US003-013: XSS — javascript: href is sanitized
  * FCT-US003-014: XSS — onerror= attribute stripped
  * FCT-US003-015: Error boundary: unhandled throw shows "Failed to render document" fallback
  */
+
+// Mock mermaid before any import so MermaidDiagram uses the mock.
+jest.mock('mermaid', () => ({
+  __esModule: true,
+  default: {
+    initialize: jest.fn(),
+    render: jest.fn().mockResolvedValue({
+      svg: '<svg role="img" aria-label="diagram" data-testid="mermaid-diagram-svg"></svg>',
+    }),
+  },
+}));
+
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { MarkdownErrorBoundary } from './MarkdownErrorBoundary';
+import mermaid from 'mermaid';
 
 // Suppress error boundary console errors in test output
 beforeEach(() => {
@@ -271,5 +286,72 @@ describe('FCT-US003-015 — MarkdownErrorBoundary: shows fallback on thrown erro
     );
 
     expect(screen.getByText('Normal content')).toBeInTheDocument();
+  });
+});
+
+// ============================================================
+// FCT-US003-008 (code-override routing) — MarkdownRenderer: mermaid fence routes to MermaidDiagram
+// ============================================================
+describe('FCT-US003-008 (code override) — MarkdownRenderer: mermaid fence routes to MermaidDiagram', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (mermaid.render as jest.Mock).mockResolvedValue({
+      svg: '<svg role="img" aria-label="diagram" data-testid="mermaid-diagram-svg"></svg>',
+    });
+  });
+
+  it('renders role="img" from mermaid mock when a mermaid fence is present', async () => {
+    const source = '```mermaid\ngraph TD; A-->B;\n```\n';
+    const { container } = render(<MarkdownRenderer source={source} />);
+
+    // MermaidDiagram is async — wait for the SVG to appear
+    await waitFor(() => {
+      expect(container.querySelector('svg')).not.toBeNull();
+    });
+  });
+
+  it('does NOT show the raw mermaid source as a <code> block', async () => {
+    const source = '```mermaid\ngraph TD; A-->B;\n```\n';
+    const { container } = render(<MarkdownRenderer source={source} />);
+
+    await waitFor(() => {
+      expect(container.querySelector('svg')).not.toBeNull();
+    });
+
+    // The raw mermaid source text must not appear as a code element
+    const codeElements = container.querySelectorAll('code');
+    codeElements.forEach((el) => {
+      expect(el.textContent).not.toContain('graph TD');
+    });
+  });
+
+  it('go fence falls through to the highlighter (not intercepted as mermaid)', () => {
+    const source = '```go\nfunc main() { fmt.Println("hi") }\n```\n';
+    const { container } = render(<MarkdownRenderer source={source} />);
+
+    const codeBlock = container.querySelector('pre > code');
+    expect(codeBlock).not.toBeNull();
+    expect(codeBlock!.className).toMatch(/language-go/);
+    expect(codeBlock!.className).toMatch(/hljs/);
+  });
+});
+
+// ============================================================
+// FCT-US003-010 — MermaidDiagram dynamic import NOT called for non-mermaid docs
+// ============================================================
+describe('FCT-US003-010 — MarkdownRenderer: mermaid NOT imported for non-mermaid docs', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('does not call mermaid.render when there is no mermaid fence', () => {
+    const source = '# No mermaid here\n\n```go\nfmt.Println("hi")\n```\n';
+    const { container } = render(<MarkdownRenderer source={source} />);
+
+    // mermaid.render must not have been called
+    expect(mermaid.render).not.toHaveBeenCalled();
+
+    // No svg should be present
+    expect(container.querySelector('svg')).toBeNull();
   });
 });

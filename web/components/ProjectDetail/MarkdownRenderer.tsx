@@ -24,6 +24,8 @@ import remarkGfm from 'remark-gfm';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import rehypeHighlight from 'rehype-highlight';
 
+import { MermaidDiagram } from './MermaidDiagram';
+
 // Curated language subset per architecture's bundle-size posture.
 import langGo from 'highlight.js/lib/languages/go';
 import langTs from 'highlight.js/lib/languages/typescript';
@@ -116,23 +118,29 @@ interface CodeProps {
  *
  * In react-markdown v9, the `code` component is called for BOTH inline code
  * and block code (fenced). For block code, react-markdown's `pre` component
- * wraps the output — so this component should only return `<code>`, never
- * wrapping in `<pre>` itself.
+ * wraps the output — so this component should only return `<code>` for normal
+ * code blocks, or a standalone element (like `<MermaidDiagram>`) for mermaid.
  *
  * Inline code has no className; block code from `rehype-highlight` carries
  * `className="hljs language-*"`.
  *
- * STUB: the `language-mermaid` branch is intentionally a no-op for now —
- * it renders as a normal code block. The mermaid task
- * (`us003_fe_mermaid_diagram`) will replace this branch with <MermaidDiagram>.
+ * Order (architecture pipeline note — mermaid is intercepted FIRST):
+ *  1. If className includes `language-mermaid` → render `<MermaidDiagram source={...} />`.
+ *  2. Otherwise → fall through to the default highlighted `<code>` rendering.
  */
 const CodeBlock = ({
   className,
   children,
   ...rest
 }: CodeProps & React.HTMLAttributes<HTMLElement>): React.ReactElement => {
-  // language-mermaid stub: render as plain code for now.
-  // The next task will intercept this and route to <MermaidDiagram>.
+  // Detect mermaid FIRST — intercept before the highlighter ever sees it.
+  if (className?.includes('language-mermaid')) {
+    // Strip trailing newline that react-markdown appends to fenced block content.
+    const source = String(children).replace(/\n$/, '');
+    return <MermaidDiagram source={source} />;
+  }
+
+  // All other code blocks (highlighted or plain) fall through to the default.
   return (
     <code className={className} {...rest}>
       {children}

@@ -1,11 +1,11 @@
 ---
 US: US003
 Title: MermaidDiagram lazy-loaded component + wire into MarkdownRenderer code override
-Status: pending
+Status: in_review
 Track: FE
 Implements: US003 AC "Mermaid diagrams render as SVG", "Invalid mermaid source does not crash the page", "Switching documents re-renders mermaid for the new content"
 Blocked by: US003_fe_markdown_renderer.md
-Worked-by:
+Worked-by: fe-dev-2026-05-30T00-00-00Z-a9f2
 ---
 
 ## Goal
@@ -81,6 +81,34 @@ The dev must make the matching cases in `US003_fe_unit_tests.md` pass — coveri
 - `MermaidDiagram` has a doc comment summarising the lazy-load + error-handling contract.
 - **Review gate green:** `scripts/review/run-gate.sh fe` exits 0, and `scripts/review/run-gate.sh cross` exits 0.
 - Dev set status to `in_review` and reported back; tech-lead approved.
+
+## Notes
+
+### Files touched
+- `web/package.json` — added `mermaid ^11.0.0` and `@testing-library/dom ^10.4.1` (peer dep pulled in by mermaid install).
+- `web/package-lock.json` — regenerated after npm install.
+- `web/jest.config.js` — added `mermaid` and `@mermaid-js` to ESM transform list.
+- `web/components/ProjectDetail/MermaidDiagram.tsx` — new component (lazy import via dynamic `import('mermaid')` in `useEffect`, per-instance `useId()` for mermaid render ids, error fallback, `role="img"` wrapper).
+- `web/components/ProjectDetail/MermaidDiagram.test.tsx` — new tests covering FCT-US003-008 and FCT-US003-009.
+- `web/components/ProjectDetail/MarkdownRenderer.tsx` — added `import { MermaidDiagram }`, wired the `language-mermaid` intercept in `CodeBlock` before the highlighter fall-through.
+- `web/components/ProjectDetail/MarkdownRenderer.test.tsx` — added `jest.mock('mermaid')`, FCT-US003-008 (code-override routing), FCT-US003-010 (no mermaid import for non-mermaid docs) tests.
+- `web/components/ProjectDetail/DocumentPreviewer.test.tsx` — added `jest.mock('mermaid')`, FCT-US003-011 (document-switch resets mermaid SVG) test.
+
+### Tests added (this task)
+- `MermaidDiagram.test.tsx`: 4 tests (FCT-US003-008 × 2, FCT-US003-009 × 2)
+- `MarkdownRenderer.test.tsx`: 5 new tests (FCT-US003-008 code-override × 3, FCT-US003-010 × 1, plus existing 12 unchanged)
+- `DocumentPreviewer.test.tsx`: 1 new test (FCT-US003-011)
+- **Total across entire suite: 107 tests, all passing.**
+
+### Implementation pattern chosen
+Used pattern 2 (inline `useEffect` + `await import('mermaid')`) rather than `next/dynamic`, because:
+- The mock-based test strategy (`jest.mock('mermaid', ...)`) works cleanly without also needing to mock `next/dynamic`.
+- The module-scope cache (`mermaidModuleCache`) ensures mermaid is imported only once per page lifetime, matching the lazy-load architecture intent.
+- The component is CSR-only by construction (the `import('mermaid')` is inside `useEffect` which never runs on the server).
+
+### Follow-up notes (not in scope)
+- `@testing-library/dom` became a direct dep after the npm install pulled it in as a missing peer. It was added to `dependencies`; could move to `devDependencies` if desired.
+- The worker-process warning in Jest (`A worker process has failed to exit gracefully`) is pre-existing — the same warning appears in the full suite before this task's changes. It is caused by the MSW server's open handles and not introduced by mermaid.
 
 ## Review log
 (left for tech-lead review pass entries)

@@ -28,6 +28,8 @@ module.exports = async () => {
     // MSW (pre-existing)
     'msw', '@mswjs', 'rettime', 'until-async', 'is-node-process', 'outvariant',
     'strict-event-emitter', 'headers-polyfill', '@open-draft', '@bundled-es-modules',
+    // mermaid (ESM, lazy-loaded by MermaidDiagram.tsx)
+    'mermaid', '@mermaid-js',
     // Markdown stack — top-level packages
     'react-markdown', 'remark-gfm', 'rehype-sanitize', 'rehype-highlight',
     'remark-parse', 'remark-rehype', 'remark-stringify',

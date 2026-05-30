@@ -1,7 +1,7 @@
 # US002 — Documents tab: list documents and view content
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a user on a project detail page, I want to see a sidebar list of the project's documents and click one to view its content in a previewer pane, so that I can navigate the project's knowledge base.

@@ -51,3 +51,11 @@ eval-workspace/iteration-*/runs/
 # .git/worktrees/<short-id>/ which git already manages, but if any tool
 # writes scratch worktree paths to the repo root, ignore the common prefixes.
 .worktrees/
+.claude/worktrees/
+.claire/
+
+# Robot Framework dump files at repo root (transient — regenerated on every run)
+/log.html
+/output.xml
+/report.html
+/playwright-log.txt

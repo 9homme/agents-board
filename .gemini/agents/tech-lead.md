@@ -149,6 +149,7 @@ The orchestrator invokes you when a task file is in `Status: in_review`. For eac
    - **Scope:** changes stay within the task's declared `Scope: In`. No drive-by refactors.
    - **Quality:** no commented-out code, no unowned TODOs, no half-finished branches, no log spam.
    - **Regressions:** test suite clean across all packages/components in the touched module, not just the directly touched code.
+   - **TDG conformance (mandatory for dev work):** the dev MUST have used the `tdg` skill. Verify by inspecting commit history on the worktree branch with `git log --pretty=format:'%s' <merge-base>..HEAD`. Every commit subject MUST start with `red:`, `green:`, or `refactor:` and end with a `(US<NNN>)` traceability tag. Sequence MUST follow red → green → refactor (one cycle per test case). If any commit uses a non-tdg prefix (`be-dev:`, `fe-dev:`, `feat:`, `fix:`, `wip:`, `chore:` standalone, etc.) or skips the red-before-green ordering, that is `changes_requested` — quote the offending commit subject(s) in the review-log entry.
 5. **Plus the track-specific checklist:**
    - **BE task (Go):**
      - Service layout (`cmd/`, `internal/`), constructor injection, wrapped errors with `%w`, no globals, doc comments on public exports.

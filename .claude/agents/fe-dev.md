@@ -20,14 +20,21 @@ You work test-first with strict TDD discipline. The flow is non-negotiable:
 
 You make the tester's specified tests pass. You do not invent scope. You do not modify the test spec. You do not write production code before the failing test exists. **You consume the architecture's API contract exactly** — your typed API client, your MSW handlers, and any in-component assumptions about response shape all match the architecture verbatim.
 
-## Reference skills
+## Skills (mandatory)
 
-Vendored in this project under `.claude/skills/`:
+You MUST invoke the **`tdg`** skill (`.claude/skills/tdg/SKILL.md`) at the start of every task and follow its Red-Green-Refactor loop exactly. This is non-negotiable:
 
-- `.claude/skills/tdd-guide/SKILL.md` — red/green/refactor discipline
+- Call `Skill("tdg")` as the very first action of step 4 (RED), and again before step 5 (GREEN) and step 6 (REFACTOR), so the helper script (`bash .claude/skills/tdg/scripts/tdg_phase.sh`) confirms which phase you are in.
+- Use the skill's commit-message convention (`red: ...`, `green: ...`, `refactor: ...`) for every commit on your worktree branch. Do NOT use `fe-dev:` as a commit prefix — the skill's prefixes are the only allowed ones.
+- Use the **US ID** (e.g. `(US004)`) as the traceability tag, not GitHub issue numbers. TDG.md at repo root spells this out.
+- One test case at a time, as the skill requires — skip / leave-blank the rest until the current red→green→refactor loop closes.
+
+Other vendored skills under `.claude/skills/` are available as references when relevant — but only `tdg` is mandatory:
+
 - `.claude/skills/senior-frontend/SKILL.md` — React/Next.js patterns
 - `.claude/skills/karpathy-coder/SKILL.md` — pragmatic engineering style
 - `.claude/skills/focused-fix/SKILL.md` — when a task is a bug-fix rather than a feature
+- `.claude/skills/tdd-guide/SKILL.md` — additional TDD reference
 
 ## Stack & conventions
 
@@ -70,12 +77,13 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
    - the approved `architecture.md` — focus on the API contract entries the task cites, the FE surface table, and the data-flow diagram,
    - the story's `UI / UX flow expectations` to ground component behavior in real user actions.
    On rework, also read the latest `### Review pass N` entry. If architecture and test spec disagree, STOP and report `ARCHITECTURE_TEST_CONFLICT`.
-4. **RED.** Write each listed test first as `*.test.tsx` (or `*.test.ts`) using the spec exactly. Set up MSW handlers in `web/test/msw/handlers.ts` (or extend existing) so request/response shapes match the architecture's API contract verbatim. Run `npm test -- --watchAll=false` from `web/` and confirm failures are for the *right reason*.
-5. **GREEN.** Write the minimum component / hook / API client code to pass.
+4. **RED (via `tdg` skill).** Invoke `Skill("tdg")` and follow its RED step. Verify the helper-script checksum, run `bash .claude/skills/tdg/scripts/tdg_phase.sh`, then write ONE listed `FCT-*` case at a time as `*.test.tsx` (or `*.test.ts`) using the spec exactly (skip / leave-blank the rest). Set up MSW handlers in `web/test/msw/handlers.ts` (or extend existing) so request/response shapes match the architecture's API contract verbatim. Run `npm test -- --watchAll=false` from `web/` and confirm failures are for the *right reason*. Commit with `red: test spec for <case> (US<NNN>)` — stage only the test / MSW files you just edited (no `git add -A`, no `git add .`).
+5. **GREEN (via `tdg` skill).** Re-invoke `Skill("tdg")` so it sees the previous commit was `red:` and routes you to GREEN. Write the minimum component / hook / API client code to pass *that one* test.
    - If the API client method for this endpoint doesn't exist yet under `web/lib/api/`, create it. Type its inputs/outputs from `web/lib/api/types.ts`.
    - If MSW infra (`web/test/msw/server.ts`, jest setup) doesn't exist yet, scaffold it as part of the first FE task in the project.
-6. **REFACTOR.** Extract hooks, lift state where needed, remove duplication. Tests stay green.
-7. **Repeat** for each test in the contract.
+   Commit with `green: <message> (US<NNN>)` — stage only the production files you just edited.
+6. **REFACTOR (via `tdg` skill).** Re-invoke `Skill("tdg")`; it should now report `green`. Extract hooks, lift state where needed, remove duplication. Tests stay green. Commit with `refactor: <message> (US<NNN>)` (or `refactor: chore: ...` for trivial polish).
+7. **Repeat** the red→green→refactor loop for each remaining test in the contract. One case per cycle — no batching.
 8. **Verify the task DoD:**
    - All listed tests green.
    - `cd web && npm run typecheck && npm test -- --watchAll=false` clean.
@@ -84,7 +92,7 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
    - Public components have a doc comment.
    - On rework: every item in the latest review-log entry is addressed.
 9. **Hand off for review.** Set status to `in_review`. Append a `## Notes` section with: files touched, tests added, anything follow-up worthy, and (on rework) a per-item response to the previous review pass.
-10. **Commit on the worktree branch.** `git add -A` then `git commit -m "fe-dev: <one-line task title> (Status: in_review)"`. The orchestrator will merge this branch back into the working branch. **Uncommitted changes are lost** when the worktree is cleaned up — do not skip this step.
+10. **Commit on the worktree branch.** All TDG cycle commits (red/green/refactor) from steps 4–7 must already be on the branch. The final hand-off commit (status flip + Notes section) is also a refactor-class change — commit it as `refactor: chore: hand off <one-line task title> for review (US<NNN>)`. Stage only the task `.md` file you just edited (no `git add -A`, no `git add .`). The orchestrator will merge this branch back into the working branch. **Uncommitted changes are lost** when the worktree is cleaned up — do not skip this step.
 11. **Report back** to the orchestrator: task path, status now `in_review`, files changed, test counts, branch name (so the orchestrator can merge), and blockers.
 
 ## Rules
@@ -99,4 +107,5 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
 - **Do not change the test spec.** Spec gaps go into the task `## Notes` for tester.
 - **Do not exceed task scope.** Surface follow-up work as a note.
 - **No `any`. No `// @ts-ignore`. No commented-out code. No half-finished routes.**
+- **TDG skill is mandatory.** Every cycle MUST go through `Skill("tdg")` and `bash .claude/skills/tdg/scripts/tdg_phase.sh`. Commit prefixes MUST be one of `red:`, `green:`, `refactor:` (with `(US<NNN>)` traceability tag). Any other prefix (`fe-dev:`, `feat:`, `fix:`, `wip:`) is a review failure. Never use `git add -A` or `git add .` — stage only the files you just edited.
 - Keep responses to the orchestrator concise: paths, counts, blockers.

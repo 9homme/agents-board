@@ -96,3 +96,15 @@ This is a **test-spec defect** (tester-owned), not a defect in application code.
 - **No BE tests skipped.**
 - **No FE tests skipped.**
 - **E2E (E2E-US002-001, E2E-US002-002):** not executed due to the spec keyword-arity defect above. Even after the fix, full e2e execution additionally requires standing up `cd web && npm run dev` (CSR) + `cd services/agent-board && go run ./cmd/api-server` (with a seeded DB) — typical e2e env-up that the orchestrator does not currently automate.
+
+---
+
+## Addendum (2026-05-30) — e2e keyword-arity fix verified
+
+Per po-ba sign-off pass 1 routing to tester revision:
+
+- Tester committed fix as `9f9bae0 tester: fix US002 e2e arity + clarify FCT-US002-002 selector scoping`.
+- Root cause was Robot Framework parsing the leading `#` of the content arg as an inline comment, eating the 4th positional argument. Tester quoted the content via `Set Variable` with `\#` escape.
+- Tester also applied the FCT-US002-002 selector clarification — implementation already had `data-testid="documents-sidebar-area"` (verified at `web/components/ProjectDetail/DocumentsTab.tsx:175`), so no FE rework needed.
+- Re-validation: `robot --dryrun --include US002 tests/e2e/REQ004_project_detail_page/` → **PASS** (2/2 tests parsed cleanly, all keywords resolved with correct arity).
+- Full live e2e execution still requires standing up `web` + `api-server` + a seeded DB — orchestrator does not currently automate that. Dry-run validates the parse + keyword-resolution layer, which is the failure mode po-ba flagged.

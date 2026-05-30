@@ -1,7 +1,7 @@
 # US003 — Markdown and mermaid rendering in the previewer
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a user viewing a document on the project detail page, I want the previewer to render the document's content as beautifully-formatted markdown — including GitHub-flavored extensions, syntax-highlighted code fences, and mermaid diagrams — so that documents are pleasant and useful to read instead of looking like raw source.
@@ -153,3 +153,38 @@ As a user viewing a document on the project detail page, I want the previewer to
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-05-30 — verdict: approved
+
+**Spec review (`US003_fe_unit_tests.md` + `US003_e2e_tests.md`):**
+- Every AC scenario maps to at least one FCT-* / E2E-* case:
+  - "Headings render as headings" → FCT-US003-001.
+  - "Paragraphs, bold, italic, and inline code render" → FCT-US003-002.
+  - "Lists render (ordered + unordered + task lists)" → FCT-US003-003 (asserts disabled checkbox state for `[ ]` and `[x]`).
+  - "Tables render" → FCT-US003-004 (asserts `<table>` + `<thead>` + `<tbody>` + cell counts via roles).
+  - "Links render and are safe" → FCT-US003-005 (safe href + `target=_blank` + `rel=noopener noreferrer`; `javascript:` URI sanitization). Reinforced by FCT-US003-013.
+  - "Code fences render syntax-highlighted" → FCT-US003-006 (asserts `language-go` + `hljs` classes AND tokenised `<span>` children — proves the highlighter actually ran, not just class noise). Negative branch "no language tag → plain `<pre><code>` without throwing" → FCT-US003-007.
+  - "Mermaid diagrams render as SVG" → FCT-US003-008 (asserts `<svg>` present AND raw mermaid source text not in the rendered DOM).
+  - "Invalid mermaid source does not crash the page" → FCT-US003-009 (asserts `role="alert"` fallback + raw source in `<pre>` + no exception propagates).
+  - "Switching documents re-renders mermaid for the new content" → FCT-US003-011 (asserts old SVG gone after `key` change, new SVG present — proves the `key={document.id}` invariant from US002 still holds after the markdown swap).
+  - "XSS — script tags in content are not executed" → FCT-US003-012 (real `<script>alert(1)</script>` payload; asserts zero `<script>` elements AND `window.alert` spy not called AND safe paragraph still rendered). Reinforced by FCT-US003-014 (`<img onerror=...>` stripped — also asserts `window.alert` spy not called).
+- Defence-in-depth coverage beyond the bare AC:
+  - FCT-US003-010 enforces the lazy-load contract — `mermaid.render` must NOT be called for non-mermaid documents (architecture D-004 / bundle-size posture).
+  - FCT-US003-015 covers the `MarkdownErrorBoundary` — pathological renderer throw shows "Failed to render document" instead of blanking the page.
+- E2E justification is honest: only the two genuinely-observable-only-in-browser concerns are promoted (highlight.js CSS theme actually applies in real DOM; mermaid `import('mermaid')` + native SVG rendering only work outside JSDOM). All XSS / error-fallback / individual-element assertions correctly stay at the unit layer.
+- Spec quality on the XSS axis: tests exercise real attacker payloads AND assert the side effect (`window.alert` spy not called), not lazy whitelist checks. Pipeline ordering (sanitize-before-highlight) verified in the markdown task's review log so the allow-list patches don't accidentally re-open an injection path.
+
+**Result review (`US003_test_report.md`):**
+- Backend: N/A (US003 is FE-only). Full BE suite remains green from the US002 capture — no regression risk from this FE-only story.
+- Frontend: US003-scoped command `cd web && npm test -- --watchAll=false --forceExit --testPathPatterns='MarkdownRenderer|Mermaid|DocumentPreviewer'` → **Test Suites: 3 passed, 3 total; Tests: 28 passed, 28 total**. Full FE suite **107/107**. All 15 FCT-US003-001..015 PASS. No skips, no `.skip`, no `t.Skip`. The mermaid AC coverage is correctly distributed across `MermaidDiagram.test.tsx` (component-level) and `MarkdownRenderer.test.tsx` (code-override routing).
+- Aux gates: `npm run typecheck` clean; `npm run lint -- --max-warnings=0` clean (`ESLint: No issues found`); `bash scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep + gitleaks). The pre-existing `run-gate.sh fe` hang at `npm test --watchAll=false` due to MSW open handles is the same posture as US001/US002 — both FE tech-lead reviews verified the constituent checks individually.
+- E2E: `robot --dryrun --include US003 tests/e2e/REQ004_project_detail_page/` → 1/1 parsed cleanly (US001 import-path fix `31f162d` unblocked all REQ004 suites). E2E-US003-001 live execution NOT performed against a real `web` + `api-server` + seeded-DB stack — accepted as a release-gate item, matching the US001 pass 2 and US002 pass 2 sign-off posture.
+
+**Verdict:** approved. Story `Status: done`.
+
+**Routed to:** none.
+
+**Notes / non-blocking follow-ups:**
+- Live e2e for E2E-US003-001 is a release-gate item (same as US001 + US002) — requires standing up `cd web && npm run dev` + `cd services/agent-board && go run ./cmd/api-server` against a seeded DB. Tracked here, not blocking sign-off.
+- `@testing-library/dom ^10.4.1` was added to `web/package.json` `dependencies` (npm peer-resolver flagged it as a missing peer during the mermaid install). It is a test-time tool only — doesn't ship to the browser bundle, doesn't break the build. Should be moved to `devDependencies` as cleanup; not blocking. Flagged in the mermaid task's review log; the orchestrator may file as tech-debt for a future hygiene sweep.
+- Mermaid security posture: `MermaidDiagram` uses sanctioned `dangerouslySetInnerHTML` on mermaid-emitted SVG with `mermaid.initialize({ securityLevel: 'strict' })` and skips the optional belt-and-braces re-sanitisation through `rehype-sanitize`. Architecture D-004 explicitly allows this. Accepted.

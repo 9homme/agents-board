@@ -1,7 +1,7 @@
 # US003 — Markdown and mermaid rendering in the previewer
 
 **Requirement:** REQ004 — project_detail_page
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a user viewing a document on the project detail page, I want the previewer to render the document's content as beautifully-formatted markdown — including GitHub-flavored extensions, syntax-highlighted code fences, and mermaid diagrams — so that documents are pleasant and useful to read instead of looking like raw source.

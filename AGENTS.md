@@ -49,6 +49,7 @@ vibe-commerce/
 │       ├── US001_fe_add_item_button.md       ← tech-lead: Track: FE
 │       ├── US001_test_report.md              ← orchestrator: captured `go test` + Jest + Robot output
 │       └── US002_*.md ...
+├── docs/tech_debt.md                          ← durable backlog of non-blocking findings raised at code review; tech-lead appends one line per finding before issuing `approved` (see tech-lead.md §Verdict)
 └── .claude/{agents,commands,skills}/
 ```
 
@@ -164,8 +165,9 @@ Architecture: draft → pending_approval ⇄ changes_requested → approved
 
 Task:    pending → in_progress → in_review ⇄ changes_requested → completed
                                     │              ↑
-                                    └─ tech-lead ──┘
-                                    └─ tech-lead ──→ blocked_circuit_breaker (3rd consecutive changes_requested)
+                                    ├─ tech-lead ──┘
+                                    ├─ tech-lead ──→ blocked_circuit_breaker  (3rd consecutive changes_requested — pipeline pauses)
+                                    └─ tech-lead ──→ blocked_review_gate      (gate did NOT emit REVIEW GATE: PASS — gate/tooling at fault, not code; route to gate-fix track, never to a dev)
 
 Story:   draft → in_development → in_signoff ⇄ changes_requested → done
                                     │              ↑

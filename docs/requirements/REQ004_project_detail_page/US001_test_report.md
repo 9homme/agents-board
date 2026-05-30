@@ -83,3 +83,13 @@ This is a **test-spec defect** (tester wrote the wrong relative path), not a def
 - **No BE tests skipped.**
 - **No FE tests skipped.**
 - **E2E (E2E-US001-001, E2E-US001-002):** not executed due to the spec import-path defect above. Once fixed, e2e additionally requires a running `cd web && npm run dev` (CSR) + `cd services/agent-board && go run ./cmd/api-server` (with a seeded DB) — typical e2e env-up that the orchestrator currently does not stand up automatically.
+
+---
+
+## Addendum (2026-05-30) — e2e import-path fix verified
+
+Per po-ba sign-off pass 1 routing to tester revision:
+
+- Tester committed fix as `31f162d tester: fix wrong relative import path in REQ004 robot suites (US001/US002/US003)`.
+- Re-validation: `robot --dryrun --include US001 tests/e2e/REQ004_project_detail_page/` → **PASS** (2/2 tests parsed cleanly, all keywords resolved).
+- Full live e2e execution still requires standing up `web` + `api-server` + a seeded DB — orchestrator currently does not automate that. The dry-run validates parse + keyword resolution, which is the failure mode po-ba flagged.

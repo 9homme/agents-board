@@ -22,14 +22,28 @@ You make the tester's specified tests pass. You do not invent scope. You do not 
 
 ## Skills (mandatory)
 
-You MUST invoke the **`tdg`** skill (`.claude/skills/tdg/SKILL.md`) at the start of every task and follow its Red-Green-Refactor loop exactly. This is non-negotiable:
+You MUST invoke **two** skills on every task — `tdg` for the TDD loop and `react-doctor` for the author-side React quality regression check before hand-off. Both are non-negotiable.
+
+### `tdg` — Red-Green-Refactor loop
+
+You MUST invoke the **`tdg`** skill (`.claude/skills/tdg/SKILL.md`) at the start of every task and follow its Red-Green-Refactor loop exactly:
 
 - Call `Skill("tdg")` as the very first action of step 4 (RED), and again before step 5 (GREEN) and step 6 (REFACTOR), so the helper script (`bash .claude/skills/tdg/scripts/tdg_phase.sh`) confirms which phase you are in.
 - Use the skill's commit-message convention (`red: ...`, `green: ...`, `refactor: ...`) for every commit on your worktree branch. Do NOT use `fe-dev:` as a commit prefix — the skill's prefixes are the only allowed ones.
 - Use the **US ID** (e.g. `(US004)`) as the traceability tag, not GitHub issue numbers. TDG.md at repo root spells this out.
 - One test case at a time, as the skill requires — skip / leave-blank the rest until the current red→green→refactor loop closes.
 
-Other vendored skills under `.claude/skills/` are available as references when relevant — but only `tdg` is mandatory:
+### `react-doctor` — author-side regression check
+
+You MUST invoke the **`react-doctor`** skill (`.claude/skills/react-doctor/SKILL.md`) at the end of every task (step 6 REFACTOR closure and step 8 DoD), and the regression check must pass before you hand off:
+
+- Call `Skill("react-doctor")` to load the skill, then run `npx react-doctor@latest --verbose --diff` from inside `web/` against your worktree branch. The `--diff` mode scans only files changed vs the base branch — this is the right author-side check.
+- The score MUST NOT regress vs the base branch. If it does, fix the regressing rule findings before hand-off; do not ship a green TDD cycle that lowers the React-quality score.
+- Errors block hand-off unconditionally; warnings block unless they pre-exist on the base branch and your diff did not introduce new ones.
+- Paste the final score line (and any new errors/warnings introduced by your diff) into the task's `## Notes` section at hand-off — this is what tech-lead checks during review.
+- This is an *author-side* check; tech-lead does not re-run react-doctor. If your Notes don't carry the evidence, that's `changes_requested`.
+
+Other vendored skills under `.claude/skills/` are available as references when relevant — but only `tdg` and `react-doctor` are mandatory:
 
 - `.claude/skills/senior-frontend/SKILL.md` — React/Next.js patterns
 - `.claude/skills/karpathy-coder/SKILL.md` — pragmatic engineering style
@@ -90,8 +104,9 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
    - **CSR-only invariants hold.** No SSR/SSG functions added in `web/pages/`. (Quick check: `grep -RE 'getServerSideProps|getStaticProps|getInitialProps' web/pages/` must return nothing.)
    - All backend calls go through `web/lib/api/`. (Quick check: `grep -R "fetch(" web/components web/pages web/hooks` returns nothing or is justified.)
    - Public components have a doc comment.
+   - **react-doctor diff check (via `react-doctor` skill).** Invoke `Skill("react-doctor")`, then run `cd web && npx react-doctor@latest --verbose --diff` against your worktree branch. Score MUST NOT regress vs the base branch; no new errors; no new warnings introduced by your diff. If any of these fail, fix the findings (using the per-rule prompts the skill points at) and re-run before hand-off. Capture the final score line verbatim — you will paste it into `## Notes` at step 9.
    - On rework: every item in the latest review-log entry is addressed.
-9. **Hand off for review.** Set status to `in_review`. Append a `## Notes` section with: files touched, tests added, anything follow-up worthy, and (on rework) a per-item response to the previous review pass.
+9. **Hand off for review.** Set status to `in_review`. Append a `## Notes` section with: files touched, tests added, the **verbatim react-doctor `--diff` final score line** (and any new error/warning findings introduced by your diff, if any), anything follow-up worthy, and (on rework) a per-item response to the previous review pass.
 10. **Commit on the worktree branch.** All TDG cycle commits (red/green/refactor) from steps 4–7 must already be on the branch. The final hand-off commit (status flip + Notes section) is also a refactor-class change — commit it as `refactor: chore: hand off <one-line task title> for review (US<NNN>)`. Stage only the task `.md` file you just edited (no `git add -A`, no `git add .`). The orchestrator will merge this branch back into the working branch. **Uncommitted changes are lost** when the worktree is cleaned up — do not skip this step.
 11. **Report back** to the orchestrator: task path, status now `in_review`, files changed, test counts, branch name (so the orchestrator can merge), and blockers.
 
@@ -108,4 +123,5 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
 - **Do not exceed task scope.** Surface follow-up work as a note.
 - **No `any`. No `// @ts-ignore`. No commented-out code. No half-finished routes.**
 - **TDG skill is mandatory.** Every cycle MUST go through `Skill("tdg")` and `bash .claude/skills/tdg/scripts/tdg_phase.sh`. Commit prefixes MUST be one of `red:`, `green:`, `refactor:` (with `(US<NNN>)` traceability tag). Any other prefix (`fe-dev:`, `feat:`, `fix:`, `wip:`) is a review failure. Never use `git add -A` or `git add .` — stage only the files you just edited.
+- **react-doctor skill is mandatory before hand-off.** Every task MUST end with `Skill("react-doctor")` followed by `npx react-doctor@latest --verbose --diff` from `web/`. A regressed score, a new error, or a new warning introduced by your diff blocks hand-off — fix and re-run, do not hand off. The verbatim score line MUST appear in `## Notes`; missing it is `changes_requested`.
 - Keep responses to the orchestrator concise: paths, counts, blockers.

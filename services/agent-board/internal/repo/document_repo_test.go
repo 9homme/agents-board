@@ -316,6 +316,11 @@ func TestDocumentRepo_ListDocuments_ScanError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// UT-US005-008 — ListDocuments rows.Err() error (D8)
+func TestDocumentRepo_ListDocuments_RowsErr(t *testing.T) {
+	t.Skip("red: stub D8")
+}
+
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)
 func TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc(t *testing.T) {
 	db, mock, err := sqlmock.New()

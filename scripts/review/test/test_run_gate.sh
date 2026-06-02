@@ -108,6 +108,34 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# IT-US002-001: FE gate npm test invocation contains --watchAll=false AND --forceExit
+# (static grep — no invocation required)
+# ---------------------------------------------------------------------------
+echo "IT-US002-001: run-gate.sh FE npm test line contains --watchAll=false AND --forceExit in that order"
+IT_US002_001_LINE=$(grep -n 'run_check.*npm test' "$GATE_SCRIPT" | head -1)
+if echo "$IT_US002_001_LINE" | grep -q '\-\-watchAll=false.*\-\-forceExit'; then
+  pass_test "IT-US002-001"
+else
+  fail_test "IT-US002-001" "Expected '--watchAll=false --forceExit' in FE npm test line. Got: $IT_US002_001_LINE"
+fi
+
+# ---------------------------------------------------------------------------
+# IT-US002-002: skip — requires Node.js/npm invocation; marked as manual verification
+# ---------------------------------------------------------------------------
+echo "IT-US002-002: SKIP (manual verification — requires live npm/Jest; see test report notes)"
+
+# ---------------------------------------------------------------------------
+# IT-US002-003: Only the FE gate line is modified; no other npm test invocations added with --forceExit
+# ---------------------------------------------------------------------------
+echo "IT-US002-003: Exactly one npm test invocation in run-gate.sh"
+NPM_TEST_COUNT=$(grep -c 'npm test' "$GATE_SCRIPT" || true)
+if [ "$NPM_TEST_COUNT" -eq 1 ]; then
+  pass_test "IT-US002-003"
+else
+  fail_test "IT-US002-003" "Expected exactly 1 npm test line, found $NPM_TEST_COUNT"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

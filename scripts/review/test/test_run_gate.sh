@@ -206,6 +206,50 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# IT-US003-004 — go and golangci-lint remain hard-required (exit 2)
+# ---------------------------------------------------------------------------
+echo "IT-US003-004a: BE gate exits 2 (MISSING TOOL) when go is absent"
+# Build a PATH that has no 'go' binary — use a tmpdir with only a golangci-lint stub
+STUB_DIR_004=$(mktemp -d /tmp/gate_stub_004_XXXXXX)
+cat > "$STUB_DIR_004/golangci-lint" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_004/golangci-lint"
+NOBIN_PATH="$STUB_DIR_004:/usr/bin:/bin"
+IT_US003_004A_TMPOUT=$(mktemp /tmp/gate_004a_XXXXXX)
+PATH="$NOBIN_PATH" bash "$GATE_SCRIPT" be services/agent-board >"$IT_US003_004A_TMPOUT" 2>&1
+IT_US003_004A_RC=$?
+IT_US003_004A_OUTPUT=$(cat "$IT_US003_004A_TMPOUT")
+rm -f "$IT_US003_004A_TMPOUT"
+rm -rf "$STUB_DIR_004"
+if [ "$IT_US003_004A_RC" -eq 2 ] && echo "$IT_US003_004A_OUTPUT" | grep -q 'MISSING TOOL'; then
+  pass_test "IT-US003-004a"
+else
+  fail_test "IT-US003-004a" "Expected exit 2 + MISSING TOOL when go absent (rc=$IT_US003_004A_RC). Output: $IT_US003_004A_OUTPUT"
+fi
+
+echo "IT-US003-004b: BE gate exits 2 (MISSING TOOL) when golangci-lint is absent"
+STUB_DIR_004B=$(mktemp -d /tmp/gate_stub_004b_XXXXXX)
+cat > "$STUB_DIR_004B/go" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_004B/go"
+NOBIN_PATH_B="$STUB_DIR_004B:/usr/bin:/bin"
+IT_US003_004B_TMPOUT=$(mktemp /tmp/gate_004b_XXXXXX)
+PATH="$NOBIN_PATH_B" bash "$GATE_SCRIPT" be services/agent-board >"$IT_US003_004B_TMPOUT" 2>&1
+IT_US003_004B_RC=$?
+IT_US003_004B_OUTPUT=$(cat "$IT_US003_004B_TMPOUT")
+rm -f "$IT_US003_004B_TMPOUT"
+rm -rf "$STUB_DIR_004B"
+if [ "$IT_US003_004B_RC" -eq 2 ] && echo "$IT_US003_004B_OUTPUT" | grep -q 'MISSING TOOL'; then
+  pass_test "IT-US003-004b"
+else
+  fail_test "IT-US003-004b" "Expected exit 2 + MISSING TOOL when golangci-lint absent (rc=$IT_US003_004B_RC). Output: $IT_US003_004B_OUTPUT"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

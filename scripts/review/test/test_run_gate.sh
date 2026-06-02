@@ -136,6 +136,161 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# IT-US003-001 — BE gate soft-warns when gosec is absent (exit code NOT 2)
+# ---------------------------------------------------------------------------
+echo "IT-US003-001: BE gate does not exit 2 when gosec is absent; prints WARN gosec skipped"
+# Build a PATH that excludes any gosec binary but keeps everything else.
+GOSEC_ABSENT_PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'gosec' | tr '\n' ':' | sed 's/:$//')
+# Create a stub govulncheck so only gosec is missing.
+STUB_DIR_001=$(mktemp -d /tmp/gate_stub_001_XXXXXX)
+cat > "$STUB_DIR_001/govulncheck" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_001/govulncheck"
+IT_US003_001_OUTPUT=$(PATH="$STUB_DIR_001:$GOSEC_ABSENT_PATH" bash "$GATE_SCRIPT" be services/agent-board 2>&1 | cat)
+IT_US003_001_RC=$?
+rm -rf "$STUB_DIR_001"
+if [ "$IT_US003_001_RC" -eq 2 ]; then
+  fail_test "IT-US003-001" "Gate exited 2 (MISSING TOOL) when gosec absent — should soft-warn. Output: $IT_US003_001_OUTPUT"
+elif echo "$IT_US003_001_OUTPUT" | grep -qiE 'WARN.*gosec.*(skipped|not installed)'; then
+  pass_test "IT-US003-001"
+else
+  fail_test "IT-US003-001" "Expected WARN gosec skipped line but got: $IT_US003_001_OUTPUT"
+fi
+
+# ---------------------------------------------------------------------------
+# IT-US003-002 — BE gate soft-warns when govulncheck is absent (exit code NOT 2)
+# ---------------------------------------------------------------------------
+echo "IT-US003-002: BE gate does not exit 2 when govulncheck is absent; prints WARN govulncheck skipped"
+GOVULNCHECK_ABSENT_PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'govulncheck' | tr '\n' ':' | sed 's/:$//')
+STUB_DIR_002=$(mktemp -d /tmp/gate_stub_002_XXXXXX)
+cat > "$STUB_DIR_002/gosec" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_002/gosec"
+IT_US003_002_OUTPUT=$(PATH="$STUB_DIR_002:$GOVULNCHECK_ABSENT_PATH" bash "$GATE_SCRIPT" be services/agent-board 2>&1 | cat)
+IT_US003_002_RC=$?
+rm -rf "$STUB_DIR_002"
+if [ "$IT_US003_002_RC" -eq 2 ]; then
+  fail_test "IT-US003-002" "Gate exited 2 (MISSING TOOL) when govulncheck absent — should soft-warn. Output: $IT_US003_002_OUTPUT"
+elif echo "$IT_US003_002_OUTPUT" | grep -qiE 'WARN.*govulncheck.*(skipped|not installed)'; then
+  if echo "$IT_US003_002_OUTPUT" | grep -q 'golang.org/x/vuln'; then
+    pass_test "IT-US003-002"
+  else
+    fail_test "IT-US003-002" "WARN line found but missing install one-liner (golang.org/x/vuln). Output: $IT_US003_002_OUTPUT"
+  fi
+else
+  fail_test "IT-US003-002" "Expected WARN govulncheck skipped line but got: $IT_US003_002_OUTPUT"
+fi
+
+# ---------------------------------------------------------------------------
+# IT-US003-003 — When both gosec and govulncheck ARE installed, no WARN line appears
+# ---------------------------------------------------------------------------
+echo "IT-US003-003: No WARN gosec/govulncheck line appears when both tools are present (stubs)"
+STUB_DIR_003=$(mktemp -d /tmp/gate_stub_003_XXXXXX)
+for bin in gosec govulncheck; do
+  cat > "$STUB_DIR_003/$bin" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+  chmod +x "$STUB_DIR_003/$bin"
+done
+IT_US003_003_OUTPUT=$(PATH="$STUB_DIR_003:$PATH" bash "$GATE_SCRIPT" be services/agent-board 2>&1 | cat)
+rm -rf "$STUB_DIR_003"
+if echo "$IT_US003_003_OUTPUT" | grep -qiE 'WARN.*(gosec|govulncheck)'; then
+  fail_test "IT-US003-003" "Unexpected WARN line when both tools present. Output: $IT_US003_003_OUTPUT"
+else
+  pass_test "IT-US003-003"
+fi
+
+# ---------------------------------------------------------------------------
+# IT-US003-004 — go and golangci-lint remain hard-required (exit 2)
+# ---------------------------------------------------------------------------
+echo "IT-US003-004a: BE gate exits 2 (MISSING TOOL) when go is absent"
+# Build a PATH that has no 'go' binary — use a tmpdir with only a golangci-lint stub
+STUB_DIR_004=$(mktemp -d /tmp/gate_stub_004_XXXXXX)
+cat > "$STUB_DIR_004/golangci-lint" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_004/golangci-lint"
+NOBIN_PATH="$STUB_DIR_004:/usr/bin:/bin"
+IT_US003_004A_TMPOUT=$(mktemp /tmp/gate_004a_XXXXXX)
+PATH="$NOBIN_PATH" bash "$GATE_SCRIPT" be services/agent-board >"$IT_US003_004A_TMPOUT" 2>&1
+IT_US003_004A_RC=$?
+IT_US003_004A_OUTPUT=$(cat "$IT_US003_004A_TMPOUT")
+rm -f "$IT_US003_004A_TMPOUT"
+rm -rf "$STUB_DIR_004"
+if [ "$IT_US003_004A_RC" -eq 2 ] && echo "$IT_US003_004A_OUTPUT" | grep -q 'MISSING TOOL'; then
+  pass_test "IT-US003-004a"
+else
+  fail_test "IT-US003-004a" "Expected exit 2 + MISSING TOOL when go absent (rc=$IT_US003_004A_RC). Output: $IT_US003_004A_OUTPUT"
+fi
+
+echo "IT-US003-004b: BE gate exits 2 (MISSING TOOL) when golangci-lint is absent"
+STUB_DIR_004B=$(mktemp -d /tmp/gate_stub_004b_XXXXXX)
+cat > "$STUB_DIR_004B/go" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_004B/go"
+NOBIN_PATH_B="$STUB_DIR_004B:/usr/bin:/bin"
+IT_US003_004B_TMPOUT=$(mktemp /tmp/gate_004b_XXXXXX)
+PATH="$NOBIN_PATH_B" bash "$GATE_SCRIPT" be services/agent-board >"$IT_US003_004B_TMPOUT" 2>&1
+IT_US003_004B_RC=$?
+IT_US003_004B_OUTPUT=$(cat "$IT_US003_004B_TMPOUT")
+rm -f "$IT_US003_004B_TMPOUT"
+rm -rf "$STUB_DIR_004B"
+if [ "$IT_US003_004B_RC" -eq 2 ] && echo "$IT_US003_004B_OUTPUT" | grep -q 'MISSING TOOL'; then
+  pass_test "IT-US003-004b"
+else
+  fail_test "IT-US003-004b" "Expected exit 2 + MISSING TOOL when golangci-lint absent (rc=$IT_US003_004B_RC). Output: $IT_US003_004B_OUTPUT"
+fi
+
+# ---------------------------------------------------------------------------
+# IT-US003-005 — Cross and FE gates unaffected; soft-warn logic only in gate_be()
+# ---------------------------------------------------------------------------
+echo "IT-US003-005: require_tool for semgrep/gitleaks/npm present; no gosec/govulncheck soft-warn outside gate_be"
+# Extract gate_cross() and gate_fe() bodies: from "gate_cross()" / "gate_fe()" line to "^}" line
+# Strategy: exclude lines inside gate_be() — extract lines in gate_cross and gate_fe
+GATE_CROSS_FE_BLOCK=$(awk '/^gate_cross\(\)/,/^}/' "$GATE_SCRIPT"; awk '/^gate_fe\(\)/,/^}/' "$GATE_SCRIPT")
+CROSS_FE_REQUIRE_SEMGREP=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'require_tool semgrep' || true)
+CROSS_FE_REQUIRE_GITLEAKS=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'require_tool gitleaks' || true)
+CROSS_FE_REQUIRE_NPM=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'require_tool npm' || true)
+CROSS_FE_GOSEC_WARN=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'command -v gosec' || true)
+CROSS_FE_GOVULNCHECK_WARN=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'command -v govulncheck' || true)
+
+IT_US003_005_FAIL=0
+[ "$CROSS_FE_REQUIRE_SEMGREP" -ge 1 ] || { fail_test "IT-US003-005" "require_tool semgrep not found in gate_cross"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_REQUIRE_GITLEAKS" -ge 1 ] || { fail_test "IT-US003-005" "require_tool gitleaks not found in gate_cross"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_REQUIRE_NPM" -ge 1 ] || { fail_test "IT-US003-005" "require_tool npm not found in gate_fe"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_GOSEC_WARN" -eq 0 ] || { fail_test "IT-US003-005" "gosec soft-warn (command -v gosec) found outside gate_be — cross/fe contaminated"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_GOVULNCHECK_WARN" -eq 0 ] || { fail_test "IT-US003-005" "govulncheck soft-warn (command -v govulncheck) found outside gate_be — cross/fe contaminated"; IT_US003_005_FAIL=1; }
+[ "$IT_US003_005_FAIL" -eq 0 ] && pass_test "IT-US003-005"
+
+# ---------------------------------------------------------------------------
+# IT-US003-006 — README documents hard vs soft-warn distinction
+# ---------------------------------------------------------------------------
+echo "IT-US003-006: README.md contains Soft-warn vs. hard-required subsection with required content"
+README_FILE="$SCRIPT_DIR/../README.md"
+IT_US003_006_FAIL=0
+grep -qi 'soft-warn.*hard-required\|hard-required.*soft-warn\|Soft-warn vs\.' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing 'Soft-warn vs. hard-required' subsection heading"; IT_US003_006_FAIL=1; }
+grep -q 'golangci-lint' "$README_FILE" && grep -q 'semgrep' "$README_FILE" && grep -q 'gitleaks' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing hard-required tools list (go, golangci-lint, npm, semgrep, gitleaks)"; IT_US003_006_FAIL=1; }
+grep -q 'gosec' "$README_FILE" && grep -q 'govulncheck' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing soft-warn tools (gosec, govulncheck) in new subsection"; IT_US003_006_FAIL=1; }
+grep -q 'securego/gosec' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing gosec install one-liner (go install ...securego/gosec...)"; IT_US003_006_FAIL=1; }
+grep -q 'golang.org/x/vuln' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing govulncheck install one-liner (go install golang.org/x/vuln...)"; IT_US003_006_FAIL=1; }
+grep -qi 'golangci-lint.*gosec\|gosec.*golangci-lint' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README does not explain gosec coverage via golangci-lint"; IT_US003_006_FAIL=1; }
+[ "$IT_US003_006_FAIL" -eq 0 ] && pass_test "IT-US003-006"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

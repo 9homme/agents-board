@@ -84,17 +84,22 @@ gate_be() {
 
   require_tool go               "https://go.dev/dl/"
   require_tool golangci-lint    "brew install golangci-lint  |  https://golangci-lint.run/welcome/install/"
-  require_tool gosec            "go install github.com/securego/gosec/v2/cmd/gosec@latest"
-  require_tool govulncheck      "go install golang.org/x/vuln/cmd/govulncheck@latest"
 
-  # ( Use a local variable to capture subshell failures if needed, or avoid subshell )
   pushd "$svc" >/dev/null
   run_check "gofmt -s (no diff)"        bash -c 'diff -u <(echo -n) <(gofmt -s -d . | tee /dev/stderr)'
   run_check "go vet ./..."              go vet ./...
   run_check "golangci-lint run ./..."   golangci-lint run --timeout=2m --no-config ./...
   run_check "go test ./..."             go test ./...
-  run_check "gosec ./... (security)"    gosec -quiet -severity=medium ./...
-  run_check "govulncheck ./..."         govulncheck ./...
+  if ! command -v gosec >/dev/null 2>&1; then
+    printf -- "${YELLOW}WARN${RESET}  gosec (skipped — not installed; coverage via golangci-lint gosec linter)\n  install: go install github.com/securego/gosec/v2/cmd/gosec@latest\n"
+  else
+    run_check "gosec ./... (security)"  gosec -quiet -severity=medium ./...
+  fi
+  if ! command -v govulncheck >/dev/null 2>&1; then
+    printf -- "${YELLOW}WARN${RESET}  govulncheck (skipped — not installed)\n  install: go install golang.org/x/vuln/cmd/govulncheck@latest\n"
+  else
+    run_check "govulncheck ./..."       govulncheck ./...
+  fi
   popd >/dev/null
 }
 

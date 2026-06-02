@@ -250,6 +250,27 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# IT-US003-005 — Cross and FE gates unaffected; soft-warn logic only in gate_be()
+# ---------------------------------------------------------------------------
+echo "IT-US003-005: require_tool for semgrep/gitleaks/npm present; no gosec/govulncheck soft-warn outside gate_be"
+# Extract gate_cross() and gate_fe() bodies: from "gate_cross()" / "gate_fe()" line to "^}" line
+# Strategy: exclude lines inside gate_be() — extract lines in gate_cross and gate_fe
+GATE_CROSS_FE_BLOCK=$(awk '/^gate_cross\(\)/,/^}/' "$GATE_SCRIPT"; awk '/^gate_fe\(\)/,/^}/' "$GATE_SCRIPT")
+CROSS_FE_REQUIRE_SEMGREP=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'require_tool semgrep' || true)
+CROSS_FE_REQUIRE_GITLEAKS=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'require_tool gitleaks' || true)
+CROSS_FE_REQUIRE_NPM=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'require_tool npm' || true)
+CROSS_FE_GOSEC_WARN=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'command -v gosec' || true)
+CROSS_FE_GOVULNCHECK_WARN=$(echo "$GATE_CROSS_FE_BLOCK" | grep -c 'command -v govulncheck' || true)
+
+IT_US003_005_FAIL=0
+[ "$CROSS_FE_REQUIRE_SEMGREP" -ge 1 ] || { fail_test "IT-US003-005" "require_tool semgrep not found in gate_cross"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_REQUIRE_GITLEAKS" -ge 1 ] || { fail_test "IT-US003-005" "require_tool gitleaks not found in gate_cross"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_REQUIRE_NPM" -ge 1 ] || { fail_test "IT-US003-005" "require_tool npm not found in gate_fe"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_GOSEC_WARN" -eq 0 ] || { fail_test "IT-US003-005" "gosec soft-warn (command -v gosec) found outside gate_be — cross/fe contaminated"; IT_US003_005_FAIL=1; }
+[ "$CROSS_FE_GOVULNCHECK_WARN" -eq 0 ] || { fail_test "IT-US003-005" "govulncheck soft-warn (command -v govulncheck) found outside gate_be — cross/fe contaminated"; IT_US003_005_FAIL=1; }
+[ "$IT_US003_005_FAIL" -eq 0 ] && pass_test "IT-US003-005"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

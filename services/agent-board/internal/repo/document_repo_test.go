@@ -318,7 +318,27 @@ func TestDocumentRepo_ListDocuments_ScanError(t *testing.T) {
 
 // UT-US005-008 — ListDocuments rows.Err() error (D8)
 func TestDocumentRepo_ListDocuments_RowsErr(t *testing.T) {
-	t.Skip("red: stub D8")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewDocumentRepo(db)
+	now := time.Now()
+
+	rows := sqlmock.NewRows([]string{"id", "project_id", "title", "content", "created_at", "updated_at"}).
+		AddRow("doc-id", "proj-id", "Title", "Content", now, now).
+		RowError(0, errors.New("rows err"))
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id`).
+		WillReturnRows(rows)
+
+	docs, err := r.ListDocuments(context.Background(), "proj-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "error iterating")
+	assert.Nil(t, docs)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

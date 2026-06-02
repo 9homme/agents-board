@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -160,9 +161,28 @@ func TestDocumentRepo_ListDocuments(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// UT-US005-001 — CreateDocument generic DB error
+// UT-US005-001 — CreateDocument generic DB error (D1)
 func TestDocumentRepo_CreateDocument_GenericError(t *testing.T) {
-	t.Skip("red: stub D1")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`INSERT INTO documents`).
+		WillReturnError(errors.New("db down"))
+
+	created, err := repo.CreateDocument(context.Background(), &domain.Document{
+		ProjectID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:     "Test",
+		Content:   "Content",
+	})
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to create document")
+	assert.Nil(t, created)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

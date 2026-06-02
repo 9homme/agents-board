@@ -186,6 +186,26 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# IT-US003-003 — When both gosec and govulncheck ARE installed, no WARN line appears
+# ---------------------------------------------------------------------------
+echo "IT-US003-003: No WARN gosec/govulncheck line appears when both tools are present (stubs)"
+STUB_DIR_003=$(mktemp -d /tmp/gate_stub_003_XXXXXX)
+for bin in gosec govulncheck; do
+  cat > "$STUB_DIR_003/$bin" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+  chmod +x "$STUB_DIR_003/$bin"
+done
+IT_US003_003_OUTPUT=$(PATH="$STUB_DIR_003:$PATH" bash "$GATE_SCRIPT" be services/agent-board 2>&1 | cat)
+rm -rf "$STUB_DIR_003"
+if echo "$IT_US003_003_OUTPUT" | grep -qiE 'WARN.*(gosec|govulncheck)'; then
+  fail_test "IT-US003-003" "Unexpected WARN line when both tools present. Output: $IT_US003_003_OUTPUT"
+else
+  pass_test "IT-US003-003"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

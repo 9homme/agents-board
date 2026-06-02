@@ -3,10 +3,10 @@
 **Story:** US002 — Add `--forceExit` to FE gate's `npm test` invocation
 **Requirement:** REQ005
 **Track:** FE
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: FE gate terminates cleanly with `--forceExit`, Scenario: failing FE test still reports correctly, Scenario: invocation matches audit recommendation exactly, Scenario: no other Jest invocation regressed
 **Blocked by:** none
-**Worked-by:** _(none)_
+**Worked-by:** be-dev-2026-06-02-a1ac
 
 ## Goal
 
@@ -54,4 +54,24 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 
 ## Review log
 
-(tech-lead appends here on each review pass)
+### Implementation pass 1
+
+**Date:** 2026-06-02
+**Agent:** be-dev-2026-06-02-a1ac
+**TDG cycles completed:** 1 (IT-US002-001 + IT-US002-003)
+
+**Files touched:**
+- `scripts/review/run-gate.sh` — line 116: appended `--forceExit` after `--watchAll=false`
+- `scripts/review/test/test_run_gate.sh` — added IT-US002-001, IT-US002-002 (skip), IT-US002-003
+
+**Tests added:**
+- IT-US002-001: PASS — static grep confirms `--watchAll=false --forceExit` pair on FE gate line
+- IT-US002-002: SKIPPED — requires live npm/Jest; manual verification acceptable per test spec note
+- IT-US002-003: PASS — exactly one `npm test` invocation in the script; no scope creep
+
+**Pre-existing tests (US001 UT-001..005):** all still PASS
+
+**Notes:**
+- IT-US002-002 is skipped because the test environment does not have Node.js/npm reachable during the shell-harness run. The test spec explicitly states this is acceptable provided IT-US002-001 is automated. The flag's effect on actual gate termination is verified manually against `cd web && npm test -- --watchAll=false --forceExit`.
+- No TypeScript code was touched. No `web/jest.config.js` changes. Scope strictly limited to the one-line `run-gate.sh` edit.
+- Architecture §2 US002 row satisfied: line 116 now reads `bash -c 'npm test --silent -- --watchAll=false --forceExit'`.

@@ -160,6 +160,11 @@ func TestDocumentRepo_ListDocuments(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// UT-US005-001 — CreateDocument generic DB error
+func TestDocumentRepo_CreateDocument_GenericError(t *testing.T) {
+	t.Skip("red: stub D1")
+}
+
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)
 func TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc(t *testing.T) {
 	db, mock, err := sqlmock.New()

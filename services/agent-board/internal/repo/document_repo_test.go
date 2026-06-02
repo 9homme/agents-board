@@ -252,6 +252,11 @@ func TestDocumentRepo_UpdateDocument_GenericError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// UT-US005-005 — DeleteDocument generic error (D5)
+func TestDocumentRepo_DeleteDocument_GenericError(t *testing.T) {
+	t.Skip("red: stub D5")
+}
+
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)
 func TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc(t *testing.T) {
 	db, mock, err := sqlmock.New()

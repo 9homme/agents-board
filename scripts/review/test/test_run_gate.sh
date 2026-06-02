@@ -136,6 +136,30 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# IT-US003-001 — BE gate soft-warns when gosec is absent (exit code NOT 2)
+# ---------------------------------------------------------------------------
+echo "IT-US003-001: BE gate does not exit 2 when gosec is absent; prints WARN gosec skipped"
+# Build a PATH that excludes any gosec binary but keeps everything else.
+GOSEC_ABSENT_PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'gosec' | tr '\n' ':' | sed 's/:$//')
+# Create a stub govulncheck so only gosec is missing.
+STUB_DIR_001=$(mktemp -d /tmp/gate_stub_001_XXXXXX)
+cat > "$STUB_DIR_001/govulncheck" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_001/govulncheck"
+IT_US003_001_OUTPUT=$(PATH="$STUB_DIR_001:$GOSEC_ABSENT_PATH" bash "$GATE_SCRIPT" be services/agent-board 2>&1 | cat)
+IT_US003_001_RC=$?
+rm -rf "$STUB_DIR_001"
+if [ "$IT_US003_001_RC" -eq 2 ]; then
+  fail_test "IT-US003-001" "Gate exited 2 (MISSING TOOL) when gosec absent — should soft-warn. Output: $IT_US003_001_OUTPUT"
+elif echo "$IT_US003_001_OUTPUT" | grep -qiE 'WARN.*gosec.*(skipped|not installed)'; then
+  pass_test "IT-US003-001"
+else
+  fail_test "IT-US003-001" "Expected WARN gosec skipped line but got: $IT_US003_001_OUTPUT"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

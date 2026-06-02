@@ -292,8 +292,28 @@ func TestDocumentRepo_ListDocuments_QueryError(t *testing.T) {
 }
 
 // UT-US005-007 — ListDocuments scan error (D7)
+// A bool value is provided for the created_at (time.Time) column to trigger a
+// convertAssign type-mismatch error during rows.Scan.
 func TestDocumentRepo_ListDocuments_ScanError(t *testing.T) {
-	t.Skip("red: stub D7")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewDocumentRepo(db)
+
+	rows := sqlmock.NewRows([]string{"id", "project_id", "title", "content", "created_at", "updated_at"}).
+		AddRow("doc-id", "proj-id", "Title", "Content", true, true) // bool → time.Time causes scan error
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id`).
+		WillReturnRows(rows)
+
+	docs, err := r.ListDocuments(context.Background(), "proj-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to scan document")
+	assert.Nil(t, docs)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

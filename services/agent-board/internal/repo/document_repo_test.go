@@ -205,6 +205,11 @@ func TestDocumentRepo_GetDocument_GenericError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// UT-US005-003 — UpdateDocument not found (D3)
+func TestDocumentRepo_UpdateDocument_NotFound(t *testing.T) {
+	t.Skip("red: stub D3")
+}
+
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)
 func TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc(t *testing.T) {
 	db, mock, err := sqlmock.New()

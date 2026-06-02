@@ -207,7 +207,25 @@ func TestDocumentRepo_GetDocument_GenericError(t *testing.T) {
 
 // UT-US005-003 — UpdateDocument not found (D3)
 func TestDocumentRepo_UpdateDocument_NotFound(t *testing.T) {
-	t.Skip("red: stub D3")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`UPDATE documents SET`).
+		WillReturnError(sql.ErrNoRows)
+
+	updated, err := repo.UpdateDocument(context.Background(), &domain.Document{
+		ID:      "any-id",
+		Title:   "T",
+		Content: "C",
+	})
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.Nil(t, updated)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

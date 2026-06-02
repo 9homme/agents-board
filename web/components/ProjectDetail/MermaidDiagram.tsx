@@ -9,18 +9,26 @@
  *   `window` / `document` at import time. This is guaranteed by the dynamic import inside
  *   `useEffect` (which never executes on the server).
  *
+ * SVG attach contract (REQ005 US010 — architecture §11.1.2):
+ * - When mermaid.render() resolves, the SVG string is parsed via `DOMParser` with the
+ *   `'image/svg+xml'` MIME type and the resulting `<svg>` node is appended to a `ref`'d
+ *   wrapper `<div>`. No `dangerouslySetInnerHTML` is used. The cleanup function in the
+ *   `useEffect` removes the appended node before React 18 strict-mode's second invocation,
+ *   ensuring exactly one `<svg>` child in the wrapper after mount.
+ *
  * Error-handling contract:
  * - If `import('mermaid')` fails OR `mermaid.render(id, source)` throws / rejects, the
  *   component renders a `<div role="alert">Could not render diagram</div>` followed by the
  *   raw `source` in a `<pre><code>` fallback. Errors never propagate — the surrounding
  *   markdown continues to render.
+ * - DOMParser failures (e.g. malformed SVG) are caught silently; the wrapper renders empty.
  *
  * Unique-id contract:
  * - `useId()` (React 18+) provides a per-instance stable id, prefixed `mermaid-`, so that
  *   multiple diagrams in the same document do not collide on mermaid's internal SVG id
  *   namespace.
  *
- * Architecture ref: §"Components → Frontend" row MermaidDiagram.tsx; D-004; §"Mermaid mechanics".
+ * Architecture ref: REQ005 §11.1 (ref-attach fix path); §"Components → Frontend" MermaidDiagram.tsx.
  */
 import React, { useEffect, useId, useRef, useState } from 'react';
 
@@ -85,21 +93,25 @@ export const MermaidDiagram = ({ source }: MermaidDiagramProps): React.ReactElem
     const host = containerRef.current;
     if (!host) return;
 
+    let svgNode: Element | null = null;
     try {
       const parsed = new DOMParser().parseFromString(renderState.svg, 'image/svg+xml');
-      const svgNode = parsed.documentElement;
+      svgNode = parsed.documentElement;
 
       // Clear any previous child (covers the source-change re-render path) and attach.
       while (host.firstChild) host.removeChild(host.firstChild);
       host.appendChild(svgNode);
-
-      return () => {
-        if (host.firstChild === svgNode) host.removeChild(svgNode);
-      };
     } catch {
       // DOMParser failure is defensive; mermaid v11 emits well-formed SVG strings.
       // Silently skip to avoid crashing the component on malformed input.
     }
+
+    return () => {
+      // The equality check prevents stale cleanup from removing a newly appended node
+      // on source change. Also handles strict-mode double-invoke: cleanup removes the
+      // first-mount node; the second run re-appends a fresh node.
+      if (svgNode && host.firstChild === svgNode) host.removeChild(svgNode);
+    };
   }, [renderState]);
 
   useEffect(() => {

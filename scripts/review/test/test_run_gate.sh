@@ -160,6 +160,32 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# IT-US003-002 — BE gate soft-warns when govulncheck is absent (exit code NOT 2)
+# ---------------------------------------------------------------------------
+echo "IT-US003-002: BE gate does not exit 2 when govulncheck is absent; prints WARN govulncheck skipped"
+GOVULNCHECK_ABSENT_PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'govulncheck' | tr '\n' ':' | sed 's/:$//')
+STUB_DIR_002=$(mktemp -d /tmp/gate_stub_002_XXXXXX)
+cat > "$STUB_DIR_002/gosec" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+chmod +x "$STUB_DIR_002/gosec"
+IT_US003_002_OUTPUT=$(PATH="$STUB_DIR_002:$GOVULNCHECK_ABSENT_PATH" bash "$GATE_SCRIPT" be services/agent-board 2>&1 | cat)
+IT_US003_002_RC=$?
+rm -rf "$STUB_DIR_002"
+if [ "$IT_US003_002_RC" -eq 2 ]; then
+  fail_test "IT-US003-002" "Gate exited 2 (MISSING TOOL) when govulncheck absent — should soft-warn. Output: $IT_US003_002_OUTPUT"
+elif echo "$IT_US003_002_OUTPUT" | grep -qiE 'WARN.*govulncheck.*(skipped|not installed)'; then
+  if echo "$IT_US003_002_OUTPUT" | grep -q 'golang.org/x/vuln'; then
+    pass_test "IT-US003-002"
+  else
+    fail_test "IT-US003-002" "WARN line found but missing install one-liner (golang.org/x/vuln). Output: $IT_US003_002_OUTPUT"
+  fi
+else
+  fail_test "IT-US003-002" "Expected WARN govulncheck skipped line but got: $IT_US003_002_OUTPUT"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

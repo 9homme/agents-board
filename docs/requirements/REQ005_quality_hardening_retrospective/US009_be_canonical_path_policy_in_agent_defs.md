@@ -1,13 +1,31 @@
-# US009 — Append canonical-path edit policy block to all six agent definitions (path b)
+# US009 — Sub-agent worktrees fork from local HEAD (path a — harness config fix)
 
 **Story:** US009 — Sub-agent worktrees branch off local `main` (harness preferred; agent-definition fallback)
 **Requirement:** REQ005
 **Track:** BE
-**Service:** (meta — agent definitions; no service binary)
-**Status:** pending
-**Implements:** Path (b) — agent-definition fallback: Scenario: every agent definition file documents the canonical-path workaround, Scenario: orchestrator-side guidance is documented, Scenario: no regression on a non-worktree workflow, Scenario: README captures the chosen path and the reason
+**Service:** (meta — Claude Code harness config)
+**Status:** completed
+**Implements:** Path (a) — harness config fix; supersedes path (b) doc fallback
 **Blocked by:** none
-**Worked-by:** _(none)_
+**Worked-by:** orchestrator (settings commit 95e4801)
+
+## Scope change (2026-06-03)
+
+Original task spec was path (b): append a `## Canonical-path edit policy (worktree workaround)` block to all 6 `.claude/agents/*.md` files plus a README decision-log entry. Architecture §7 chose path (b) because path (a) was assessed as "not reachable from this repo" (the harness was assumed to live outside the working tree).
+
+**During Phase 3 execution this assumption was disproved.** Phase 3 hit STALE_WORKTREE_BASE three times — every spawned subagent saw a stale pre-Phase-1 HEAD. Web research surfaced the real fix: Claude Code has a `worktree.baseRef` setting that defaults to `"origin/HEAD"` and can be set to `"head"` to make subagent worktrees fork from local HEAD instead. This is exactly path (a). Sources: https://code.claude.com/docs/en/worktrees and aligned community guides.
+
+**Path (a) shipped instead.** Project-level `.claude/settings.json` was created in commit `95e4801` with:
+
+```json
+{
+  "worktree": {
+    "baseRef": "head"
+  }
+}
+```
+
+Effect verified empirically: subsequent Phase 3 tick (commits at and after `1caa879c`) saw 4 dev subagents spawned with `isolation: "worktree"` correctly fork from local HEAD, all completing without STALE_WORKTREE_BASE errors. US002, US004-mcp, US010-mermaid, US010-reducer all merged cleanly.
 
 ## Goal
 
@@ -67,5 +85,13 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 - Dev set status to `in_review` and reported back; tech-lead approved (status flipped to `completed`).
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — orchestrator + human (path-(a) supersession) — verdict: approved
+
+- Deliverable was scope-shrunk during execution from "append doc workaround to 6 agent files (path b)" to "set `worktree.baseRef=head` (path a)". Decision discussed with human, signed off explicitly.
+- Real fix: `.claude/settings.json` with `worktree.baseRef: "head"` — committed in `95e4801`.
+- Behaviour verified: subsequent Phase 3 tick (commits ≥ `1caa879c`) had subagents fork from local HEAD with no STALE_WORKTREE_BASE.
+- Path (b) work NOT performed — superseded. The 6 agent definition files were not touched. Architecture §7's path (b) clauses become tech-debt only if path (a) ever stops working (e.g. setting removed, future Claude Code version drops the option). No tech_debt entry filed because path (a) is the supported config per Claude Code docs.
+- Status flipped to `completed`.
 
 (tech-lead appends here on each review pass)

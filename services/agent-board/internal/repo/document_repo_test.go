@@ -273,7 +273,22 @@ func TestDocumentRepo_DeleteDocument_GenericError(t *testing.T) {
 
 // UT-US005-006 — ListDocuments query error (D6)
 func TestDocumentRepo_ListDocuments_QueryError(t *testing.T) {
-	t.Skip("red: stub D6")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id`).
+		WillReturnError(errors.New("db down"))
+
+	docs, err := r.ListDocuments(context.Background(), "proj-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to list documents")
+	assert.Nil(t, docs)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

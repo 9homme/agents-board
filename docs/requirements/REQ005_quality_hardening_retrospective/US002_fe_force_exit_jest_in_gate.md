@@ -3,7 +3,7 @@
 **Story:** US002 — Add `--forceExit` to FE gate's `npm test` invocation
 **Requirement:** REQ005
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: FE gate terminates cleanly with `--forceExit`, Scenario: failing FE test still reports correctly, Scenario: invocation matches audit recommendation exactly, Scenario: no other Jest invocation regressed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-02-a1ac
@@ -75,3 +75,13 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 - IT-US002-002 is skipped because the test environment does not have Node.js/npm reachable during the shell-harness run. The test spec explicitly states this is acceptable provided IT-US002-001 is automated. The flag's effect on actual gate termination is verified manually against `cd web && npm test -- --watchAll=false --forceExit`.
 - No TypeScript code was touched. No `web/jest.config.js` changes. Scope strictly limited to the one-line `run-gate.sh` edit.
 - Architecture §2 US002 row satisfied: line 116 now reads `bash -c 'npm test --silent -- --watchAll=false --forceExit'`.
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- Tech-lead subagent hit session limit; inline orchestrator review used as recovery.
+- `bash scripts/review/test/test_run_gate.sh`: **7/7 pass** (5 pre-existing US001 + IT-US002-001 + IT-US002-003). IT-US002-002 SKIP per spec.
+- Architecture §2 US002 + D-001 honored: `--forceExit` added; MSW leak hunt correctly deferred.
+- Single one-line edit + 3 test cases; no scope creep, no Node/TS code touched.
+- No new tech_debt entries.
+
+(tech-lead appends here on each review pass)

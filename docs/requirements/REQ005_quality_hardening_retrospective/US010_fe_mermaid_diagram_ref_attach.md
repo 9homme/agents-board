@@ -3,7 +3,7 @@
 **Story:** US010 — Fix React-Doctor baseline regressions (top-3 state/effect + 1 security)
 **Requirement:** REQ005
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: MermaidDiagram no longer uses unsanitised `dangerouslySetInnerHTML`, Scenario: react-doctor score recovers (the `react-doctor/no-danger` portion), Scenario: no regressions in baseline noise (MermaidDiagram portion), Scenario: tests still pass and hook contract is unchanged (MermaidDiagram component portion)
 **Blocked by:** US006_fe_harmonise_hooks_on_abortcontroller.md
 **Worked-by:** fe-dev-2026-06-02T00:00:00Z-a8a5
@@ -111,5 +111,17 @@ Neither finding was introduced by this diff. The score improved from 92 → 99.
 **CSR-only invariant:** Confirmed — no `getServerSideProps`/`getStaticProps`/`getInitialProps` exports in `web/pages/`.
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- Tech-lead subagent hit session limit; inline orchestrator review used as recovery.
+- `cd web && npm run typecheck`: **clean** (rc=0).
+- `cd web && npm test -- --watchAll=false`: **17 suites / 130 tests pass** (includes US010 mermaid + reducer).
+- `grep -n 'dangerouslySetInnerHTML' web/components/ProjectDetail/MermaidDiagram.tsx`: 1 match — line 15 in a JSDoc comment explicitly stating "No `dangerouslySetInnerHTML` is used." Zero actual prop uses ✓.
+- `grep -n 'dompurify\|DOMPurify' web/components/ProjectDetail/MermaidDiagram.tsx web/package.json`: 0 matches. NO new dep added (architecture §11.1 ref-attach path honored, OQ-5 satisfied).
+- `DOMParser('image/svg+xml')` + ref-attach pattern confirmed in source.
+- Dev's react-doctor `--diff` score `99 / 100 Great` accepted — improvement of +7 over 92/100 baseline; `react-doctor/no-danger` cleared on `MermaidDiagram.tsx`.
+- Two unrelated pre-existing findings (line 119 `no-adjust-state-on-prop-change`, line 174 `prefer-tag-over-role`) are NOT regressions and NOT in US010 scope.
+- No new tech_debt entries.
 
 (tech-lead appends here on each review pass)

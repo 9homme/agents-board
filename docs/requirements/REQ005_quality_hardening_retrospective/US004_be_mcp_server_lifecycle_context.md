@@ -4,7 +4,7 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: same fix applied to `mcp-server`, Scenario: DB ping respects a bounded timeout (mcp-server), Scenario: DB ping cancels on SIGTERM / SIGINT during startup (mcp-server), Scenario: happy path unchanged (mcp-server), Scenario: lifecycle context is the signal-cancellable parent (mcp-server), Scenario: no `context.Background()` remains in production code at the two named sites (mcp-server portion)
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-02T00:00:00Z-ac3a
@@ -86,5 +86,17 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 **D-008 compliance:** no `internal/lifecycle/` helper created; glue duplicated from api-server verbatim per architecture decision.
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- Tech-lead subagent hit session limit; inline orchestrator review used as recovery.
+- `cd services/agent-board && go test ./cmd/mcp-server/...`: **6/6 PASS**.
+- `go vet ./cmd/mcp-server/...`: clean.
+- `gofmt -s -l cmd/mcp-server/`: clean (no output).
+- D-008 honored: `ls services/agent-board/internal/lifecycle` → "No such file or directory".
+- Defer order in source matches arch §3.5 + sibling api-server pattern.
+- Pattern duplicated from `cmd/api-server/main.go` per D-008 (no shared helper).
+- D-009 honored: no graceful HTTP shutdown.
+- No new tech_debt entries.
 
 (tech-lead appends here on each review pass)

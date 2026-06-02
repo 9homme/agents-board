@@ -3,7 +3,7 @@
 **Story:** US010 — Fix React-Doctor baseline regressions (top-3 state/effect + 1 security)
 **Requirement:** REQ005
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: `useDocument` stops cascading state and adjusting state on prop change, Scenario: `DocumentsTab` no longer redirects from inside `useEffect`, Scenario: react-doctor score recovers (the six non-`no-danger` rule IDs portion), Scenario: no regressions in baseline noise (useDocument + DocumentsTab portion), Scenario: tests still pass and hook contract is unchanged
 **Blocked by:** US006_fe_harmonise_hooks_on_abortcontroller.md
 **Worked-by:** fe-dev-2026-06-02T00:00:00Z-a1b2
@@ -128,5 +128,16 @@ Score improved from 92/100 baseline to 100/100. No new errors, no new warnings i
 **FCT-US010-013 (react-doctor meta-assertion):** Verified — zero findings on `useDocument.ts` for rules #2–#4; zero findings on `DocumentsTab.tsx` for rules #5–#7. Score 100/100.
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- Tech-lead subagent hit session limit; inline orchestrator review used as recovery.
+- `cd web && npm run typecheck`: **clean**.
+- `cd web && npm test -- --watchAll=false`: **17 suites / 130 tests pass**.
+- `useDocument.ts`: `useReducer` imported, public return shape preserved byte-identical: `return { data: state.data, isLoading: state.isLoading, error: state.error, refetch }` ✓.
+- `DocumentsTab.tsx`: auto-select `useEffect` removed. `router.replace` appears only at line 76 inside the user-click handler (verified via grep), not in any `useEffect`.
+- Comment at `DocumentsTab.tsx:63` explicitly documents the OQ-6 acceptance ("URL stays bare until the user clicks").
+- Dev's react-doctor `--diff` score `100 / 100 Great — No issues found!` accepted — all 7 named rule IDs cleared on the touched files.
+- No new tech_debt entries.
 
 (tech-lead appends here on each review pass)

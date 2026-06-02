@@ -4,10 +4,10 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: `document_repo_test.go` gains 7 new error-branch tests (8 functions due to UpdateDocument split), Scenario: each test exercises the specific uncovered branch (document_repo portion), Scenario: per-file coverage hits ≥95% (document_repo.go portion), Scenario: existing tests still pass and behaviour is unchanged, Scenario: no production-code changes
 **Blocked by:** none
-**Worked-by:** _(none)_
+**Worked-by:** be-dev-2026-06-03T00-00-00Z-a56b
 
 ## Goal
 
@@ -66,6 +66,29 @@ If tester surfaces new test IDs beyond these eight, the dev writes them and flag
 - `scripts/review/run-gate.sh cross` exits with `REVIEW GATE: PASS`.
 - Code matches architecture §5 contract.
 - Dev set status to `in_review` and reported back; tech-lead approved (status flipped to `completed`).
+
+## Notes
+
+### Implementation log
+
+**Files touched:** `services/agent-board/internal/repo/document_repo_test.go` only.
+Production file `document_repo.go` — zero diff confirmed.
+
+**Tests added (8 new, all passing):**
+- UT-US005-001 `TestDocumentRepo_CreateDocument_GenericError` — mock `ExpectQuery INSERT … WillReturnError`; asserts non-nil err, not ErrNotFound, contains "failed to create document", nil returned pointer.
+- UT-US005-002 `TestDocumentRepo_GetDocument_GenericError` — mock `ExpectQuery SELECT … WillReturnError`; non-ErrNoRows path; asserts "failed to get document".
+- UT-US005-003 `TestDocumentRepo_UpdateDocument_NotFound` — mock `WillReturnError(sql.ErrNoRows)`; asserts `errors.Is(err, ErrNotFound)` true.
+- UT-US005-004 `TestDocumentRepo_UpdateDocument_GenericError` — mock `WillReturnError(errors.New("db down"))`; asserts "failed to update document".
+- UT-US005-005 `TestDocumentRepo_DeleteDocument_GenericError` — mock `ExpectExec DELETE … WillReturnError`; asserts "failed to delete document".
+- UT-US005-006 `TestDocumentRepo_ListDocuments_QueryError` — mock `ExpectQuery SELECT … WillReturnError`; asserts "failed to list documents", nil slice.
+- UT-US005-007 `TestDocumentRepo_ListDocuments_ScanError` — `AddRow("doc-id", "proj-id", "Title", "Content", true, true)`: `bool` in `time.Time` column triggers `convertAssign` error; asserts "failed to scan document".
+- UT-US005-008 `TestDocumentRepo_ListDocuments_RowsErr` — `RowError(0, errors.New("rows err"))` on a valid-data row; asserts "error iterating", nil slice.
+
+**Coverage result:** `document_repo.go` — 100% on all functions (baseline was ~81.5%). Exceeds the ≥95% DoD target.
+
+**go vet:** clean. `go test ./...` (125 tests): clean. Cross gate: REVIEW GATE: PASS.
+
+**BE gate note:** `scripts/review/run-gate.sh be services/agent-board` currently exits with `MISSING TOOL: gosec` because US003 (soft-warn gosec/govulncheck) is still `pending`. This is an environmental constraint outside this task's scope. All logic verified via `go test ./...` directly.
 
 ## Review log
 

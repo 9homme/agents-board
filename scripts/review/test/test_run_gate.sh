@@ -271,6 +271,26 @@ IT_US003_005_FAIL=0
 [ "$IT_US003_005_FAIL" -eq 0 ] && pass_test "IT-US003-005"
 
 # ---------------------------------------------------------------------------
+# IT-US003-006 — README documents hard vs soft-warn distinction
+# ---------------------------------------------------------------------------
+echo "IT-US003-006: README.md contains Soft-warn vs. hard-required subsection with required content"
+README_FILE="$SCRIPT_DIR/../README.md"
+IT_US003_006_FAIL=0
+grep -qi 'soft-warn.*hard-required\|hard-required.*soft-warn\|Soft-warn vs\.' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing 'Soft-warn vs. hard-required' subsection heading"; IT_US003_006_FAIL=1; }
+grep -q 'golangci-lint' "$README_FILE" && grep -q 'semgrep' "$README_FILE" && grep -q 'gitleaks' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing hard-required tools list (go, golangci-lint, npm, semgrep, gitleaks)"; IT_US003_006_FAIL=1; }
+grep -q 'gosec' "$README_FILE" && grep -q 'govulncheck' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing soft-warn tools (gosec, govulncheck) in new subsection"; IT_US003_006_FAIL=1; }
+grep -q 'securego/gosec' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing gosec install one-liner (go install ...securego/gosec...)"; IT_US003_006_FAIL=1; }
+grep -q 'golang.org/x/vuln' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README missing govulncheck install one-liner (go install golang.org/x/vuln...)"; IT_US003_006_FAIL=1; }
+grep -qi 'golangci-lint.*gosec\|gosec.*golangci-lint' "$README_FILE" || \
+  { fail_test "IT-US003-006" "README does not explain gosec coverage via golangci-lint"; IT_US003_006_FAIL=1; }
+[ "$IT_US003_006_FAIL" -eq 0 ] && pass_test "IT-US003-006"
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

@@ -42,6 +42,27 @@ list of failed checks into the task's `### Review pass N` entry.
 | CSR-only scan | grep | no `getServerSideProps` / `getStaticProps` / `getInitialProps` / `web/pages/api/` |
 | `fetch()` boundary scan | grep | no raw `fetch()` outside `web/lib/api/` |
 
+### Soft-warn vs. hard-required
+
+Some tools are **hard-required**: the gate exits 2 (MISSING TOOL) if they are absent. Others are **soft-warn**: the gate prints a `WARN` line and continues — their absence is acceptable because equivalent coverage already exists.
+
+| Tool | Status | Reason |
+|---|---|---|
+| `go` | hard-required | Language runtime — no gate runs without it |
+| `golangci-lint` | hard-required | Bundles staticcheck, errcheck, and the built-in `gosec` linter |
+| `npm` | hard-required | FE gate cannot run without it |
+| `semgrep` | hard-required | OWASP + framework rule packs |
+| `gitleaks` | hard-required | Secret detection |
+| `gosec` | **soft-warn** | SAST rules already covered by golangci-lint's built-in gosec linter; standalone `gosec` is a belt-and-suspenders extra |
+| `govulncheck` | **soft-warn** | Useful locally but not universally installed |
+
+Install one-liners for soft-warn tools:
+
+```sh
+go install github.com/securego/gosec/v2/cmd/gosec@latest
+go install golang.org/x/vuln/cmd/govulncheck@latest
+```
+
 **Cross (`gate cross`)** — repo-wide:
 
 | Check | Tool | Purpose |

@@ -135,7 +135,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId }) => {
         <div className="w-64 flex-shrink-0 border-r border-gray-200 p-4">
           <p className="text-sm text-red-600 mb-3">Couldn&apos;t load documents</p>
           <button
-            onClick={refetchList}
+            type="button"
+            onClick={() => refetchList()}
             className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             Retry

@@ -3,10 +3,10 @@
 **Story:** US006 — Harmonise `useProject`, `useProjectDocuments`, `useDocument` on AbortController + signal-threaded `lib/api/`
 **Requirement:** REQ005
 **Track:** FE
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: `fetchProject` accepts `signal?: AbortSignal`, Scenario: all three `lib/api/` fetch functions accept `signal`, Scenario: `useProject` aborts on unmount and on id change, Scenario: `useProjectDocuments` aborts on unmount and on projectId change, Scenario: `useDocument` pattern unchanged, Scenario: aborted requests do NOT update state, Scenario: aborted-request errors are silently ignored (not surfaced as `error`), Scenario: existing tests still pass, Scenario: no end-user-visible behaviour change in the happy path
 **Blocked by:** none
-**Worked-by:** _(none)_
+**Worked-by:** fe-dev (agent a9ed4deac706301e7)
 
 ## Goal
 
@@ -64,8 +64,21 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 
 ## Notes
 
-(fe-dev pastes `react-doctor --verbose --diff` final score line here before flipping to `in_review`.)
+react-doctor --diff result: `100 / 100 Great` — No issues found. Exceeds 92/100 baseline; zero regressions introduced.
 
 ## Review log
+
+### Implementation pass 1 — 2026-06-02 — fe-dev (agent a9ed4deac706301e7)
+
+- TDD red/green/refactor cycle observed for both hook refactors; TDG skill invoked at each phase. React Doctor `--diff` run pre-hand-off.
+- `web/lib/api/projects.ts`: added optional `signal?: AbortSignal` to `fetchProject` and `fetchProjects` (signal always last per arch §4.2).
+- `web/hooks/useProject.ts`: refactored `mounted`-flag → AbortController + stale-id ref pattern, matching `useDocument`. Public return shape `{ data, isLoading, error, isNotFound }` preserved byte-identical.
+- `web/hooks/useProjectDocuments.ts`: same refactor, public shape `{ data, isLoading, error, refetch }` preserved.
+- Tests: 117 total (107 pre-existing + 10 new). 17 suites pass. `npm run typecheck` clean.
+- FCT-* passing: FCT-US006-001, -002, -003, -004, -006, -007, -009, -010.
+- New tests in: `web/lib/api/projects.test.ts`, `web/hooks/useProject.test.ts`, `web/hooks/useProjectDocuments.test.ts`.
+- AbortError swallowed in catch (not surfaced as state-level error) per arch §4.5.
+- Worktree branch: `worktree-agent-a9ed4deac706301e7`. Head: `8e635de`.
+- Unblocks: US010_fe_mermaid_diagram_ref_attach.md, US010_fe_use_document_reducer_and_documents_tab.md.
 
 (tech-lead appends here on each review pass)

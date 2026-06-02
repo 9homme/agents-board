@@ -4,10 +4,10 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: DB ping respects a bounded timeout, Scenario: DB ping cancels on SIGTERM / SIGINT during startup, Scenario: happy path unchanged, Scenario: lifecycle context is the signal-cancellable parent, Scenario: no `context.Background()` remains in production code at the two named sites (api-server portion)
 **Blocked by:** none
-**Worked-by:** _(none)_
+**Worked-by:** be-dev (agent ab14e3daf8d822fa2)
 
 ## Goal
 
@@ -56,5 +56,16 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 - Dev set status to `in_review` and reported back; tech-lead approved (status flipped to `completed`).
 
 ## Review log
+
+### Implementation pass 1 — 2026-06-02 — be-dev (agent ab14e3daf8d822fa2)
+
+- TDD red/green/refactor cycle observed; TDG skill invoked at each phase.
+- Implementation: `signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)` + `context.WithTimeout(ctx, 5*time.Second)` for the DB ping. Defer source order matches arch §3.5: `defer db.Close()` → `defer stop()` → `defer cancel()` (LIFO at exit: cancel → stop → db.Close).
+- D-008/D-013 honoured: no shared `internal/lifecycle/` helper extracted — 9 lines duplicated in this file.
+- D-009 honoured: no graceful HTTP shutdown added (out of scope).
+- Tests passing: UT-US004-API-001 (`TestPingDB_TimeoutCancels`), UT-US004-API-002 (`TestPingDB_CancellationPropagates`), UT-US004-API-003 (`TestPingDB_HappyPath`), UT-US004-API-004 (`TestMain_NoContextBackgroundAtPingSite`). Total 111 tests in `services/agent-board` (107 pre-existing + 4 new). `go vet` clean, `gofmt -s` clean.
+- New file: `services/agent-board/cmd/api-server/main_test.go`.
+- Worktree branch: `worktree-agent-ab14e3daf8d822fa2`. Head: `d4be789`.
+- Implementation note: `go-sqlmock v1.5.2` does not preserve exact context error when `WillDelayFor` races with context expiry, so timeout/cancellation tests use pre-expired/pre-cancelled contexts (database/sql's context check fires before the mock driver). UT-US004-API-004 is a structural source assertion.
 
 (tech-lead appends here on each review pass)

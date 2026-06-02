@@ -4,10 +4,10 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: TTY run unchanged, Scenario: non-TTY run shows the failure body, Scenario: same fix applied to `run_check_warn` at line 71, Scenario: no regression on the PASS path
 **Blocked by:** none
-**Worked-by:** _(none)_
+**Worked-by:** be-dev (agent a890bf0ba4ff4108d)
 
 ## Goal
 
@@ -54,5 +54,14 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 - Dev set status to `in_review` and reported back; tech-lead approved (status flipped to `completed`).
 
 ## Review log
+
+### Implementation pass 1 — 2026-06-02 — be-dev (agent a890bf0ba4ff4108d)
+
+- Tests written first (red), proved failing for the right reason, then fixed (green), then refactored.
+- Fix: added `--` before format string at lines 58 and 71 in `scripts/review/run-gate.sh` (the two `printf` calls in `run_check` and `run_check_warn`).
+- Tests passing: UT-001 (banner present in non-TTY), UT-002 (no `printf: --: invalid option`), UT-003/UT-004 (same for `run_check_warn`), UT-005 (PASS path unchanged).
+- New file: `scripts/review/test/test_run_gate.sh` (shell test harness).
+- Worktree branch: `worktree-agent-a890bf0ba4ff4108d`. Head: `bc298df`.
+- TDG skill invoked at red / green / refactor phases.
 
 (tech-lead appends here on each review pass)

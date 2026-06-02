@@ -3,10 +3,10 @@
 **Story:** US007 — Move `@testing-library/dom` from `dependencies` to `devDependencies` in `web/package.json`
 **Requirement:** REQ005
 **Track:** FE
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: `@testing-library/dom` is in `devDependencies`, Scenario: `package-lock.json` is regenerated cleanly, Scenario: production install does NOT pull `@testing-library/dom` as a direct dep, Scenario: dev install still works for tests, Scenario: typecheck and lint are clean, Scenario: no runtime imports of `@testing-library/dom` exist
 **Blocked by:** none
-**Worked-by:** _(none)_
+**Worked-by:** fe-dev (agent a8fdf467fa30307b6)
 
 ## Goal
 
@@ -57,8 +57,17 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 
 ## Notes
 
-(fe-dev pastes `react-doctor --verbose --diff` final score line here before flipping to `in_review`.)
+react-doctor --diff result: `No changed source files in web/, skipping.` — zero React source files changed; score does not regress vs baseline 92/100; no new errors; no new warnings.
 
 ## Review log
+
+### Implementation pass 1 — 2026-06-02 — fe-dev (agent a8fdf467fa30307b6)
+
+- TDG skill invoked at red/green/refactor phases (commits tagged `(US007)`).
+- `web/package.json`: moved `@testing-library/dom` from `dependencies` to `devDependencies`, version specifier `^10.4.1` preserved.
+- `web/package-lock.json`: regenerated via `npm install` — diff limited to dep-section reorganisation.
+- New file: `web/test/us007-package-hygiene.sh` — gate-level assertion script.
+- FCT-US007-01 through FCT-US007-06 all PASS: dep location correct, version preserved, `npm ls --omit=dev` shows it only as transitive of `@testing-library/user-event`, 107 tests / 17 suites pass, `npm run typecheck` clean, zero production-source imports of `@testing-library/dom`.
+- Worktree branch: `worktree-agent-a8fdf467fa30307b6`. Head: `a77ce86`.
 
 (tech-lead appends here on each review pass)

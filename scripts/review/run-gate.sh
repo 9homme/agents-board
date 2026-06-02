@@ -55,7 +55,7 @@ run_check() {
     pass "$name"
   else
     fail "$name"
-    printf "${YELLOW}--- output (rc=%d) ---${RESET}\n%s\n${YELLOW}-----------------------${RESET}\n" "$rc" "$out"
+    printf -- "${YELLOW}--- output (rc=%d) ---${RESET}\n%s\n${YELLOW}-----------------------${RESET}\n" "$rc" "$out"
   fi
 }
 
@@ -68,7 +68,7 @@ run_check_warn() {
     pass "$name"
   else
     printf "  ${YELLOW}WARN${RESET}  %s\n" "$name"
-    printf "${YELLOW}--- output (rc=%d) ---${RESET}\n%s\n${YELLOW}-----------------------${RESET}\n" "$rc" "$out"
+    printf -- "${YELLOW}--- output (rc=%d) ---${RESET}\n%s\n${YELLOW}-----------------------${RESET}\n" "$rc" "$out"
   fi
 }
 

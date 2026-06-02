@@ -85,7 +85,6 @@ gate_be() {
   require_tool go               "https://go.dev/dl/"
   require_tool golangci-lint    "brew install golangci-lint  |  https://golangci-lint.run/welcome/install/"
 
-  # ( Use a local variable to capture subshell failures if needed, or avoid subshell )
   pushd "$svc" >/dev/null
   run_check "gofmt -s (no diff)"        bash -c 'diff -u <(echo -n) <(gofmt -s -d . | tee /dev/stderr)'
   run_check "go vet ./..."              go vet ./...

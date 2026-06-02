@@ -254,7 +254,21 @@ func TestDocumentRepo_UpdateDocument_GenericError(t *testing.T) {
 
 // UT-US005-005 — DeleteDocument generic error (D5)
 func TestDocumentRepo_DeleteDocument_GenericError(t *testing.T) {
-	t.Skip("red: stub D5")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectExec(`DELETE FROM documents WHERE id`).
+		WillReturnError(errors.New("db down"))
+
+	err = repo.DeleteDocument(context.Background(), "any-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to delete document")
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

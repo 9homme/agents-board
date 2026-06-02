@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useRouter } from 'next/router';
 import { DocumentSidebar } from './DocumentSidebar';
 import { DocumentPreviewer } from './DocumentPreviewer';
@@ -16,14 +16,17 @@ interface DocumentsTabProps {
  *
  * Orchestrates DocumentSidebar + DocumentPreviewer for the Documents tab.
  *
- * State strategy (architecture §"State strategy"):
+ * State strategy (architecture §11.3):
  * - URL `?doc=` is the source of truth for the selected document.
- * - **Auto-selection:** when `doc` is absent and the list is non-empty, issue a
- *   shallow router.replace with the first item's id. Guards against loops.
+ * - **Render-time selection:** when `doc` is absent and the list is non-empty,
+ *   `selectedDocId` is computed as `documents[0].id` at render time. No URL write
+ *   occurs on initial load (architecture §11.3.3 / OQ-6: bare URL is acceptable).
  * - **Bogus deep-link:** when `doc` is present but not in the list, render
  *   `isNotFound=true` in the previewer; do NOT auto-select.
  * - **Content 404:** if `useDocument` returns ApiError with code NOT_FOUND,
  *   treat the same as `isNotFound` (no Retry).
+ * - **User-driven URL writes:** `handleSelectDoc` continues to call `router.replace`
+ *   on every sidebar click — this is the only path that writes `?doc=` to the URL.
  *
  * The component passes `key={selectedDocId}` to DocumentPreviewer so US003's
  * mermaid mount/unmount cleanup works without further changes here.
@@ -44,7 +47,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId }) => {
   // Determine the selected document id:
   // - If docParam is set and is in the list → use it.
   // - If docParam is set but NOT in the list → bogus deep-link (isNotFound).
-  // - If docParam is absent → undefined (auto-select effect fires below).
+  // - If docParam is absent → fall back to documents[0].id at render time (architecture §11.3.2).
   const docInList =
     docParam !== undefined && documents !== null
       ? documents.find((d) => d.id === docParam)
@@ -56,26 +59,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId }) => {
     documents.length > 0 &&
     docInList === undefined;
 
-  const selectedDocId = isBogusDeepLink ? undefined : docParam;
-
-  // Auto-select effect: when list loads, doc is absent (or was bogus but list
-  // is non-empty and no doc is selected), auto-select the first item.
-  useEffect(() => {
-    if (
-      documents !== null &&
-      documents.length > 0 &&
-      docParam === undefined
-    ) {
-      void router.replace(
-        {
-          pathname: router.pathname,
-          query: { ...router.query, doc: documents[0].id },
-        },
-        undefined,
-        { shallow: true }
-      );
-    }
-  }, [documents, docParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Render-time selection: when docParam is absent, fall back to the first document.
+  // No router.replace on initial load — the URL stays bare until the user clicks a
+  // sidebar item. Architecture §11.3.2 + §11.3.3 (OQ-6: bare URL is acceptable).
+  const selectedDocId = isBogusDeepLink ? undefined : (docParam ?? documents?.[0]?.id);
 
   // Fetch the selected document (only when we have a valid, non-bogus id)
   const {

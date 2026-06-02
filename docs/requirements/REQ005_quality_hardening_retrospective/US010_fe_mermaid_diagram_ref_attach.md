@@ -3,10 +3,10 @@
 **Story:** US010 — Fix React-Doctor baseline regressions (top-3 state/effect + 1 security)
 **Requirement:** REQ005
 **Track:** FE
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: MermaidDiagram no longer uses unsanitised `dangerouslySetInnerHTML`, Scenario: react-doctor score recovers (the `react-doctor/no-danger` portion), Scenario: no regressions in baseline noise (MermaidDiagram portion), Scenario: tests still pass and hook contract is unchanged (MermaidDiagram component portion)
 **Blocked by:** US006_fe_harmonise_hooks_on_abortcontroller.md
-**Worked-by:** _(none)_
+**Worked-by:** fe-dev-2026-06-02T00:00:00Z-a8a5
 
 ## Goal
 
@@ -81,7 +81,34 @@ Run `npx react-doctor@latest --verbose --diff` from `web/` before flipping to `i
 
 ## Notes
 
-(fe-dev pastes `react-doctor --verbose --diff` final score line here before flipping to `in_review`.)
+### Implementation pass 1
+
+**Files touched:**
+- `web/components/ProjectDetail/MermaidDiagram.tsx` — replaced `dangerouslySetInnerHTML` success branch with `useRef` + `useEffect` DOMParser ref-attach per architecture §11.1.2. Added `useRef<HTMLDivElement | null>(null)`, a new `useEffect([renderState])` that parses the SVG via `DOMParser('image/svg+xml')` and appends `parsed.documentElement` to the host div. Cleanup removes the appended node before strict-mode's second invocation (R7 mitigation). `try/catch` wraps the DOMParser+appendChild block per FCT-US010-004 requirement. Doc comment updated to reflect ref-attach contract.
+- `web/components/ProjectDetail/MermaidDiagram.test.tsx` — added FCT-US010-001 through FCT-US010-004 (6 new test cases across 4 describe blocks, additions only — no existing assertions changed).
+
+**Tests passing:** FCT-US010-001, FCT-US010-002, FCT-US010-003, FCT-US010-004 (+ all pre-existing FCT-US003-008, FCT-US003-009 tests). Total: 9/9 in MermaidDiagram.test.tsx; 122/122 full suite.
+
+**Coverage:** MermaidDiagram.tsx — 100% line, 94.73% statement (uncovered: `deriveAriaLabel` call path when svg has title; module cache init block — both covered by mocked mermaid path). Exceeds 80% threshold.
+
+**react-doctor `--diff` final score line:**
+```
+┌─────┐  99 / 100 Great
+```
+
+**react-doctor/no-danger status:** ZERO findings on `MermaidDiagram.tsx` in `--diff` output. Rule is cleared.
+
+**Score improvement:** 92/100 (baseline) → 99/100 (post-change). Significant improvement.
+
+**Findings in diff output (both pre-existing, not introduced by this diff):**
+1. `react-doctor/no-adjust-state-on-prop-change` (Error) at line 119 — `setRenderState({ status: 'loading' })` in the lazy-load `useEffect`. This is the ORIGINAL lazy-load effect (unchanged by this task, unchanged from `main`). Pre-existing finding surfaced because `MermaidDiagram.tsx` is in the diff. Clearing this finding is owned by the sibling US010 task (different files).
+2. `react-doctor/prefer-tag-over-role` (Warning) at line 174 — `role="img"` on the container div. The old code also had `role="img"` on the same div (structure preserved verbatim per architecture §11.1.3). Pre-existing finding.
+
+Neither finding was introduced by this diff. The score improved from 92 → 99.
+
+**Gate scripts:** `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`; `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`.
+
+**CSR-only invariant:** Confirmed — no `getServerSideProps`/`getStaticProps`/`getInitialProps` exports in `web/pages/`.
 
 ## Review log
 

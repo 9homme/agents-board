@@ -113,7 +113,7 @@ gate_fe() {
     cd web
     run_check "npm run typecheck"                       npm run typecheck --silent
     run_check "npm run lint (--max-warnings=0)"         bash -c 'npm run lint --silent -- --max-warnings=0'
-    run_check "npm test (--watchAll=false)"             bash -c 'npm test --silent -- --watchAll=false'
+    run_check "npm test (--watchAll=false)"             bash -c 'npm test --silent -- --watchAll=false --forceExit'
     # Use || true to make it non-fatal, but it will still be printed if run_check handles it.
     # Actually, run_check uses the exit code of the command.
     # We want to see the output but NOT increment FAILED.

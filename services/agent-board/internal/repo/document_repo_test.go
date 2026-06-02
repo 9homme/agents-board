@@ -187,7 +187,22 @@ func TestDocumentRepo_CreateDocument_GenericError(t *testing.T) {
 
 // UT-US005-002 — GetDocument generic DB error (D2)
 func TestDocumentRepo_GetDocument_GenericError(t *testing.T) {
-	t.Skip("red: stub D2")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE id`).
+		WillReturnError(errors.New("db down"))
+
+	d, err := repo.GetDocument(context.Background(), "any-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to get document")
+	assert.Nil(t, d)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

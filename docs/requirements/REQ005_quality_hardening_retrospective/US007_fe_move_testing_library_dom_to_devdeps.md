@@ -3,7 +3,7 @@
 **Story:** US007 — Move `@testing-library/dom` from `dependencies` to `devDependencies` in `web/package.json`
 **Requirement:** REQ005
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: `@testing-library/dom` is in `devDependencies`, Scenario: `package-lock.json` is regenerated cleanly, Scenario: production install does NOT pull `@testing-library/dom` as a direct dep, Scenario: dev install still works for tests, Scenario: typecheck and lint are clean, Scenario: no runtime imports of `@testing-library/dom` exist
 **Blocked by:** none
 **Worked-by:** fe-dev (agent a8fdf467fa30307b6)
@@ -69,5 +69,17 @@ react-doctor --diff result: `No changed source files in web/, skipping.` — zer
 - New file: `web/test/us007-package-hygiene.sh` — gate-level assertion script.
 - FCT-US007-01 through FCT-US007-06 all PASS: dep location correct, version preserved, `npm ls --omit=dev` shows it only as transitive of `@testing-library/user-event`, 107 tests / 17 suites pass, `npm run typecheck` clean, zero production-source imports of `@testing-library/dom`.
 - Worktree branch: `worktree-agent-a8fdf467fa30307b6`. Head: `a77ce86`.
+
+### Review pass 1 — 2026-06-02 — tech-lead (inline orchestrator review) — verdict: approved
+
+- **NOTE on review modality:** Tech-lead subagent review aborted with `STALE_WORKTREE_BASE` (US009 bug). Inline orchestrator review used as recovery.
+- `web/package.json` inspection: `@testing-library/dom` NOT in `dependencies`, present in `devDependencies` with version `^10.4.1` preserved.
+- `cd web && npm run typecheck`: **clean** (rc=0).
+- `cd web && npm test -- --watchAll=false`: **17 suites / 117 tests pass**.
+- `cd web && npm ls --omit=dev @testing-library/dom`: appears ONLY as transitive `@testing-library/user-event@14.6.1 → @testing-library/dom@10.4.1`. Not a top-level prod dep.
+- `cd web && bash test/us007-package-hygiene.sh`: **3/3 PASS** (FCT-US007-01, -02, -06).
+- `grep -rn "@testing-library/dom" web/{lib,components,hooks,pages}`: **no matches** — zero production-source imports.
+- React Doctor not re-run (dev reported "No changed source files in web/" since only package.json moved); FE test suite passing covers any React-breaking regression.
+- No new tech_debt entries from this review.
 
 (tech-lead appends here on each review pass)

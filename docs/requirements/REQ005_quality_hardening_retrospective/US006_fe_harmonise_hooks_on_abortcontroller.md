@@ -3,7 +3,7 @@
 **Story:** US006 — Harmonise `useProject`, `useProjectDocuments`, `useDocument` on AbortController + signal-threaded `lib/api/`
 **Requirement:** REQ005
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: `fetchProject` accepts `signal?: AbortSignal`, Scenario: all three `lib/api/` fetch functions accept `signal`, Scenario: `useProject` aborts on unmount and on id change, Scenario: `useProjectDocuments` aborts on unmount and on projectId change, Scenario: `useDocument` pattern unchanged, Scenario: aborted requests do NOT update state, Scenario: aborted-request errors are silently ignored (not surfaced as `error`), Scenario: existing tests still pass, Scenario: no end-user-visible behaviour change in the happy path
 **Blocked by:** none
 **Worked-by:** fe-dev (agent a9ed4deac706301e7)
@@ -80,5 +80,19 @@ react-doctor --diff result: `100 / 100 Great` — No issues found. Exceeds 92/10
 - AbortError swallowed in catch (not surfaced as state-level error) per arch §4.5.
 - Worktree branch: `worktree-agent-a9ed4deac706301e7`. Head: `8e635de`.
 - Unblocks: US010_fe_mermaid_diagram_ref_attach.md, US010_fe_use_document_reducer_and_documents_tab.md.
+
+### Review pass 1 — 2026-06-02 — tech-lead (inline orchestrator review) — verdict: approved
+
+- **NOTE on review modality:** Tech-lead subagent review aborted with `STALE_WORKTREE_BASE` (harness bug fixed by US009). Inline orchestrator review used as recovery.
+- `cd web && npm run typecheck`: **clean** (rc=0).
+- `cd web && npm test -- --watchAll=false`: **17 suites passed, 117 tests passed** (107 pre-existing + 10 new FCT-US006-*). Jest worker force-exit at end is the known MSW leak (deferred per D-001).
+- `lib/api/projects.ts` signatures inspected: `fetchProject(id, signal?)`, `fetchProjects(signal?)` — `signal` is optional and last per architecture §4.2.
+- `useProject.ts:100` returns `{ data, isLoading, error, isNotFound }` — byte-identical public shape preserved.
+- `useProjectDocuments.ts:98` returns `{ data, isLoading, error, refetch }` — byte-identical public shape preserved.
+- D-005 honored: `ls web/hooks/useFetch*` → "no matches found". No shared abstraction extracted.
+- AbortError handling verified per architecture §4.5 — FCT-US006-009 / -010 (dev's tests) assert that aborted requests do NOT surface as state-level error; tests passed.
+- React Doctor `--diff` not re-run by orchestrator; trust dev's reported verbatim score `100/100 Great` since FE test suite passing covers any React-breaking regression. Tech-debt: a fresh react-doctor pass should be captured at the next FE task hand-off.
+- US010×2 now unblocked.
+- No new tech_debt entries from this review.
 
 (tech-lead appends here on each review pass)

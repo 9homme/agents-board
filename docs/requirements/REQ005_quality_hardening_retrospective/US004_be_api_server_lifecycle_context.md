@@ -4,7 +4,7 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: DB ping respects a bounded timeout, Scenario: DB ping cancels on SIGTERM / SIGINT during startup, Scenario: happy path unchanged, Scenario: lifecycle context is the signal-cancellable parent, Scenario: no `context.Background()` remains in production code at the two named sites (api-server portion)
 **Blocked by:** none
 **Worked-by:** be-dev (agent ab14e3daf8d822fa2)
@@ -67,5 +67,17 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 - New file: `services/agent-board/cmd/api-server/main_test.go`.
 - Worktree branch: `worktree-agent-ab14e3daf8d822fa2`. Head: `d4be789`.
 - Implementation note: `go-sqlmock v1.5.2` does not preserve exact context error when `WillDelayFor` races with context expiry, so timeout/cancellation tests use pre-expired/pre-cancelled contexts (database/sql's context check fires before the mock driver). UT-US004-API-004 is a structural source assertion.
+
+### Review pass 1 — 2026-06-02 — tech-lead (inline orchestrator review) — verdict: approved
+
+- **NOTE on review modality:** Tech-lead subagent reviews aborted with `STALE_WORKTREE_BASE` — harness forks worktrees from origin `e233b20`, not local `main` (`d3d33e4`). This is the very bug US009 was scoped to fix. Inline orchestrator review used as recovery; gates run against local working tree which has dev work committed.
+- `cd services/agent-board && go test ./cmd/api-server/...`: **4/4 PASS**. All UT-US004-API-001..004 green.
+- `go vet ./...`: **clean** (rc=0, "No issues found").
+- `gofmt -s -l cmd/api-server/`: **clean** (no output).
+- Inspected `cmd/api-server/main.go`: `context.Background()` only at line 57 as parent of `signal.NotifyContext` (correct lifecycle pattern per architecture §3). DB ping at line 100 uses bounded context (`pingDB(pingCtx, db)`), NOT `context.Background()`.
+- Defer source order verified: line 54 `defer db.Close()` → line 58 `defer stop()` → line 62 `defer cancel()`. LIFO at exit = cancel → stop → db.Close, matching architecture §3.5.
+- D-008 honored: `ls services/agent-board/internal/lifecycle` → "No such file or directory". 9 lines duplicated, no shared helper extracted.
+- D-009 honored: no graceful HTTP shutdown machinery — only boot-time ping fixed.
+- No new tech_debt entries (clean implementation; sibling US004_be_mcp_server still pending).
 
 (tech-lead appends here on each review pass)

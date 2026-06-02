@@ -210,6 +210,25 @@ When the human runs a phase command:
 - **Frontend:** Next.js (latest stable), **Pages Router, CSR-only** at `web/`. TypeScript strict. Jest + React Testing Library + MSW. All backend calls through `web/lib/api/`.
 - **E2E:** Robot Framework with `RequestsLibrary` (HTTP) and `Browser` (Playwright-based UI). Files under `tests/e2e/`. Tag tests with the US ID.
 
+## Editing agent definitions (Claude ↔ Gemini parity)
+
+This project maintains two parallel sets of agent definitions:
+
+- `.claude/agents/*.md` — the **authoritative source**. Used by Claude Code.
+- `.gemini/agents/*.md` — a mirror. Used by Gemini-based runs.
+
+**Rule: edit ONLY `.claude/agents/*.md`. Never hand-edit `.gemini/agents/*.md`.**
+
+After any edit to `.claude/agents/*.md` (or any vendored file under `.claude/skills/` that the Gemini side should mirror), run:
+
+```
+python3 scripts/sync-gemini.py
+```
+
+The script regenerates `.gemini/agents/*.md` from the Claude side, applying any provider-specific shims it knows about. Hand-edits to the Gemini side will be clobbered by the next sync and are an anti-pattern.
+
+This applies to all six agent files (`po-ba.md`, `system-architect.md`, `tech-lead.md`, `tester.md`, `be-dev.md`, `fe-dev.md`) — and to any future agent file added under `.claude/agents/`.
+
 ## Anti-patterns
 
 - The orchestrator writing code, specs, or architecture itself.

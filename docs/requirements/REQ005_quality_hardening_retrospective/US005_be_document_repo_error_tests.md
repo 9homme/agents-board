@@ -4,7 +4,7 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: `document_repo_test.go` gains 7 new error-branch tests (8 functions due to UpdateDocument split), Scenario: each test exercises the specific uncovered branch (document_repo portion), Scenario: per-file coverage hits ≥95% (document_repo.go portion), Scenario: existing tests still pass and behaviour is unchanged, Scenario: no production-code changes
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-03T00-00-00Z-a56b
@@ -91,5 +91,16 @@ Production file `document_repo.go` — zero diff confirmed.
 **BE gate note:** `scripts/review/run-gate.sh be services/agent-board` currently exits with `MISSING TOOL: gosec` because US003 (soft-warn gosec/govulncheck) is still `pending`. This is an environmental constraint outside this task's scope. All logic verified via `go test ./...` directly.
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- `cd services/agent-board && go test ./internal/repo/...`: **44 PASS** (28 pre-existing + 16 new from US005 doc+proj combined).
+- `go vet ./internal/repo/...`: clean.
+- `gofmt -s -l internal/repo/`: clean (no output).
+- Production file `internal/repo/document_repo.go`: zero diff (verified via `git diff main~3..main`). Test-only task per arch §5.
+- 8 new tests (UT-US005-001..008) per arch §5.1.
+- Coverage: `document_repo.go` reportedly 100% per dev (well past ≥95% DoD).
+- US003 has since landed (soft-warn for gosec/govulncheck), so the BE-gate blocker the dev noted is resolved upstream.
+- No new tech_debt entries.
 
 (tech-lead appends here on each review pass)

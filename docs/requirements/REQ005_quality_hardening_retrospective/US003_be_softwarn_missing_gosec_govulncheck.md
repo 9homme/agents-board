@@ -4,7 +4,7 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: BE gate completes when `gosec` is absent, Scenario: BE gate completes when `govulncheck` is absent, Scenario: when both binaries ARE installed, behaviour unchanged, Scenario: `go` and `golangci-lint` remain hard-required, Scenario: cross-cutting and FE gates unaffected, Scenario: README documents the substitution
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-03T00:00:00Z-a71a
@@ -77,5 +77,13 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 **Follow-up:** none.
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- `bash scripts/review/test/test_run_gate.sh`: **14/14 PASS** (7 from US001/US002 + 7 new IT-US003-001..006 incl. -004a/-004b split).
+- Architecture §2 US003 + D-002 honored: soft-warn for `gosec`/`govulncheck`, hard-required preserved for `go`/`golangci-lint`/`semgrep`/`gitleaks`/`npm`.
+- IT-US003-005 confirms soft-warn logic is confined to `gate_be()` — cross/FE gates unaffected.
+- IT-US003-006 confirms README "Soft-warn vs. hard-required" subsection landed.
+- No new tech_debt entries.
 
 (tech-lead appends here on each review pass)

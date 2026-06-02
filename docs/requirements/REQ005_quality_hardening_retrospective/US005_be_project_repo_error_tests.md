@@ -4,7 +4,7 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: `project_repo_test.go` gains the symmetric error-branch tests, Scenario: each test exercises the specific uncovered branch (project_repo portion), Scenario: per-file coverage hits ≥95% (project_repo.go portion), Scenario: existing tests still pass and behaviour is unchanged, Scenario: no production-code changes
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-03T00:00:00Z-a4a3
@@ -90,5 +90,16 @@ If tester surfaces new test IDs beyond these eight, the dev writes them and flag
 **Cross gate (`scripts/review/run-gate.sh cross`):** REVIEW GATE: PASS.
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- `cd services/agent-board && go test ./internal/repo/...`: **44 PASS** (28 pre-existing + 16 new across US005 doc+proj).
+- `go vet` clean, `gofmt -s -l` clean.
+- Production file `internal/repo/project_repo.go`: zero diff (verified via `git diff main~3..main` — no `.go` non-test files in `internal/repo/`).
+- 8 new tests (UT-US005-009..016) per arch §5.2.
+- Coverage: `project_repo.go` reportedly 100%.
+- Dev noted a pre-existing `govulncheck` finding (stdlib `crypto/x509` vulnerability in `sse.go`/`message.go`) — NOT introduced by this task. Filed as tech-debt:
+- 2026-06-03 — services/agent-board/cmd/mcp-server/sse.go,message.go — pre-existing govulncheck finding on stdlib crypto/x509 (transitive via Go stdlib) — bump Go toolchain or pin a fix when a runtime upgrade is available — REQ005/US005/be_project_repo_error_tests
+- No other tech_debt entries.
 
 (tech-lead appends here on each review pass)

@@ -4,7 +4,7 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: TTY run unchanged, Scenario: non-TTY run shows the failure body, Scenario: same fix applied to `run_check_warn` at line 71, Scenario: no regression on the PASS path
 **Blocked by:** none
 **Worked-by:** be-dev (agent a890bf0ba4ff4108d)
@@ -63,5 +63,15 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 - New file: `scripts/review/test/test_run_gate.sh` (shell test harness).
 - Worktree branch: `worktree-agent-a890bf0ba4ff4108d`. Head: `bc298df`.
 - TDG skill invoked at red / green / refactor phases.
+
+### Review pass 1 — 2026-06-02 — tech-lead (agent ab0adb1e6ad73a8a2) — verdict: approved
+
+- **Dev's harness `bash scripts/review/test/test_run_gate.sh`:** 5/5 pass (UT-001..UT-005).
+- **Live non-TTY verification** (forced `run_check` failure rc=7, piped through `cat`): banner `--- output (rc=7) ---` printed, body visible verbatim, no `printf: --: invalid option` line. Substantive bug fix confirmed.
+- **Cross gate `scripts/review/run-gate.sh cross`:** `REVIEW GATE: PASS` (semgrep OWASP/golang/typescript/react + gitleaks clean).
+- BE-track gate not run end-to-end here because `gosec` / `govulncheck` are not installed (the very bug US003 will fix); cross gate + dev harness + live non-TTY forced-failure provide equivalent evidence.
+- **TDG conformance:** PASS — dev's commit subjects on the original work branch follow `red:` → `green:` → `refactor:` with `(US001)` traceability tag.
+- **Architecture conformance:** `scripts/review/run-gate.sh` lines 58 and 71 now read `printf -- "${YELLOW}...` — exact match to architecture §2 US001 row. No other lines of `run-gate.sh` modified, no Go code touched.
+- 5 non-blocking findings filed in `docs/tech_debt.md` before flipping to approved (UT-001/UT-003 tightening, test-ID naming convention divergence, manual TTY test, DoD coupling to US003).
 
 (tech-lead appends here on each review pass)

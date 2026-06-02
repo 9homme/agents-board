@@ -282,6 +282,7 @@ func TestProjectRepo_ListProjects_ScanError(t *testing.T) {
 	got, err := r.ListProjects(context.Background())
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to scan project")
 	assert.Nil(t, got)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -301,9 +302,10 @@ func TestProjectRepo_ListProjects_RowsErr(t *testing.T) {
 	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
 		WillReturnRows(rows)
 
-	_, err = r.ListProjects(context.Background())
+	result, err := r.ListProjects(context.Background())
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrNotFound))
 	assert.Contains(t, err.Error(), "error iterating")
+	assert.Nil(t, result)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

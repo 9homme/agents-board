@@ -3,10 +3,10 @@
 **Story:** US010 — Fix React-Doctor baseline regressions (top-3 state/effect + 1 security)
 **Requirement:** REQ005
 **Track:** FE
-**Status:** pending
+**Status:** in_review
 **Implements:** Scenario: `useDocument` stops cascading state and adjusting state on prop change, Scenario: `DocumentsTab` no longer redirects from inside `useEffect`, Scenario: react-doctor score recovers (the six non-`no-danger` rule IDs portion), Scenario: no regressions in baseline noise (useDocument + DocumentsTab portion), Scenario: tests still pass and hook contract is unchanged
 **Blocked by:** US006_fe_harmonise_hooks_on_abortcontroller.md
-**Worked-by:** _(none)_
+**Worked-by:** fe-dev-2026-06-02T00:00:00Z-a1b2
 
 ## Goal
 
@@ -95,7 +95,37 @@ Run `npx react-doctor@latest --verbose --diff` from `web/` before flipping to `i
 
 ## Notes
 
-(fe-dev pastes `react-doctor --verbose --diff` final score line here before flipping to `in_review`.)
+### Implementation pass 1
+
+**react-doctor `--diff` final score:** `100 / 100 Great — No issues found!` (React Doctor v0.2.16, scanning changes: worktree-agent-abfedecc9649afcb3 → main)
+
+Score improved from 92/100 baseline to 100/100. No new errors, no new warnings introduced by this diff.
+
+**Files touched:**
+- `web/hooks/useDocument.ts` — refactored from `useState×3` to `useReducer` per §11.2. State `{ data, isLoading, error }`, actions `FETCH_STARTED|FETCH_SUCCEEDED|FETCH_FAILED|ABORTED`. Public shape `{ data, isLoading, error, refetch }` unchanged. AbortController + `latestIdRef` race-safety preserved verbatim from US006.
+- `web/hooks/useDocument.test.ts` — added FCT-US010-005 through FCT-US010-009 (reducer action assertions + public shape check).
+- `web/components/ProjectDetail/DocumentsTab.tsx` — deleted auto-select `useEffect` (lines 63–78); replaced `selectedDocId` with render-time fallback `docParam ?? documents?.[0]?.id` per §11.3.2; added `type="button"` + `onClick={() => refetchList()}` to Retry button.
+- `web/components/ProjectDetail/DocumentsTab.test.tsx` — relaxed FCT-US002-003 per R8 (no more router.replace on mount assertion); added FCT-US010-010 through FCT-US010-012.
+
+**Tests added:** 8 new tests (FCT-US010-005 through FCT-US010-012)
+
+**Test counts:** 125 tests passing, 17 suites, 0 failures
+
+**react-doctor rules cleared:**
+- `no-cascading-set-state` — gone from `useDocument.ts` (single `dispatch` replaces triple `setState` cascade)
+- `no-adjust-state-on-prop-change` × 3 — gone from `useDocument.ts` (reducer derives state from action, not prop)
+- `rendering-usetransition-loading` — gone from `useDocument.ts` (`isLoading` is now reducer field, not `useState<boolean>`)
+- `no-event-handler` — `onClick={refetchList}` wrapped as `onClick={() => refetchList()}`; `type="button"` added
+- `nextjs-no-client-side-redirect` — gone from `DocumentsTab.tsx` (auto-select `useEffect` deleted)
+- `exhaustive-deps` — gone from `DocumentsTab.tsx` (effect with `// eslint-disable-line` deleted)
+
+**CSR invariants:** `grep -RE 'getServerSideProps|getStaticProps|getInitialProps' web/pages/` returns comment-only hit, no actual SSR.
+
+**Gate results:** `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`; `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`
+
+**Side effect documented:** URL no longer auto-written on initial load (bare `/projects/:id?tab=documents` until user clicks sidebar item). This is the accepted behavior per OQ-6 / R8.
+
+**FCT-US010-013 (react-doctor meta-assertion):** Verified — zero findings on `useDocument.ts` for rules #2–#4; zero findings on `DocumentsTab.tsx` for rules #5–#7. Score 100/100.
 
 ## Review log
 

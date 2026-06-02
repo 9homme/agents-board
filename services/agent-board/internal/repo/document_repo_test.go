@@ -230,7 +230,26 @@ func TestDocumentRepo_UpdateDocument_NotFound(t *testing.T) {
 
 // UT-US005-004 — UpdateDocument generic error (D4)
 func TestDocumentRepo_UpdateDocument_GenericError(t *testing.T) {
-	t.Skip("red: stub D4")
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`UPDATE documents SET`).
+		WillReturnError(errors.New("db down"))
+
+	updated, err := repo.UpdateDocument(context.Background(), &domain.Document{
+		ID:      "any-id",
+		Title:   "T",
+		Content: "C",
+	})
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to update document")
+	assert.Nil(t, updated)
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // UT-US002-010 — Repo: ListDocuments orders by updated_at DESC, id DESC (tiebreaker test)

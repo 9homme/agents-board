@@ -1,8 +1,10 @@
 # Architecture — REQ005 Quality Hardening Retrospective
 
-**Approval:** approved
-**Approved-by:** human
-**Approved-at:** 2026-06-02T02:32:14Z
+**Approval:** pending_approval
+**Approved-by:** _(set by orchestrator at re-approval time — Revision 4 reopened)_
+**Approved-at:** _(set by orchestrator at re-approval time — Revision 4 reopened)_
+
+> ⚠️ **Revision 4 — 2026-06-03 — reopened by orchestrator + human.** US008's first live exercise (after the original `approved` verdict) surfaced five real defects that contradict §2, §6.2, and §6.3 as originally written. The contradictions are documented as deprecation notes inline and as new D-015..D-019 entries in §9; see §15 Revision 4 entry for the full diff and rationale. Frontmatter flipped back to `pending_approval` per the playbook (orchestrator never auto-approves architecture revisions).
 
 ---
 
@@ -136,7 +138,9 @@ NOTE: We do NOT extract a shared `internal/lifecycle/` helper in this REQ (D-008
 | **`/tests/e2e/README.md`** | New file. Runbook: prerequisites, target list, how to add a seed, how to debug a failing Robot run, orchestrator responsibility in Phase 3c. |
 | **`/.gitignore`** | Add `tests/e2e/results/`. (Already covers `*.pid`, `*.log`, root-level Robot dumps.) |
 
-NOTE: `services/agent-board/cmd/mcp-server` does NOT need to be in the e2e compose stack — UI e2e tests (Robot + Browser library) only hit `web` and `api-server`. MCP-server can be added later if MCP-driven seeding becomes the preferred path (D-010 says SQL for now).
+NOTE: ~~`services/agent-board/cmd/mcp-server` does NOT need to be in the e2e compose stack — UI e2e tests (Robot + Browser library) only hit `web` and `api-server`. MCP-server can be added later if MCP-driven seeding becomes the preferred path (D-010 says SQL for now).~~
+
+**DEPRECATED by Revision 4 / D-015.** Live verification proved this assumption wrong: `api-server` is read-only (4 GET endpoints), so every write-driven test setup goes through MCP tools. REQ001-004 robot suite-setups POST `/message?sessionId=...` to mcp-server for fixture creation; without mcp-server in compose, 15 of 21 pre-existing e2e tests fail with `404`. mcp-server IS in compose as of Revision 4 (port `:8081`, env `DB_URL`, healthcheck-equivalent via Makefile poll). See D-015.
 
 ### US010 — React-Doctor baseline regressions (top-3 state/effect + 1 security)
 
@@ -554,6 +558,10 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      # D-019 (Revision 4): NEXT_PUBLIC_* is baked at build time by Next.js,
+      # not read at runtime. The original `environment:` placement (preserved
+      # below for diff continuity) is a no-op for client-side code. Live web
+      # service receives it via `args:` on build instead.
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
       PORT: "3000"
@@ -569,14 +577,14 @@ volumes:
 
 Notes:
 - **Postgres external port `15432`** (not 5432) so it does not collide with a host Postgres a dev may be running for other work.
-- **`api-server` healthcheck hits `/api/v1/projects`** — endpoint is unauthenticated and always returns 200 (possibly empty list) once DB is reachable. Cheapest signal of "fully ready including DB connection."
+- ~~**`api-server` healthcheck hits `/api/v1/projects`** — endpoint is unauthenticated and always returns 200 (possibly empty list) once DB is reachable.~~ **DEPRECATED by Revision 4 / D-016.** The api-server runtime is distroless (no shell, no `wget`, no `curl`); a container-level healthcheck calling `wget` can never succeed. The Makefile's host-side `curl http://localhost:8080/api/v1/projects` poll loop replaces it. `web depends_on api-server` flipped from `service_healthy` to `service_started`. See D-016.
 - **`web` has no healthcheck** — Next.js's HTTP server is ready as soon as it binds; Robot's `Wait For Elements State` handles UI-render readiness.
-- **`mcp-server` is NOT in the compose stack** by default. The e2e suites today use it via `mcp_keywords.resource` only for REQ001's MCP-specific scenarios; those run against the locally-started `mcp-server` from `startup.sh`. Adding `mcp-server` to compose is a follow-up if a REQ wants its e2e to exercise MCP through the live stack.
+- ~~**`mcp-server` is NOT in the compose stack** by default.~~ **DEPRECATED by Revision 4 / D-015.** mcp-server IS in compose (port `:8081` host-mapped). See D-015.
 - **Bind mounts vs build context:** D-012 chooses **build context** (no bind mount of source). Pros: reproducibility, single command. Cons: any source change requires `make e2e-down && make e2e-up` to rebuild. Acceptable for an e2e-after-tests workflow; dev-loop people use `startup.sh` (preserved unchanged for that use case).
 
 ### 6.3 `Makefile` — targets
 
-Exact target names as locked in po-ba D-006. The `e2e` target uses `set -e` + `trap` to guarantee teardown.
+Exact target names as locked in po-ba D-006. The `e2e` target uses `set -e` + `trap` to guarantee teardown. **The pseudocode block below shows the Revision 3 shape; the live Makefile diverges per D-017 and D-018 (auto-detect docker/podman; host-side curl loop instead of `--wait`). See those decisions and the live `/Makefile` for the actual implementation.**
 
 ```makefile
 # Makefile (repo root)
@@ -786,6 +794,36 @@ A code-review check at tech-lead's gate (US004 / US006 reviews) confirms that ha
 - **Decision:** **Accept.** US010 is added to REQ005 and absorbed into this architecture via §11 (full contract), §2 (file touch map), §9 (this decision), §12 (react-doctor skill enforcement note), §14 (R7, R8, OQ-5, OQ-6).
 - **Alternatives rejected:** Deferring to REQ006. Rejected because (a) REQ005 is pre-Phase-2 — adding a story now is free, while a separate REQ would re-litigate scope REQ005 already owns (e2e harness, FE hook harmonisation, gate fixes — US010 lives next to all of these); (b) fixing react-doctor findings before they accumulate compounding reviewer cost beats a separate cycle later; (c) US006 already touches `useDocument` — landing US010 in the same REQ keeps that file's churn coherent and well-ordered (see §11.4).
 - **Consequences:** REQ005 grows from 9 stories to 10. US010 is FE-only and depends on US006 (one-directional). The four React-Doctor error rules go to zero; the 15 lower-severity baseline findings stay recorded for tracking. The architect picks ref-attach over DOMPurify for `MermaidDiagram` (rationale in §11.1.1) — confirm at re-approval via OQ-5.
+
+#### D-015 — mcp-server IS in the compose stack (REVERSES Rev-3 §2 + §6.2 inline notes)
+- **Context:** Live US008 verification ran the existing REQ001-004 Robot suites against the new compose stack. 15 of 21 failures hit `:8080/message?sessionId=...` — the MCP SSE write endpoint. api-server is read-only (4 GET endpoints by §8 contract); every fixture-creation path in the existing Robot suites uses MCP tools. Excluding mcp-server made write-driven e2e impossible.
+- **Decision:** Add `mcp-server` to `docker-compose.yml` as a fourth service, host-mapped to `:8081` (container port `:8080`). Same image as api-server (the multi-stage Dockerfile builds both binaries); `command: ["./mcp-server"]` selects the entry. Environment: `DB_URL` (NOT `DATABASE_URL` — pre-existing env-name inconsistency between the two binaries, filed to tech_debt).
+- **Alternatives rejected:** (a) Add REST POST endpoints to api-server. Rejected — much larger API contract change, breaks the "MCP is the write API" architectural intent. (b) Seed test fixtures via SQL only and rewrite Robot suite-setups. Rejected — defeats the live e2e proof (you're not exercising the write code path). (c) Document the gap and defer to REQ006. Rejected — user explicitly said "i expect us008 to make all test pass".
+- **Consequences:** Compose has 4 services instead of 3. `:8081` is now an exposed host port. Robot suites' `${BASE_URL}` for MCP keywords parametrized via env override (`%{MCP_BASE_URL=http://localhost:8081}`). 23/23 e2e tests pass live.
+
+#### D-016 — api-server has NO container-level healthcheck; Makefile host-side curl loop is the readiness gate (REVERSES Rev-3 §6.2 healthcheck block)
+- **Context:** The Rev-3 healthcheck calls `wget -q -O- http://localhost:8080/api/v1/projects` inside the api-server container. But D-012 chose `gcr.io/distroless/static-debian12` as the runtime — distroless has no shell, no `wget`, no `curl`. The healthcheck can never resolve to PASS; web stays in `Created` state forever waiting on `service_healthy`.
+- **Decision:** Remove the api-server container `healthcheck:` block. Flip `web.depends_on.api-server.condition` from `service_healthy` to `service_started`. The Makefile's `e2e-up` target performs the real readiness check from the host via `curl -sf http://localhost:8080/api/v1/projects` in a 120-second polling loop, returning rc=1 on timeout.
+- **Alternatives rejected:** (a) Add `wget` to the distroless image. Rejected — breaks D-012's "minimal attack surface" rationale and is non-trivial in `gcr.io/distroless/static`. (b) Implement a self-healthcheck flag on api-server (`./api-server --healthcheck`). Rejected — adds complexity for a host-side problem; the curl loop is one Makefile line. (c) Swap runtime to alpine. Rejected — same D-012 conflict.
+- **Consequences:** Container-level health is invisible (only `Up` / `Exited`). All downstream readiness must use host-side polling. Same pattern applied to mcp-server's `:8081/sse` per D-015.
+
+#### D-017 — Makefile auto-detects `docker compose` vs `podman-compose` (REVERSES Rev-3 §6.3 `DOCKER_COMPOSE ?= docker compose`)
+- **Context:** Human deployment uses podman 5.8 + podman-compose 1.5.0 (not Docker). Hard-coding `docker compose` errors out on `command not found`. Architecture's "either tool, standard compose-spec only" §6.3 commitment requires detection.
+- **Decision:** `COMPOSE ?= $(shell command -v docker >/dev/null 2>&1 && echo "docker compose" || (command -v podman-compose >/dev/null 2>&1 && echo "podman-compose" || echo ""))` with a `_check-compose` recipe-time guard that errors if neither is present.
+- **Alternatives rejected:** (a) Force docker only — incompatible with mac-podman users. (b) Force podman only — incompatible with Linux-docker users. (c) Require the user to set `COMPOSE` manually — bad ergonomics.
+- **Consequences:** The `docker-compose.yml` must stay within the standard compose-spec (no `develop:`, no `extends:`, no `profiles:`-only features, no `secrets:`).
+
+#### D-018 — Drop `--wait` flag; replace with Makefile host-side curl poll loop (REVERSES Rev-3 §6.3 `up -d --wait`)
+- **Context:** `--wait` is docker-compose-v2-only. podman-compose 1.5.0 errors `unrecognized arguments: --wait`. Cross-tool portability per D-017 forces dropping the flag.
+- **Decision:** `e2e-up` runs `$(COMPOSE) up -d` (no `--wait`), then polls api-server, web, and mcp-server (in that order) via host-side `curl -sf` until all three respond. 60 retries × 2s sleep = 120s ceiling per service. Fail-fast with explicit error message on timeout.
+- **Alternatives rejected:** (a) Conditional flag — only pass `--wait` for docker. Rejected — leaks tool detection into recipe bodies. (b) Embed waiters in compose `command:` overrides. Rejected — adds container coupling.
+- **Consequences:** `e2e-up` is slower by ~6 seconds on a warm cache (poll-loop overhead) but works across both tools. The poll-loop targets are also a single source of truth for "what does ready mean" — see D-016.
+
+#### D-019 — `NEXT_PUBLIC_API_BASE_URL` is a Dockerfile build `ARG`, not a compose runtime `environment:` (REVERSES Rev-3 §6.2 environment block)
+- **Context:** Next.js compiles `NEXT_PUBLIC_*` env vars at `npm run build` time and bakes them into the client JS bundle. The compose `environment:` block runs at container start, AFTER the build is already baked. Setting `NEXT_PUBLIC_API_BASE_URL` at runtime has zero effect on client-side code — the bundle ships with `baseUrl = ''`, the dashboard calls `localhost:3000/api/v1/projects` (Next.js itself, not api-server), and the FE renders forever-loading.
+- **Decision:** `web/Dockerfile` declares `ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080` in the builder stage, sets `ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL` before `npm run build`. `docker-compose.yml web.build.args` passes the host-perspective URL `http://localhost:8080`.
+- **Alternatives rejected:** (a) Use runtime env via Next.js's `getServerSideProps` to expose a `/config` endpoint. Rejected — CSR-only invariant is non-negotiable (CLAUDE.md anti-pattern). (b) Force a different build per environment. Rejected — single image is simpler; the build arg defaults to e2e-stack URL.
+- **Consequences:** Changing the URL requires rebuilding the image (`podman rmi localhost/agents-board_web:latest && make e2e-up`). This is explicitly documented in `tests/e2e/README.md` runbook + the project root `README.md`. Also added a `web/.dockerignore` excluding test files (`**/*.test.{ts,tsx}`, `test/`, `__tests__/`, etc.) because Next.js's `npm run build` was pulling MSW's Node-only `async_hooks` import into the production bundle through `pages/index.test.tsx`.
 
 ---
 
@@ -1183,3 +1221,45 @@ US010-specific downstream implications the orchestrator should be aware of:
 - Approved by human at 2026-06-02T02:32:14Z.
 - OQ-5 (ref-attach over DOMPurify+suppression) and OQ-6 (bare URL on initial load) accepted as proposed.
 - Architecture is now LOCKED for Phase 2. Any downstream gap surfaces via `ARCHITECTURE_GAP_FOUND` → re-enters HARD STOP.
+
+### Revision 4 — 2026-06-03 — driver: live verification findings (REOPENED for re-approval)
+
+**Trigger.** US008's first live `make e2e` run after the original `approved` verdict surfaced FIVE real defects in the Rev-3 architecture that no static check could catch. Per the playbook this is a HARD STOP — frontmatter flipped back to `Approval: pending_approval`, human re-approval gates re-merge to `approved`. The downstream task US008 stays `Status: completed` because the implementation now matches reality; only the document needs catch-up.
+
+**Defects this revision addresses (all 5 are inline-corrected; live e2e proves 23/23 pass across 3 consecutive runs):**
+
+1. **mcp-server excluded from compose ≠ "existing per-REQ tests/e2e suites still run" (US008 AC).** §2 and §6.2 inline notes (now struck through) assumed UI e2e only needs `web + api-server`. They missed that api-server is read-only per §8 contract — every write-driven Robot suite-setup uses MCP. **→ D-015** adds mcp-server to compose on `:8081`.
+
+2. **`api-server` healthcheck calls `wget` but D-012 chose distroless runtime which has no shell/wget.** The healthcheck can never resolve to PASS. **→ D-016** removes the container-level healthcheck; Makefile host-side curl loop is the readiness gate.
+
+3. **`web depends_on: api-server: condition: service_healthy` blocks web start forever** (follows from #2). **→ D-016** flips to `service_started`.
+
+4. **`DOCKER_COMPOSE ?= docker compose`** is incompatible with the podman-based human deployment. **→ D-017** auto-detects docker vs podman-compose.
+
+5. **`up -d --wait`** is docker-compose-v2-only; podman-compose 1.5.0 errors on the flag. **→ D-018** replaces with host-side curl poll loop.
+
+6. **`NEXT_PUBLIC_API_BASE_URL` placed in compose `environment:` block** has zero effect on Next.js client-side code (Next.js bakes `NEXT_PUBLIC_*` at build time). **→ D-019** moves it to a Dockerfile build `ARG`. Bonus: added `web/.dockerignore` (test files were being pulled into the prod bundle).
+
+(Numbered 5 in summary above + 1 secondary fix = 5 new decisions D-015..D-019; web/.dockerignore is folded into D-019 as a sibling consequence.)
+
+**Section edits in this revision:**
+
+- §0 frontmatter: `approved` → `pending_approval`; added top-of-doc warning banner.
+- §2 file-level touch map: struck through the "mcp-server NOT needed" inline note, replaced with a DEPRECATED pointer at D-015.
+- §6.2 (compose YAML): struck through the api-server healthcheck note + the "mcp-server NOT in compose" note. Added DEPRECATED pointers at D-016 and D-015 respectively. Added in-block comment in the `web.build` section pointing at D-019.
+- §6.3 (Makefile YAML): added a "Rev-3 shape; live diverges per D-017/D-018" note above the code block.
+- §9: appended D-015 through D-019 (full Context / Decision / Alternatives / Consequences for each).
+- §15 (this section): added Revision 4 entry.
+
+**Sections untouched:** §1, §3, §4, §5, §7, §8, §11 (US010), §12, §13, §14, §10 OQ Q1/Q2/Q3 resolutions, D-001 through D-014. Tasks already approved/completed against those sections do NOT need rolling back.
+
+**Live verification evidence (paste-verbatim, 3 consecutive runs against podman-compose stack):**
+```
+RUN 1: pass=23, fail=0
+RUN 2: pass=23, fail=0
+RUN 3: pass=23, fail=0
+```
+
+**Open questions for human at re-approval:**
+- **OQ-7 (new):** Confirm `DB_URL` vs `DATABASE_URL` env-name inconsistency between mcp-server and api-server is acceptable for now (filed to tech_debt for REQ006 harmonisation), OR block US008 closure on harmonising it inline.
+- **OQ-8 (new):** Confirm the `web/Dockerfile` build-ARG default of `http://localhost:8080` is the right ergonomics, OR require a compose-driven build-arg always (no default).

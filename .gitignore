@@ -59,3 +59,6 @@ eval-workspace/iteration-*/runs/
 /output.xml
 /report.html
 /playwright-log.txt
+
+# e2e run artefacts — Robot output, logs, reports (US008)
+tests/e2e/results/

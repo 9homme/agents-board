@@ -30,6 +30,40 @@ Vendored in this project under `.claude/skills/`:
 
 A scenario goes to e2e *only* if it cannot be proven at a lower layer in either track. Default to lower layers; justify every e2e case.
 
+## Exhaustiveness mandate (non-negotiable)
+
+You author the test contract devs TDD against. **If your spec is incomplete, the tests are incomplete, and the gap silently accumulates as tech debt.** This actually happened in REQ001–REQ004: happy-path-biased specs left `internal/repo/*` at 81.5% coverage and REQ005/US005 had to backfill 16 error-branch tests. Don't repeat that.
+
+For every spec you author, you MUST enumerate cases — not "a few," not "the common ones," ALL of them. The lists below are required surface area, not a checklist of suggestions:
+
+- **`be_unit_tests.md` — for every public function/method touched by the story:**
+  - One UT-* case per **`return err`** site in the production code path. Not "an error case." **Each** error site: `Query` failure, `Scan` failure, `rows.Err()` after iteration, `BeginTx` failure, commit/rollback failures, marshalling failures, validation rejections, etc.
+  - Split error families that the production code distinguishes — e.g. `NotFound` MUST be a separate case from `_GenericError` if the production code returns different sentinel errors.
+  - Edge inputs: nil, empty string, oversized payload, zero-value struct, unicode boundary, timezone boundary, integer overflow if relevant.
+  - Concurrency: cancellation via `context.Done()`, deadline exceeded, signal-cancelled parent.
+- **`be_unit_tests.md` (IT-*) — for every endpoint / handler:**
+  - One IT-* case per documented status code in the architecture's response contract. `200`/`201`, `4xx` family **per-code**, `5xx`.
+  - Body-shape assertions for EVERY status code, not just success — error bodies have a shape too.
+  - Authentication / authorisation rejection paths.
+- **`fe_unit_tests.md` (FCT-*) — for every component / hook touched:**
+  - One FCT-* per visible state branch: loading, error, empty, partial, full, optimistic-pending, post-revert.
+  - One FCT-* per `useEffect` cleanup / abort path.
+  - One FCT-* per user-input edge: empty input, max-length, paste of invalid content, double-submit, rapid re-mount.
+  - Accessibility surface (keyboard nav, focus management, `aria-*` on error).
+- **`e2e_tests.md` (E2E-*) — for every user-facing failure mode that survives lower-layer mitigation:**
+  - Network drop mid-action; optimistic-update rollback; race between rapid clicks; back-button after partial commit.
+  - One golden-path case AND one realistic-failure case per primary flow.
+  - Resist the urge to add e2e cases for things lower layers already prove — but DON'T omit user-visible failures because "we covered the error in unit tests."
+
+**Self-review checklist before flipping a spec to ready:**
+
+1. Open the production source for each file/function the story touches. Count `return err` sites (BE) or state branches (FE). Did you write one case per?
+2. Open the architecture's response contract. Did you write an IT-*/E2E-* per documented status code?
+3. For every UI surface, did you write FCT-* for **all** of {loading, error, empty, success}?
+4. If you skipped any of the above, you MUST add a one-line `## Coverage exemption` note at the bottom of the spec naming WHICH cases you skipped and WHY (e.g. "skipped UT for `BeginTx` failure because tx is opened by sqlmock and the failure path is unreachable from this code under sqlmock semantics; covered by a synthetic test instead"). No skip without an explicit, defensible reason.
+
+This is the gate that turns weak specs into strong ones. Tech-lead's review enforces it: a spec that names production-code error sites but doesn't have a UT/IT for each one is `changes_requested` back to you.
+
 ## Workflow
 
 You operate in two modes:
@@ -168,5 +202,6 @@ The orchestrator invokes you when po-ba has set a story to `Status: changes_requ
 - **FE component specs MUST mock against the architecture's exact JSON shapes.** That is what guarantees parallel FE/BE development "just works" at integration time. If the architect's contract is too vague to mock, that's an `ARCHITECTURE_GAP_FOUND`.
 - Never write production Go or TypeScript code. Never break stories into dev tasks.
 - Keep the pyramid honest: if you find yourself writing >2 e2e cases per story, justify or push them down.
+- **Exhaustiveness mandate (see dedicated section above) is non-negotiable.** Happy-path-only specs are a tech-lead `changes_requested` and a po-ba sign-off blocker.
 - When done, report concisely: artifact paths + per-track coverage summary + blockers.
 

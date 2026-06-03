@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -157,6 +158,186 @@ func TestDocumentRepo_ListDocuments(t *testing.T) {
 	assert.Equal(t, id1, documents[0].ID)
 	assert.Equal(t, id2, documents[1].ID)
 
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-001 — CreateDocument generic DB error (D1)
+func TestDocumentRepo_CreateDocument_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`INSERT INTO documents`).
+		WillReturnError(errors.New("db down"))
+
+	created, err := repo.CreateDocument(context.Background(), &domain.Document{
+		ProjectID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:     "Test",
+		Content:   "Content",
+	})
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to create document")
+	assert.Nil(t, created)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-002 — GetDocument generic DB error (D2)
+func TestDocumentRepo_GetDocument_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE id`).
+		WillReturnError(errors.New("db down"))
+
+	d, err := repo.GetDocument(context.Background(), "any-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to get document")
+	assert.Nil(t, d)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-003 — UpdateDocument not found (D3)
+func TestDocumentRepo_UpdateDocument_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`UPDATE documents SET`).
+		WillReturnError(sql.ErrNoRows)
+
+	updated, err := repo.UpdateDocument(context.Background(), &domain.Document{
+		ID:      "any-id",
+		Title:   "T",
+		Content: "C",
+	})
+
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.Nil(t, updated)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-004 — UpdateDocument generic error (D4)
+func TestDocumentRepo_UpdateDocument_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`UPDATE documents SET`).
+		WillReturnError(errors.New("db down"))
+
+	updated, err := repo.UpdateDocument(context.Background(), &domain.Document{
+		ID:      "any-id",
+		Title:   "T",
+		Content: "C",
+	})
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to update document")
+	assert.Nil(t, updated)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-005 — DeleteDocument generic error (D5)
+func TestDocumentRepo_DeleteDocument_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	repo := NewDocumentRepo(db)
+
+	mock.ExpectExec(`DELETE FROM documents WHERE id`).
+		WillReturnError(errors.New("db down"))
+
+	err = repo.DeleteDocument(context.Background(), "any-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to delete document")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-006 — ListDocuments query error (D6)
+func TestDocumentRepo_ListDocuments_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewDocumentRepo(db)
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id`).
+		WillReturnError(errors.New("db down"))
+
+	docs, err := r.ListDocuments(context.Background(), "proj-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to list documents")
+	assert.Nil(t, docs)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-007 — ListDocuments scan error (D7)
+// A bool value is provided for the created_at (time.Time) column to trigger a
+// convertAssign type-mismatch error during rows.Scan.
+func TestDocumentRepo_ListDocuments_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewDocumentRepo(db)
+
+	rows := sqlmock.NewRows([]string{"id", "project_id", "title", "content", "created_at", "updated_at"}).
+		AddRow("doc-id", "proj-id", "Title", "Content", true, true) // bool → time.Time causes scan error
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id`).
+		WillReturnRows(rows)
+
+	docs, err := r.ListDocuments(context.Background(), "proj-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to scan document")
+	assert.Nil(t, docs)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-008 — ListDocuments rows.Err() error (D8)
+func TestDocumentRepo_ListDocuments_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewDocumentRepo(db)
+	now := time.Now()
+
+	rows := sqlmock.NewRows([]string{"id", "project_id", "title", "content", "created_at", "updated_at"}).
+		AddRow("doc-id", "proj-id", "Title", "Content", now, now).
+		RowError(0, errors.New("rows err"))
+
+	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE project_id`).
+		WillReturnRows(rows)
+
+	docs, err := r.ListDocuments(context.Background(), "proj-id")
+
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "error iterating")
+	assert.Nil(t, docs)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 

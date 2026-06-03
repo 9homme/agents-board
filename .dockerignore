@@ -1,0 +1,5 @@
+node_modules/
+.next/
+services/agent-board/bin/
+*.log
+tests/e2e/results/

@@ -1,6 +1,7 @@
 /**
  * Tests for web/hooks/useDocument.ts
  * Includes FCT-US002-007: race-cancellation via AbortController + stale-id ref
+ * Includes FCT-US010-005 through FCT-US010-009: reducer action behaviour
  */
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { http, HttpResponse, delay } from 'msw';
@@ -88,6 +89,165 @@ describe('useDocument', () => {
     });
 
     expect(callCount).toBe(2);
+  });
+
+  // ---------------------------------------------------------------------------
+  // FCT-US010-005 — Reducer: FETCH_STARTED clears prior state
+  // ---------------------------------------------------------------------------
+  describe('FCT-US010-005 — reducer: FETCH_STARTED clears state', () => {
+    it('shows data:null, isLoading:true, error:null when fetch starts', async () => {
+      server.use(
+        http.get('*/api/v1/documents/doc-001', async () => {
+          await delay(300);
+          return HttpResponse.json({
+            id: 'doc-001',
+            projectId: 'proj-001',
+            title: 'Architecture',
+            content: '# Arch',
+            createdAt: '2026-05-20T10:00:00Z',
+            updatedAt: '2026-05-20T10:00:00Z',
+          });
+        })
+      );
+
+      const { result } = renderHook(() => useDocument('doc-001'));
+
+      await waitFor(() => expect(result.current.isLoading).toBe(true));
+      expect(result.current.data).toBeNull();
+      expect(result.current.error).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FCT-US010-006 — Reducer: FETCH_SUCCEEDED commits document
+  // ---------------------------------------------------------------------------
+  describe('FCT-US010-006 — reducer: FETCH_SUCCEEDED commits document', () => {
+    it('shows data populated, isLoading:false, error:null after successful fetch', async () => {
+      server.use(
+        http.get('*/api/v1/documents/doc-001', () => {
+          return HttpResponse.json({
+            id: 'doc-001',
+            projectId: 'proj-001',
+            title: 'Architecture',
+            content: '# Arch',
+            createdAt: '2026-05-20T10:00:00Z',
+            updatedAt: '2026-05-20T10:00:00Z',
+          });
+        })
+      );
+
+      const { result } = renderHook(() => useDocument('doc-001'));
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.data?.id).toBe('doc-001');
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FCT-US010-007 — Reducer: FETCH_FAILED records error
+  // ---------------------------------------------------------------------------
+  describe('FCT-US010-007 — reducer: FETCH_FAILED records error', () => {
+    it('shows data:null, isLoading:false, error:non-null after failed fetch', async () => {
+      server.use(
+        http.get('*/api/v1/documents/doc-bad', () => {
+          return HttpResponse.json(
+            { code: 'INTERNAL_ERROR', message: 'Failed to fetch document' },
+            { status: 500 }
+          );
+        })
+      );
+
+      const { result } = renderHook(() => useDocument('doc-bad'));
+
+      await waitFor(() => expect(result.current.error).not.toBeNull());
+      expect(result.current.data).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).not.toBeNull();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FCT-US010-008 — Reducer: ABORTED is a no-op on state
+  // ---------------------------------------------------------------------------
+  describe('FCT-US010-008 — reducer: ABORTED is a no-op on state', () => {
+    it('no console errors and no state-update-after-unmount warning when aborted', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      server.use(
+        http.get('*/api/v1/documents/doc-abort', async () => {
+          await delay(200);
+          return HttpResponse.json({
+            id: 'doc-abort',
+            projectId: 'proj-001',
+            title: 'Abort test',
+            content: '',
+            createdAt: '2026-05-20T10:00:00Z',
+            updatedAt: '2026-05-20T10:00:00Z',
+          });
+        })
+      );
+
+      const { result, unmount } = renderHook(() => useDocument('doc-abort'));
+
+      // Wait for loading to start
+      await waitFor(() => expect(result.current.isLoading).toBe(true));
+
+      // Unmount triggers abort
+      unmount();
+
+      // Wait longer than the delay to allow the (now-aborted) catch path to run
+      await new Promise((r) => setTimeout(r, 300));
+
+      // No "Cannot update a React state variable on an unmounted component" error
+      expect(consoleSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('unmounted')
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FCT-US010-009 — Public return shape unchanged
+  // ---------------------------------------------------------------------------
+  describe('FCT-US010-009 — public return shape unchanged', () => {
+    it('returns exactly { data, isLoading, error, refetch } with correct types', async () => {
+      server.use(
+        http.get('*/api/v1/documents/doc-001', () => {
+          return HttpResponse.json({
+            id: 'doc-001',
+            projectId: 'proj-001',
+            title: 'Architecture',
+            content: '# Arch',
+            createdAt: '2026-05-20T10:00:00Z',
+            updatedAt: '2026-05-20T10:00:00Z',
+          });
+        })
+      );
+
+      const { result } = renderHook(() => useDocument('doc-001'));
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      // All four keys present
+      expect(result.current).toHaveProperty('data');
+      expect(result.current).toHaveProperty('isLoading');
+      expect(result.current).toHaveProperty('error');
+      expect(result.current).toHaveProperty('refetch');
+
+      // refetch is a function
+      expect(typeof result.current.refetch).toBe('function');
+
+      // data is the Document type
+      expect(result.current.data?.id).toBe('doc-001');
+
+      // No extra keys
+      const keys = Object.keys(result.current);
+      expect(keys).toHaveLength(4);
+      expect(keys.sort()).toEqual(['data', 'error', 'isLoading', 'refetch'].sort());
+    });
   });
 
   // FCT-US002-007 — Rapid click: abort prior controller before new request; only latest doc shown

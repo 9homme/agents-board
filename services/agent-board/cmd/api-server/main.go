@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"agent-board/internal/handler"
 	"agent-board/internal/repo"
@@ -49,8 +53,16 @@ func run() error {
 	}
 	defer func() { _ = db.Close() }()
 
-	if err := db.PingContext(context.Background()); err != nil {
-		return err
+	// Signal-cancellable lifecycle context (D-008): SIGINT + SIGTERM cancel the boot-time ping.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Bounded DB ping: 5-second timeout derived from lifecycle context (D-013).
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := pingDB(pingCtx, db); err != nil {
+		return fmt.Errorf("db ping failed: %w", err)
 	}
 
 	projectRepo := repo.NewProjectRepo(db)
@@ -79,4 +91,11 @@ func run() error {
 	// G706: safePort has all control chars (< 0x20 and DEL) stripped above; log injection is not possible.
 	log.Printf("Starting api-server on port %s", safePort) //nolint:gosec
 	return e.Start(":" + port)
+}
+
+// pingDB calls db.PingContext with the provided context.
+// The caller is responsible for constructing a context with an appropriate
+// deadline and/or signal cancellation before calling this function.
+func pingDB(ctx context.Context, db *sql.DB) error {
+	return db.PingContext(ctx)
 }

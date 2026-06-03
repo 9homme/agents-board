@@ -2,7 +2,7 @@
  * Tests for web/hooks/useProjectDocuments.ts
  */
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, delay } from 'msw';
 import { server } from '../test/msw/server';
 import { useProjectDocuments } from './useProjectDocuments';
 import { ApiError } from '../lib/api/client';
@@ -89,5 +89,101 @@ describe('useProjectDocuments', () => {
 
     expect(result.current.error).toBeInstanceOf(ApiError);
     expect((result.current.error as ApiError).code).toBe('NOT_FOUND');
+  });
+
+  // FCT-US006-006 — useProjectDocuments uses AbortController; cleanup calls controller.abort()
+  describe('FCT-US006-006 — useProjectDocuments AbortController cleanup on unmount', () => {
+    it('calls controller.abort() when the hook unmounts mid-flight', async () => {
+      const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
+
+      server.use(
+        http.get('*/api/v1/projects/proj-docs-abort/documents', async () => {
+          await delay('infinite');
+          return HttpResponse.json({ documents: [] });
+        })
+      );
+
+      const { result, unmount } = renderHook(() => useProjectDocuments('proj-docs-abort'));
+
+      expect(result.current.isLoading).toBe(true);
+
+      abortSpy.mockClear();
+
+      // Unmount — cleanup should call controller.abort()
+      unmount();
+
+      expect(abortSpy).toHaveBeenCalled();
+      abortSpy.mockRestore();
+    });
+  });
+
+  // FCT-US006-007 — useProjectDocuments aborts prior request on rapid projectId change
+  describe('FCT-US006-007 — useProjectDocuments aborts prior fetch on rapid projectId change', () => {
+    it('switching projectId aborts prior fetch and only latest projectId ends in state', async () => {
+      const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
+
+      server.use(
+        http.get('*/api/v1/projects/proj-slow-docs/documents', async () => {
+          await delay('infinite');
+          return HttpResponse.json({ documents: [] });
+        })
+      );
+
+      let projectId = 'proj-slow-docs';
+      const { result, rerender } = renderHook(() => useProjectDocuments(projectId));
+
+      expect(result.current.isLoading).toBe(true);
+      abortSpy.mockClear();
+
+      // Switch to p1 before proj-slow-docs resolves
+      act(() => {
+        projectId = 'p1';
+        rerender();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Only p1 data should be in state
+      expect(result.current.data?.documents).toHaveLength(2);
+
+      // abort() must have been called for the prior in-flight request
+      expect(abortSpy).toHaveBeenCalled();
+
+      abortSpy.mockRestore();
+    });
+  });
+
+  // FCT-US006-010 — useProjectDocuments does NOT surface AbortError as error state
+  describe('FCT-US006-010 — useProjectDocuments does not surface AbortError as error state', () => {
+    it('does not set error state when the in-flight request is aborted by projectId change', async () => {
+      server.use(
+        http.get('*/api/v1/projects/proj-docs-will-abort/documents', async () => {
+          await delay('infinite');
+          return HttpResponse.json({ documents: [] });
+        })
+      );
+
+      let projectId: string | undefined = 'proj-docs-will-abort';
+      const { result, rerender } = renderHook(() => useProjectDocuments(projectId));
+
+      expect(result.current.isLoading).toBe(true);
+
+      // Switch projectId — this aborts the in-flight request
+      act(() => {
+        projectId = 'p1';
+        rerender();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Error must NOT be set (AbortError is control flow, not a user-visible error)
+      expect(result.current.error).toBeNull();
+      // Data is from the new p1 request
+      expect(result.current.data?.documents).toHaveLength(2);
+    });
   });
 });

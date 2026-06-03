@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agent_board
+      POSTGRES_USER: agent_board
+      POSTGRES_PASSWORD: agent_board
+    ports:
+      - "127.0.0.1:15432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "agent_board", "-d", "agent_board"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  api-server:
+    build:
+      context: ./services/agent-board
+      dockerfile: Dockerfile
+    command: ["./api-server"]
+    environment:
+      DATABASE_URL: postgres://agent_board:agent_board@postgres:5432/agent_board?sslmode=disable
+      PORT: "8080"
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # NOTE: api-server runtime is distroless (no shell, no wget/curl). Container-level
+    # healthcheck removed — the Makefile's `e2e-up` performs the real host-side
+    # `curl http://localhost:8080/api/v1/projects` poll loop before declaring ready.
+
+  # mcp-server included for live e2e — REQ001-004 Robot suites drive the MCP
+  # SSE/message protocol. Architecture decision D-010 (mcp-server excluded
+  # from compose) was reversed during US008 live verification: the AC
+  # "Scenario: existing per-REQ tests/e2e suites still run" required it.
+  mcp-server:
+    build:
+      context: ./services/agent-board
+      dockerfile: Dockerfile
+    command: ["./mcp-server"]
+    environment:
+      # mcp-server reads DB_URL (not DATABASE_URL — pre-existing inconsistency
+      # between the two binaries, filed to tech-debt for harmonisation).
+      DB_URL: postgres://agent_board:agent_board@postgres:5432/agent_board?sslmode=disable
+      PORT: "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* must be passed at build time — Next.js bakes it into
+        # the JS bundle, the runtime env var has no effect for client-side code.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+    environment:
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api-server:
+        condition: service_started
+
+volumes:
+  postgres-data:

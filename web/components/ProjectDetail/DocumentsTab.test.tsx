@@ -1,11 +1,14 @@
 /**
  * Tests for DocumentsTab component
  * FCT-US002-002: Empty state
- * FCT-US002-003: Auto-selects first document when ?doc= absent
+ * FCT-US002-003: Auto-selects first document when ?doc= absent (relaxed per US010/R8 — no router.replace on mount)
  * FCT-US002-006: Deep-link to bogus ?doc= shows "Document not found"; sidebar usable
  * FCT-US002-012: List loading state shows skeleton
  * FCT-US002-013: List error shows sidebar error + Retry; previewer neutral
  * FCT-US002-014: List Retry re-issues the list fetch
+ * FCT-US010-010: First document selected at render time; router.replace NOT called on mount
+ * FCT-US010-011: User click writes URL via router.replace
+ * FCT-US010-012: Bogus deep-link yields selectedDocId=undefined; previewer not-found
  */
 import React from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
@@ -56,30 +59,32 @@ describe('FCT-US002-002 — DocumentsTab: empty state', () => {
 });
 
 // FCT-US002-003 — Auto-selects first document when ?doc= absent
-describe('FCT-US002-003 — DocumentsTab: auto-selects first document', () => {
-  it('calls router.replace with first doc id when doc param is absent', async () => {
+// RELAXED per US010/R8: router.replace is no longer called on initial mount.
+// The first document is selected at render time without URL update.
+// See architecture §11.3.3 and OQ-6 (bare URL on initial load is acceptable).
+describe('FCT-US002-003 — DocumentsTab: auto-selects first document (relaxed per US010/R8)', () => {
+  it('does NOT call router.replace on initial mount when doc param is absent (US010/R8 relaxation)', async () => {
     mockDocQueryParam = undefined;
 
     render(<DocumentsTab projectId="p1" />);
 
-    await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith(
-        expect.objectContaining({
-          query: expect.objectContaining({ doc: 'd111aaaa-1111-1111-1111-111111111111' }),
-        }),
-        undefined,
-        { shallow: true }
-      );
-    });
+    // Wait for the list to settle (sidebar options visible)
+    await screen.findByRole('option', { name: /Architecture overview/i });
+
+    // After US010: router.replace is NOT called on mount
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('first sidebar item gets aria-selected=true after auto-selection triggers', async () => {
-    // Simulate that after auto-selection the router returns doc param
-    mockDocQueryParam = 'd111aaaa-1111-1111-1111-111111111111';
+  it('first sidebar item gets aria-selected=true via render-time selection (no router needed)', async () => {
+    // Simulate that the first doc is selected at render-time (docParam absent, render-time fallback picks documents[0].id)
+    mockDocQueryParam = undefined;
 
     render(<DocumentsTab projectId="p1" />);
 
+    // The first document item should be visible
     const firstOption = await screen.findByRole('option', { name: /Architecture overview/i });
+    // With render-time selection, the first item is selected without needing the URL to have ?doc=
+    // The component passes selectedId=documents[0].id → sidebar sets aria-selected=true
     expect(firstOption).toHaveAttribute('aria-selected', 'true');
   });
 });
@@ -218,5 +223,79 @@ describe('FCT-US002-014 — DocumentsTab: list Retry re-issues fetch', () => {
     await screen.findByRole('option', { name: /Architecture overview/i });
 
     expect(callCount).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FCT-US010-010 — DocumentsTab: first document selected at render time;
+// router.replace NOT called on initial mount
+// ---------------------------------------------------------------------------
+describe('FCT-US010-010 — DocumentsTab: render-time selection without router.replace on mount', () => {
+  it('selects first document at render time and does NOT call router.replace on initial mount', async () => {
+    mockDocQueryParam = undefined;
+
+    render(<DocumentsTab projectId="p1" />);
+
+    // Wait for the sidebar to render with document options
+    const firstOption = await screen.findByRole('option', { name: /Architecture overview/i });
+
+    // First document is selected at render time (selectedId=documents[0].id)
+    expect(firstOption).toHaveAttribute('aria-selected', 'true');
+
+    // router.replace must NOT have been called at all (no auto-select URL write)
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FCT-US010-011 — DocumentsTab: user click on sidebar item calls router.replace
+// ---------------------------------------------------------------------------
+describe('FCT-US010-011 — DocumentsTab: user click writes URL via router.replace', () => {
+  it('clicking second sidebar item calls router.replace with doc=<second-id>', async () => {
+    mockDocQueryParam = undefined;
+
+    render(<DocumentsTab projectId="p1" />);
+
+    // Wait for both options to appear
+    await screen.findByRole('option', { name: /Architecture overview/i });
+    const secondOption = screen.getByRole('option', { name: /Onboarding guide/i });
+
+    // Click the second item
+    await userEvent.click(secondOption);
+
+    // router.replace must have been called exactly once with the second doc id
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({ doc: 'd222bbbb-2222-2222-2222-222222222222' }),
+      }),
+      undefined,
+      { shallow: true }
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FCT-US010-012 — DocumentsTab: bogus deep-link yields selectedDocId=undefined
+// ---------------------------------------------------------------------------
+describe('FCT-US010-012 — DocumentsTab: bogus deep-link yields undefined selectedDocId', () => {
+  it('shows Document not found when doc param is not in the list; no router.replace', async () => {
+    mockDocQueryParam = 'doc-nonexistent';
+
+    render(<DocumentsTab projectId="p1" />);
+
+    // The previewer should show not-found state
+    expect(await screen.findByText(/Document not found/i)).toBeInTheDocument();
+
+    // No sidebar item should be selected (selectedId is undefined)
+    await waitFor(() => {
+      const options = screen.getAllByRole('option');
+      options.forEach((opt) => {
+        expect(opt).toHaveAttribute('aria-selected', 'false');
+      });
+    });
+
+    // router.replace must NOT be called (no auto-redirect)
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

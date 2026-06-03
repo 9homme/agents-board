@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.git/
+*.log
+
+# Tests must not enter the production bundle — they import jest/MSW/async_hooks
+# which Next.js cannot resolve in `next build`.
+**/*.test.ts
+**/*.test.tsx
+test/
+__tests__/
+jest.config.*
+jest.setup.*
+coverage/

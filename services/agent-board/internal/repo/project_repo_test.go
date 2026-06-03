@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -149,5 +150,162 @@ func TestProjectRepo_ListProjects(t *testing.T) {
 	assert.Equal(t, id1, projects[0].ID)
 	assert.Equal(t, id2, projects[1].ID)
 
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-009: CreateProject generic DB error (P1)
+func TestProjectRepo_CreateProject_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectQuery(`^INSERT INTO projects`).
+		WillReturnError(errors.New("db down"))
+
+	created, err := r.CreateProject(context.Background(), &domain.Project{Name: "x", Description: "y"})
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to create project")
+	assert.Nil(t, created)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-010: GetProject generic DB error (P2)
+func TestProjectRepo_GetProject_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects WHERE id`).
+		WillReturnError(errors.New("db down"))
+
+	p, err := r.GetProject(context.Background(), "any-id")
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to get project")
+	assert.Nil(t, p)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-011: UpdateProject not found (ErrNoRows) (P3)
+func TestProjectRepo_UpdateProject_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectQuery(`^UPDATE projects SET`).
+		WillReturnError(sql.ErrNoRows)
+
+	p, err := r.UpdateProject(context.Background(), &domain.Project{ID: "any-id", Name: "x", Description: "y"})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.Nil(t, p)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-012: UpdateProject generic DB error (P4)
+func TestProjectRepo_UpdateProject_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectQuery(`^UPDATE projects SET`).
+		WillReturnError(errors.New("db down"))
+
+	p, err := r.UpdateProject(context.Background(), &domain.Project{ID: "any-id", Name: "x", Description: "y"})
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to update project")
+	assert.Nil(t, p)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-013: DeleteProject generic DB error (P5)
+func TestProjectRepo_DeleteProject_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectExec(`^DELETE FROM projects WHERE id`).
+		WillReturnError(errors.New("db down"))
+
+	err = r.DeleteProject(context.Background(), "any-id")
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to delete project")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-014: ListProjects query error (P6)
+func TestProjectRepo_ListProjects_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+		WillReturnError(errors.New("db down"))
+
+	projects, err := r.ListProjects(context.Background())
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to list projects")
+	assert.Nil(t, projects)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-015: ListProjects scan error (P7)
+func TestProjectRepo_ListProjects_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	// type-mismatch: id column expects a UUID string but receives an integer, causing Scan to fail
+	rows := sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
+		AddRow(42, "P1", "D1", "not-a-time", "not-a-time")
+	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+		WillReturnRows(rows)
+
+	got, err := r.ListProjects(context.Background())
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "failed to scan project")
+	assert.Nil(t, got)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-US005-016: ListProjects rows error (P8)
+func TestProjectRepo_ListProjects_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+	now := time.Now()
+
+	rows := sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
+		AddRow("123e4567-e89b-12d3-a456-426614174000", "P1", "D1", now, now).
+		RowError(0, errors.New("rows err"))
+	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+		WillReturnRows(rows)
+
+	result, err := r.ListProjects(context.Background())
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.Contains(t, err.Error(), "error iterating")
+	assert.Nil(t, result)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

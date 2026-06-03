@@ -1,6 +1,6 @@
 # REQ005 — Quality Hardening Retrospective
 
-**Status:** intake_complete (awaiting architecture)
+**Status:** intake_complete (awaiting architecture revision for US010 inclusion)
 **Source:** REQ004 retrospective + `docs/requirements/REQ004_project_detail_page/REQ004_quality_audit.md` (2026-05-30, commit `9a77ed0`)
 **Audience:** internal — developers, reviewers, orchestrator. **No end-user-facing UI changes.**
 
@@ -30,6 +30,7 @@ Three groups, nine stories:
 | US005 | Backfill 14 repo error-branch tests in `internal/repo` (per audit §4.4) | BE (tests) |
 | US006 | Harmonise `useProject`, `useProjectDocuments`, `useDocument` on AbortController + signal-threaded `lib/api/` | FE |
 | US007 | Move `@testing-library/dom` from `dependencies` to `devDependencies` in `web/package.json` | FE (package hygiene) |
+| US010 | Fix React-Doctor baseline regressions (top-3 state/effect + 1 security) | FE |
 
 ### Group C — workflow / harness
 
@@ -51,6 +52,21 @@ The retrospective listed several options. po-ba locked the following defaults to
 - **D-005 (US006 scope).** All three FE hooks (`useProject`, `useProjectDocuments`, `useDocument`) must use the AbortController + signal-thread pattern that `useDocument` already exemplifies. `fetchProject` in `web/lib/api/projects.ts` MUST accept a `signal?: AbortSignal` parameter (parity with `fetchDocument` / `fetchProjectDocuments`). No new shared `useFetch<T>` extraction in this story — that's a refactor with its own risk surface. **Rationale:** the audit names the pattern; copy it three times consistently rather than invent a new abstraction in the same story.
 - **D-006 (US008 stack-up shape).** Deliverable is `docker-compose.yml` at repo root + a `Makefile` with `e2e-up`, `e2e-down`, `e2e-seed`, `e2e-run` (one Robot invocation), `e2e` (compose of the above), `e2e-logs` targets + a runbook section appended to `tests/e2e/README.md` (or created if missing). Seeded Postgres uses SQL fixtures under `tests/e2e/data/seeds/` (one `*.sql` per REQ that needs distinct seed data). **Rationale:** docker-compose is the lowest-friction reproducible env; Makefile gives both humans and the orchestrator a stable command surface to invoke; SQL fixtures keep seed data version-controlled and reviewable alongside the e2e specs.
 - **D-007 (US009 strategy).** Story has TWO acceptance paths: (a) **preferred** — harness change so sub-agent worktrees branch off local `main` HEAD; (b) **fallback** — formalise the "edit canonical paths under `/Users/.../agents-board/docs/requirements/`" workaround in `.claude/agents/{po-ba,system-architect,tech-lead,tester,be-dev,fe-dev}.md`. Either path satisfies the AC. **Rationale:** the architect / tech-lead is in a better position to know whether the harness layer is touchable from this repo; if not, the agent-definition documentation path closes the orchestrator's recurring `git checkout --theirs` pain.
+- **D-008 (US010 inclusion).** React-doctor baseline regressions from REQ004 are folded into REQ005 as US010 — top-3 state/effect + 1 security finding only. Remaining 15 lower-severity findings stay as the recorded baseline. Rationale: tech-lead ran a one-off scan, REQ005 is still pre-Phase-2 so scope is cheap, and a separate REQ would re-litigate scope REQ005 already owns.
+
+### Phase 3 live-verification additions (2026-06-03) — D-009 onwards
+
+Added during US008 live exercise after the first `approved` verdict surfaced 5 architectural defects. See `architecture.md` §9 D-015..D-019 for full context / alternatives / consequences. Architecture flipped back to `pending_approval` pending re-approval as part of this change.
+
+- **D-009 (mcp-server INCLUDED in compose, REVERSES Rev-3 architecture inline note).** mcp-server IS in the compose stack on host port `:8081`. Rationale: api-server is read-only (4 GET endpoints by §8); every Robot suite-setup that creates fixtures uses MCP tools — without mcp-server in compose, 15 of 21 pre-existing e2e tests fail with `404`. Same image as api-server (`command: ["./mcp-server"]` selects entry). Env var `DB_URL` (NOT `DATABASE_URL` — pre-existing inconsistency, filed to tech_debt).
+- **D-010 (Distroless runtime + container-level healthcheck were incompatible).** api-server container healthcheck removed (distroless has no shell/wget). Makefile host-side `curl http://localhost:8080/api/v1/projects` poll loop replaces it. `web depends_on api-server` flipped to `service_started`. Same pattern applied to mcp-server's `:8081/sse`.
+- **D-011 (Compose tool auto-detection for podman compat).** Makefile detects `docker compose` vs `podman-compose` and selects whichever is installed. Human-confirmed requirement after installing `brew install podman-compose`. `docker-compose.yml` constrained to standard compose-spec (no docker-specific extensions).
+- **D-012 (`up -d --wait` dropped).** Replaced with Makefile host-side curl poll loop (60 × 2s = 120s ceiling per service) because podman-compose 1.5.0 errors `unrecognized arguments: --wait`.
+- **D-013 (`NEXT_PUBLIC_API_BASE_URL` as Dockerfile build ARG, not compose `environment:`).** Next.js bakes `NEXT_PUBLIC_*` at `npm run build` time, not at container start; the original `environment:` placement had zero effect on client JS. Sibling fix: `web/.dockerignore` excludes test files from production bundle (pages/index.test.tsx was pulling MSW's Node-only `async_hooks` into the build).
+
+### Phase 3 process mandates (2026-06-03) — D-014
+
+- **D-014 (Live e2e mandate + 3-clean-run flake check).** Per human direction, `.claude/agents/{be-dev,fe-dev}.md` and `.gemini/` mirrors gained a mandatory step 8a: dev cannot flip a task to `in_review` without running `make e2e-run` and pasting the `N tests, N passed, 0 failed` summary into `## Notes`. `.claude/agents/tech-lead.md` and Gemini mirror gained a review-checklist item: tech-lead runs `make e2e-run` THREE consecutive times; ANY flake is `changes_requested`; all three summary lines must be pasted verbatim into the `### Review pass N` log entry. This structurally closes the "dry-run substitution" gap REQ005 was scoped to fix.
 
 ## Open questions (for the architect / orchestrator to consider)
 
@@ -69,3 +85,33 @@ The retrospective listed several options. po-ba locked the following defaults to
 
 - Full audit: `/Users/a667282/workspace/agents-board/docs/requirements/REQ004_project_detail_page/REQ004_quality_audit.md`
 - Specifically: §3.2 (gate defects), §3.3 (minimum patches), §4.3 (eventual debt list), §4.4 (the 14-test repo backfill shopping list).
+
+## Phase 2 task table
+
+Authored 2026-06-02 by tech-lead from approved architecture (Rev 3). Sort: US ID ascending, BE-first within a story.
+
+| Story | Task file | Track | Service | Blocked by |
+|---|---|---|---|---|
+| US001 | `US001_be_fix_printf_double_dash.md` | BE | services/agent-board | none |
+| US002 | `US002_fe_force_exit_jest_in_gate.md` | FE | — | none |
+| US003 | `US003_be_softwarn_missing_gosec_govulncheck.md` | BE | services/agent-board | none |
+| US004 | `US004_be_api_server_lifecycle_context.md` | BE | services/agent-board | none |
+| US004 | `US004_be_mcp_server_lifecycle_context.md` | BE | services/agent-board | none |
+| US005 | `US005_be_document_repo_error_tests.md` | BE | services/agent-board | none |
+| US005 | `US005_be_project_repo_error_tests.md` | BE | services/agent-board | none |
+| US006 | `US006_fe_harmonise_hooks_on_abortcontroller.md` | FE | — | none |
+| US007 | `US007_fe_move_testing_library_dom_to_devdeps.md` | FE | — | none |
+| US008 | `US008_be_live_e2e_stack_up.md` | BE | services/agent-board | none |
+| US009 | `US009_be_canonical_path_policy_in_agent_defs.md` | BE | (meta — agent definitions) | none |
+| US010 | `US010_fe_mermaid_diagram_ref_attach.md` | FE | — | `US006_fe_harmonise_hooks_on_abortcontroller.md` |
+| US010 | `US010_fe_use_document_reducer_and_documents_tab.md` | FE | — | `US006_fe_harmonise_hooks_on_abortcontroller.md` |
+
+**Totals:** 13 tasks (9 BE, 4 FE). Per-story: US001×1, US002×1, US003×1, US004×2, US005×2, US006×1, US007×1, US008×1, US009×1, US010×2.
+
+**Dependency graph (small):**
+- `US010_fe_mermaid_diagram_ref_attach.md` ⇐ `US006_fe_harmonise_hooks_on_abortcontroller.md`
+- `US010_fe_use_document_reducer_and_documents_tab.md` ⇐ `US006_fe_harmonise_hooks_on_abortcontroller.md`
+- All other tasks have `Blocked by: none` and can be picked at any time their track has capacity.
+
+**File-overlap warning for the orchestrator's 3a tick:**
+- `scripts/review/run-gate.sh` is touched by US001, US002, US003 (no `Blocked by:` links between them, but co-picking will produce a merge conflict at worktree-integration time and the loser will be re-queued). The orchestrator should serialise these three at queue-build time even though the task files declare no dependency.

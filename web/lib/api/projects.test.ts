@@ -64,4 +64,35 @@ describe('projects API client', () => {
       expect(project).toBeDefined();
     });
   });
+
+  // FCT-US006-001 — fetchProject accepts optional signal?: AbortSignal (uniform lib/api surface)
+  describe('FCT-US006-001 — fetchProject signal parameter', () => {
+    it('fetchProject accepts an AbortSignal without error when not aborted', async () => {
+      const controller = new AbortController();
+      // Should resolve normally when signal is not aborted
+      const project = await fetchProject('proj-001', controller.signal);
+      expect(project.id).toBe('proj-001');
+    });
+
+    it('fetchProject rejects when the AbortSignal is aborted before fetch', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      await expect(fetchProject('proj-001', controller.signal)).rejects.toThrow();
+    });
+  });
+
+  // FCT-US006-002 — fetchProjects accepts optional signal?: AbortSignal (uniform lib/api surface)
+  describe('FCT-US006-002 — fetchProjects signal parameter', () => {
+    it('fetchProjects accepts an AbortSignal without error when not aborted', async () => {
+      const controller = new AbortController();
+      const data = await fetchProjects(controller.signal);
+      expect(data.projects).toHaveLength(1);
+    });
+
+    it('fetchProjects rejects when the AbortSignal is aborted before fetch', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      await expect(fetchProjects(controller.signal)).rejects.toThrow();
+    });
+  });
 });

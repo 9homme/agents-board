@@ -49,6 +49,7 @@ COMPOSE_FILE="$REPO_ROOT/docker-compose.yml"
 DOCKERIGNORE="$REPO_ROOT/.dockerignore"
 GITIGNORE="$REPO_ROOT/.gitignore"
 SEED_FILE="$REPO_ROOT/tests/e2e/data/seeds/REQ000_baseline.sql"
+SEEDS_DIR="$REPO_ROOT/tests/e2e/data/seeds"
 MIGRATIONS_DIR="$REPO_ROOT/services/agent-board/migrations"
 BE_DOCKERFILE="$REPO_ROOT/services/agent-board/Dockerfile"
 WEB_DOCKERFILE="$REPO_ROOT/web/Dockerfile"
@@ -92,13 +93,15 @@ if [ ! -f "$MAKEFILE" ]; then
   fail_test "IT-US008-003" "Makefile does not exist at $MAKEFILE"
 else
   DRY_RUN_SEED=$(make -C "$REPO_ROOT" -n e2e-seed 2>&1) || true
-  # Must reference psql AND migration directory somewhere in the shell expansion
-  if echo "$DRY_RUN_SEED" | grep -qE 'psql' && \
-     echo "$DRY_RUN_SEED" | grep -qE '(migrations|\.up\.sql)'; then
-    pass_test "IT-US008-003"
-  else
-    fail_test "IT-US008-003" "Expected psql + migration .up.sql references in dry-run. Got: $DRY_RUN_SEED"
+  # Must reference psql AND migration directory (and seeds dir if .sql files exist there)
+  IT_003_FAIL=0
+  echo "$DRY_RUN_SEED" | grep -qE 'psql' || { fail_test "IT-US008-003" "psql not found in dry-run. Got: $DRY_RUN_SEED"; IT_003_FAIL=1; }
+  echo "$DRY_RUN_SEED" | grep -qE '(migrations|\.up\.sql)' || { fail_test "IT-US008-003" "migration path not found in dry-run. Got: $DRY_RUN_SEED"; IT_003_FAIL=1; }
+  # If seeds dir exists and has .sql files, it must also appear in the output
+  if [ -d "$SEEDS_DIR" ] && find "$SEEDS_DIR" -name '*.sql' -maxdepth 1 | grep -q .; then
+    echo "$DRY_RUN_SEED" | grep -qE '(seeds|\.sql)' || { fail_test "IT-US008-003" "seed dir not found in dry-run even though seeds exist. Got: $DRY_RUN_SEED"; IT_003_FAIL=1; }
   fi
+  [ "$IT_003_FAIL" -eq 0 ] && pass_test "IT-US008-003"
 fi
 
 # ---------------------------------------------------------------------------

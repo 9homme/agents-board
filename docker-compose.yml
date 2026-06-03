@@ -29,11 +29,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/api/v1/projects"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
+    # NOTE: api-server runtime is distroless (no shell, no wget/curl). Container-level
+    # healthcheck removed — the Makefile's `e2e-up` performs the real host-side
+    # `curl http://localhost:8080/api/v1/projects` poll loop before declaring ready.
 
   web:
     build:
@@ -46,7 +44,7 @@ services:
       - "127.0.0.1:3000:3000"
     depends_on:
       api-server:
-        condition: service_healthy
+        condition: service_started
 
 volumes:
   postgres-data:

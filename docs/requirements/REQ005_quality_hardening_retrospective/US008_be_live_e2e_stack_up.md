@@ -122,4 +122,17 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 - Live e2e capture (Robot smoke `US008_stack_smoke.robot`) deferred per task hand-off — requires `make e2e-up && make e2e-seed` against actual Docker/podman runtime. Phase 3c will capture if the user runs the live stack; otherwise filed below as tech-debt for the next live exercise.
 - Tech-debt filed: live Robot smoke not yet executed end-to-end; will surface seed-data / assertion drift on first real run across REQ001–REQ005.
 
+### Live verification — 2026-06-03 — orchestrator + human (podman-compose path)
+
+After the inline `approved` was issued, the human flagged "have you actually run docker compose up and test e2e against this env?" — the honest answer was no. Inline review had only run static checks (`make -n`, IT-US008-* shell harness). Live exercise was performed and surfaced FOUR real US008 defects that the static checks missed:
+
+1. **Makefile `--wait` flag is docker-compose-v2-only** — `podman-compose` v1.5.0 errors on unrecognized arg. Fixed inline: replaced `$(COMPOSE) up -d --wait` with `$(COMPOSE) up -d` plus a host-side `curl` poll loop on `:8080` and `:3000`. Resolves the "podman compatibility" architecture commitment.
+2. **`web/Dockerfile` `next build` pulled in test files** — `pages/index.test.tsx` imports `test/msw/server.ts` which uses Node-only `async_hooks`; webpack fails to resolve. No `web/.dockerignore` existed. Fixed inline: created `web/.dockerignore` excluding `**/*.test.{ts,tsx}`, `test/`, `__tests__/`, `jest.config.*`, `coverage/`.
+3. **`docker-compose.yml` healthcheck uses `wget` but api-server runtime is distroless (no shell, no wget)** — healthcheck could never pass; web stayed in Created state forever. Fixed inline: removed the broken container-level healthcheck on api-server; flipped web's `depends_on` from `service_healthy` to `service_started`. Makefile's host-side `curl` loop is the real readiness gate.
+4. **Port `:8080` was occupied on the host by a stray Python SimpleHTTPServer** — not a US008 defect but worth noting; killed the stray process. Future hardening: have `_check-compose` also verify required ports are free before `up`.
+
+**Live e2e results after the four fixes:** stack came up clean, `make e2e-seed` applied migrations + seeds, api-server returned the seeded project. `robot tests/e2e/REQ*/` ran 23 tests: **2 passed** (US008's own E2E-US008-001/002), **21 failed** (REQ001-004 + REQ005-US006 suite-setups expect MCP-server on `:8080` or a REST `POST /api/v1/projects` that doesn't exist). The 21 failures are pre-existing portability debt — exactly the tech-debt entry already filed before the run. Each one is now filed individually in `docs/tech_debt.md` for REQ006 pickup.
+
+**Verdict adjustment:** US008's compose + Makefile + Dockerfiles + seeds + runbook DO bring up a healthy stack and DO run an e2e smoke pass against it. US008 stays `completed` — the 21 unrelated suite failures are pre-existing REQ001-004 portability debt, not a US008 defect. But this exercise reaffirmed exactly the REQ005 thesis: dry-run substitution lets defects through. Process retro: inline orchestrator review should always run `make e2e` once when the task delivers infrastructure that can be exercised locally.
+
 (tech-lead appends here on each review pass)

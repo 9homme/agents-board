@@ -78,3 +78,14 @@ These were uncovered by the orchestrator's project-wide test-coverage audit run 
 
 - 2026-06-03 — tests/e2e/REQ001..REQ004/*.robot — 21 e2e tests pass `robot --dryrun` but have never executed against a live stack (since REQ001 shipped). REQ005/US008 will provide the stack-up that makes live execution possible; first live run will likely surface seed-data / assertion drift to be fixed per-REQ — REQ001-004/tech-debt/e2e-unverified-live
 - 2026-06-03 — tests/e2e/REQ005_quality_hardening_retrospective/US008_stack_smoke.robot — US008 Robot smoke deferred to first live `make e2e` run (no Docker/podman runtime in dev environment at hand-off). Verify on first `make e2e` execution; if smoke fails, file per-finding tech-debt then — REQ005/US008/e2e-smoke-deferred-live
+
+### 2026-06-03 — First live `make e2e` against podman stack — findings
+
+**Result:** 23 tests, 2 passed, 21 failed. US008's own smoke (E2E-US008-001/002) PASS. Pre-existing REQ001-004 + REQ005-US006 suites FAIL — confirms the "unverified live" tech-debt above. Four US008 inline fixes applied during this verification (see commit log).
+
+- 2026-06-03 — Makefile:16 PG_CONN — hardcoded `localhost:15432` makes the host-Postgres path the runbook promises (point at local `:5432`) non-functional. Change to `?=` so env can override — REQ005/US008/makefile-host-postgres-path
+- 2026-06-03 — tests/e2e/REQ001_agent_board_mcp/*.robot (5 tests) — suites assume MCP-server reachable on `:8080` and POST to `/message?sessionId=...`. Architecture §6.2 explicitly excludes mcp-server from compose. Either add mcp-server to compose with a separate port + dependent healthcheck, or rewrite REQ001 suites to drive the api-server REST surface — REQ001/tech-debt/e2e-mcp-not-in-compose
+- 2026-06-03 — tests/e2e/REQ002_dashboard/US001_view_project_dashboard.robot, tests/e2e/REQ003_status_state_machine/US001-003*.robot, tests/e2e/REQ004_project_detail_page/US001-003*.robot — all 10 suites have a Suite Setup that POSTs `/message?sessionId=None` (MCP-style) for fixture creation. Same root cause as above. Convert suite setup to REST API calls against api-server OR add the mcp-server to compose — REQ002-004/tech-debt/e2e-suite-setup-mcp-coupling
+- 2026-06-03 — tests/e2e/REQ005_quality_hardening_retrospective/US006_rapid_navigation.robot — `Create Project Via API` keyword POSTs `/api/v1/projects`, api-server returns HTTP 405 (Method Not Allowed). api-server doesn't expose a REST POST for projects (creation goes through MCP-tool). Either add a REST `POST /api/v1/projects` to api-server (would need new arch contract), use the host-Postgres path to seed directly, or refactor US006 keyword to use a different setup mechanism — REQ005/US006/tech-debt/e2e-no-rest-project-create
+
+**Suggested fold-into-REQ006:** "e2e suite portability + REST surface" — adds mcp-server to compose AND adds the missing REST endpoints AND rewrites suite-setups to use REST. ~1 week of work, mostly mechanical.

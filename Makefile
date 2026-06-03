@@ -24,7 +24,19 @@ _check-compose:
 	  { echo "ERROR: Neither 'docker compose' nor 'podman-compose' is available on PATH. Install one first." >&2; exit 1; }
 
 e2e-up: _check-compose         ## Start postgres + api-server + web (compose, healthcheck-gated).
-	$(COMPOSE) up -d --wait
+	$(COMPOSE) up -d
+	@echo "-> waiting for stack to become healthy (timeout 120s)..."
+	@i=0; until curl -sf http://localhost:8080/api/v1/projects >/dev/null 2>&1; do \
+	  i=$$((i+1)); \
+	  if [ $$i -ge 60 ]; then echo "ERROR: api-server failed to become healthy" >&2; exit 1; fi; \
+	  sleep 2; \
+	done
+	@i=0; until curl -sf http://localhost:3000/ >/dev/null 2>&1; do \
+	  i=$$((i+1)); \
+	  if [ $$i -ge 60 ]; then echo "ERROR: web failed to become healthy" >&2; exit 1; fi; \
+	  sleep 2; \
+	done
+	@echo "-> stack is healthy: api-server :8080, web :3000"
 
 e2e-down: _check-compose       ## Stop and remove containers + volumes.
 	$(COMPOSE) down -v

@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agent_board
+      POSTGRES_USER: agent_board
+      POSTGRES_PASSWORD: agent_board
+    ports:
+      - "127.0.0.1:15432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "agent_board", "-d", "agent_board"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  api-server:
+    build:
+      context: ./services/agent-board
+      dockerfile: Dockerfile
+    command: ["./api-server"]
+    environment:
+      DATABASE_URL: postgres://agent_board:agent_board@postgres:5432/agent_board?sslmode=disable
+      PORT: "8080"
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080/api/v1/projects"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api-server:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

@@ -1,12 +1,13 @@
 *** Settings ***
 Documentation    Shared keywords for REQ005 quality hardening retrospective e2e tests.
-...              These keywords use RequestsLibrary for REST API calls against the
-...              api-server (port 8080) to set up test data without needing the MCP
-...              server (which is NOT in the REQ005 compose stack per architecture §6.2).
+...              Write operations go through MCP tools (the only write API in this system).
+...              Read operations use the api-server REST surface (port 8080).
+...              UI assertions use the Browser library against web (port 3000).
 Library          RequestsLibrary
 Library          Browser
 Library          String
 Library          Collections
+Resource         ../../REQ001_agent_board_mcp/mcp_keywords.resource
 
 *** Variables ***
 ${API_BASE_URL}    http://localhost:8080
@@ -18,18 +19,24 @@ Create API Session
     Create Session    api    ${API_BASE_URL}    verify=False
 
 Create Project Via API
-    [Documentation]    POSTs to /api/v1/projects and returns the created project dict.
+    [Documentation]    Creates a project via the MCP create_project tool and returns the project dict.
+    ...                The api-server has no REST POST endpoint — MCP is the only write API
+    ...                in this codebase (arch §6.2 + §8). This keyword wraps that fact.
     [Arguments]    ${name}    ${description}=${EMPTY}
-    ${body}=    Create Dictionary    name=${name}    description=${description}
-    ${resp}=    POST On Session    api    /api/v1/projects    json=${body}    expected_status=201
-    RETURN    ${resp.json()}
+    ${session_id}=    Connect To MCP SSE
+    ${resp}=    Create Project Tool    ${session_id}    ${name}    ${description}
+    ${text}=    Set Variable    ${resp.json()['result']['content'][0]['text']}
+    ${project}=    Evaluate    json.loads('''${text}''')    json
+    RETURN    ${project}
 
 Create Document Via API
-    [Documentation]    POSTs to /api/v1/projects/{project_id}/documents and returns the created document dict.
+    [Documentation]    Creates a document via the MCP create_document tool and returns the document dict.
     [Arguments]    ${project_id}    ${title}    ${content}
-    ${body}=    Create Dictionary    title=${title}    content=${content}
-    ${resp}=    POST On Session    api    /api/v1/projects/${project_id}/documents    json=${body}    expected_status=201
-    RETURN    ${resp.json()}
+    ${session_id}=    Connect To MCP SSE
+    ${resp}=    Create Document Tool    ${session_id}    ${project_id}    ${title}    ${content}
+    ${text}=    Set Variable    ${resp.json()['result']['content'][0]['text']}
+    ${document}=    Evaluate    json.loads('''${text}''')    json
+    RETURN    ${document}
 
 Wait For API Ready
     [Documentation]    Polls GET /api/v1/projects until a 200 is returned, up to ${timeout}.

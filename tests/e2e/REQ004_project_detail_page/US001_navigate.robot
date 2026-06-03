@@ -16,6 +16,17 @@ ${PROJECT_ID}      ${EMPTY}
 ${PROJECT_NAME}    ${EMPTY}
 
 *** Keywords ***
+URL Should Contain
+    [Arguments]    ${fragment}
+    ${url}=    Get Url
+    Should Contain    ${url}    ${fragment}
+
+URL Should Not Contain
+    [Arguments]    ${fragment}
+    ${url}=    Get Url
+    Should Not Contain    ${url}    ${fragment}
+
+
 Setup US001 Suite
     [Documentation]    Creates a test project via MCP and opens a browser.
     ${random}=         Generate Random String    8    [LETTERS]
@@ -23,7 +34,8 @@ Setup US001 Suite
     Set Suite Variable    ${PROJECT_NAME}    ${name}
     ${session_id}=     Connect To MCP SSE
     ${resp}=           Create Project Tool    ${session_id}    ${name}    E2E test project description
-    ${content}=        Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
+    ${resp_text}=      Set Variable    ${resp.json()['result']['content'][0]['text']}
+    ${content}=        Evaluate    json.loads($resp_text)    json
     Set Suite Variable    ${PROJECT_ID}    ${content['id']}
     New Browser        headless=True
     New Page           ${WEB_BASE_URL}/
@@ -42,17 +54,19 @@ E2E-US001-001 Dashboard click-through to detail page then tab switch
     # Step 2: click the project card (it is a <Link> wrapping the card content)
     Click    text="${PROJECT_NAME}"
 
-    # Step 3: assert we are on the detail page
+    # Step 3: wait for a DETAIL-PAGE-ONLY element before asserting URL.
+    # Don't wait for `role=heading >> text=${PROJECT_NAME}` — that matches the
+    # dashboard ProjectCard's h3 too and succeeds without navigation. Tabs
+    # exist only on the detail page; wait for them as the navigation marker.
+    Wait For Elements State    role=tab >> text=Documents    visible    timeout=15s
+    Wait Until Keyword Succeeds    10s    200ms    URL Should Contain    /projects/${PROJECT_ID}
     ${url}=    Get Url
     Should Contain    ${url}    /projects/${PROJECT_ID}
-
-    # Step 4: wait for project heading
-    Wait For Elements State    css=h1    visible    timeout=15s
     ${heading}=    Get Text    css=h1
     Should Contain    ${heading}    ${PROJECT_NAME}
 
     # Step 5: two tabs visible
-    Wait For Elements State    role=tab    visible    timeout=10s
+    Wait For Elements State    role=tab >> text=Documents    visible    timeout=10s
     ${tabs}=    Get Elements    role=tab
     Length Should Be    ${tabs}    2
 
@@ -63,7 +77,7 @@ E2E-US001-001 Dashboard click-through to detail page then tab switch
 
     # Step 7: switch to User Stories tab
     Click    role=tab >> text="User Stories"
-    Wait For Elements State    role=tab >> text="User Stories"    visible    timeout=5s
+    Wait Until Keyword Succeeds    10s    200ms    URL Should Contain    tab=user-stories
     ${url_after}=    Get Url
     Should Contain    ${url_after}    tab=user-stories
 
@@ -74,6 +88,7 @@ E2E-US001-001 Dashboard click-through to detail page then tab switch
 
     # Step 9: switch back to Documents tab
     Click    role=tab >> text=Documents
+    Wait Until Keyword Succeeds    10s    200ms    URL Should Not Contain    tab=user-stories
     ${url_docs}=    Get Url
     Should Not Contain    ${url_docs}    tab=user-stories
 

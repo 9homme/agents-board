@@ -5,7 +5,7 @@ Library    Collections
 Library    sse_helper.py
 
 *** Variables ***
-${BASE_URL}    http://localhost:8080
+${BASE_URL}    %{MCP_BASE_URL=http://localhost:8081}
 
 *** Keywords ***
 Connect To MCP SSE

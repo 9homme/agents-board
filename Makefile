@@ -36,7 +36,12 @@ e2e-up: _check-compose         ## Start postgres + api-server + web (compose, he
 	  if [ $$i -ge 60 ]; then echo "ERROR: web failed to become healthy" >&2; exit 1; fi; \
 	  sleep 2; \
 	done
-	@echo "-> stack is healthy: api-server :8080, web :3000"
+	@i=0; until curl -sf http://localhost:8081/sse >/dev/null 2>&1 || curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/sse 2>&1 | grep -qE "^(200|405|404)$$"; do \
+	  i=$$((i+1)); \
+	  if [ $$i -ge 60 ]; then echo "ERROR: mcp-server failed to become healthy" >&2; exit 1; fi; \
+	  sleep 2; \
+	done
+	@echo "-> stack is healthy: api-server :8080, web :3000, mcp-server :8081"
 
 e2e-down: _check-compose       ## Stop and remove containers + volumes.
 	$(COMPOSE) down -v

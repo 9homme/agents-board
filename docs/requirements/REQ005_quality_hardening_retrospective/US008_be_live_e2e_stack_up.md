@@ -135,4 +135,38 @@ After the inline `approved` was issued, the human flagged "have you actually run
 
 **Verdict adjustment:** US008's compose + Makefile + Dockerfiles + seeds + runbook DO bring up a healthy stack and DO run an e2e smoke pass against it. US008 stays `completed` — the 21 unrelated suite failures are pre-existing REQ001-004 portability debt, not a US008 defect. But this exercise reaffirmed exactly the REQ005 thesis: dry-run substitution lets defects through. Process retro: inline orchestrator review should always run `make e2e` once when the task delivers infrastructure that can be exercised locally.
 
+### US008 follow-up — 2026-06-03 — full e2e green + process mandates landed
+
+Human pushback after the verdict was issued: "i expect us008 to make all test pass, how can mcp server not included" + "flaky test not acceptable" + "as part of us008, i want be-dev and fe-dev forced to run unit + e2e before in_review, and tech-lead to verify no flaky test before approving."
+
+**Infrastructure fixes applied (all part of US008 scope):**
+
+1. **mcp-server added to compose** at `:8081` with `DB_URL` env (mcp-server uses `DB_URL`, api-server uses `DATABASE_URL` — pre-existing inconsistency, filed to tech-debt). REVERSES the original architecture D-010 ("exclude mcp-server from compose") which was a defect — the AC "Scenario: existing per-REQ tests/e2e suites still run" REQUIRED mcp-server because data writes in this codebase are MCP-only (api-server is read-only with 4 GET endpoints).
+2. **`web/Dockerfile`** accepts `NEXT_PUBLIC_API_BASE_URL` as a build ARG (Next.js bakes `NEXT_PUBLIC_*` at build time, not runtime).
+3. **`docker-compose.yml`** passes the build arg to web.
+4. **`web/.dockerignore`** excludes test files from prod bundle.
+5. **`docker-compose.yml`** api-server healthcheck removed (distroless has no wget); web `depends_on` changed to `service_started`; Makefile poll loop is the readiness gate.
+6. **`Makefile`** adds mcp-server `:8081/sse` to the readiness poll loop.
+7. **`tests/e2e/REQ001_agent_board_mcp/mcp_keywords.resource`** `${BASE_URL}` switched to `%{MCP_BASE_URL=http://localhost:8081}` (env-overridable).
+8. **`tests/e2e/REQ005_*/resources/req005_keywords.resource`** rewritten — `Create Project Via API` and `Create Document Via API` now call MCP tools (the only write path in this codebase) instead of POSTing to non-existent api-server REST endpoints.
+9. **`web/components/Dashboard/ProjectCard.tsx`** adds `data-testid="project-card"` so US006's rapid-navigation test can find the cards reliably.
+10. **REQ004 robot tests** — multiple test-code fixes: `role=tab >> text=Documents` disambiguates the tab locator (was strict-mode-violating); `role=heading >> text=...` for content lookups; `role=option >> text=...` for sidebar items; `Catenate SEPARATOR=\n` for markdown content; `Wait Until Keyword Succeeds` + custom `URL Should Contain` keyword to wait out Next.js Link CSR navigation; wait for a detail-page-only element (`role=tab >> text=Documents`) before asserting URL (the original test waited for the project name heading which exists on BOTH dashboard and detail page).
+11. **US002 URL assertion flipped** — REQ005/US010 OQ-6 accepted "URL stays bare on initial load (no `?doc=` auto-write)"; the REQ004 test was written for the OLD behavior. Updated to `Should Not Contain doc=`.
+12. **US003 code-block timeout bumped to 20s** for rehype-highlight's async lazy-load under full-suite load.
+
+**Live e2e proof — 3 consecutive runs, all green:**
+```
+RUN 1: pass=23, fail=0
+RUN 2: pass=23, fail=0
+RUN 3: pass=23, fail=0
+```
+
+**Process mandates added to agent definitions (also part of US008 scope per human direction):**
+
+- **`.claude/agents/be-dev.md` + `.gemini/agents/be-dev.md`** — new step 8a "Run live e2e against the running stack — mandatory before hand-off." Plus a new Rules clause: "Live e2e is non-negotiable before `in_review`."
+- **`.claude/agents/fe-dev.md` + `.gemini/agents/fe-dev.md`** — symmetric step 8a + Rules clause. Component tests + react-doctor + Jest are not a substitute for live e2e.
+- **`.claude/agents/tech-lead.md` + `.gemini/agents/tech-lead.md`** — new review-checklist item: run `make e2e-run` THREE consecutive times; all three MUST be `0 failed`; ANY flake is `changes_requested` (or `SPEC_GAP_FOUND` if test-code). Approved-evidence list extended to require the 3 consecutive run summary lines verbatim in the review log.
+
+US008's compose + Makefile + Dockerfiles + seeds + runbook + the agent-definition mandates together close the REQ005 loop: future REQs cannot reach `in_review` (let alone `completed`) without live e2e proof.
+
 (tech-lead appends here on each review pass)

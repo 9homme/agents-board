@@ -67,7 +67,10 @@ E2E-US006-001 Rapid project navigation does not show stale data or error state
 
     # Step 1 — open dashboard and wait for the project list to render
     New Page    ${WEB_BASE_URL}/
-    Wait For Elements State    css=[data-testid="project-card"]    visible    timeout=15s
+    # Multiple project-card elements present (we created at least 2 plus seed);
+    # nth=0 disambiguates for Playwright strict mode while still asserting that
+    # the dashboard rendered at least one card.
+    Wait For Elements State    css=[data-testid="project-card"] >> nth=0    visible    timeout=15s
 
     # Step 2 — navigate to Project 1
     Go To    ${WEB_BASE_URL}/projects/${PROJECT_1_ID}

@@ -89,3 +89,11 @@ These were uncovered by the orchestrator's project-wide test-coverage audit run 
 - 2026-06-03 — tests/e2e/REQ005_quality_hardening_retrospective/US006_rapid_navigation.robot — `Create Project Via API` keyword POSTs `/api/v1/projects`, api-server returns HTTP 405 (Method Not Allowed). api-server doesn't expose a REST POST for projects (creation goes through MCP-tool). Either add a REST `POST /api/v1/projects` to api-server (would need new arch contract), use the host-Postgres path to seed directly, or refactor US006 keyword to use a different setup mechanism — REQ005/US006/tech-debt/e2e-no-rest-project-create
 
 **Suggested fold-into-REQ006:** "e2e suite portability + REST surface" — adds mcp-server to compose AND adds the missing REST endpoints AND rewrites suite-setups to use REST. ~1 week of work, mostly mechanical.
+
+### 2026-06-03 — US008 follow-up — all 21 tests fixed live (REQ006 scope partially absorbed)
+
+After the verdict was first issued, human pushed: "make all tests pass." The suggested REQ006 was partially executed inline as US008 scope expansion. All 21 previously-failing tests now pass; 3-consecutive-run flake check is clean. Remaining REQ006-scope items:
+
+- 2026-06-03 — services/agent-board/cmd/mcp-server/main.go:30 vs cmd/api-server/main.go:45 — pre-existing env-var name inconsistency (`DB_URL` vs `DATABASE_URL`) between the two binaries. Both binaries should accept both names with one preferred — REQ001-004/tech-debt/env-var-harmonisation
+- 2026-06-03 — services/agent-board/cmd/api-server/main.go — api-server only exposes 4 GET endpoints; ALL data writes go through MCP. Architecturally, this is by design (MCP-as-write-API). BUT it means: no FE-driven create-update-delete flows, no REST API for non-MCP clients, and e2e setups must always use MCP. If the project ever wants browser-direct CRUD, add REST POST/PUT/DELETE endpoints — REQ001-004/architecture/no-rest-writes
+- 2026-06-03 — All REQ001-004 robot tests now PASS live but the test-code fixes (role=tab disambiguation, Catenate SEPARATOR=\n for markdown content, etc.) suggest the original tester specs were not validated against a live stack. Once REQ005/US005-style "spec exhaustiveness" review lands, the existing specs should be re-audited for similar latent issues — REQ001-004/tech-debt/spec-live-validation

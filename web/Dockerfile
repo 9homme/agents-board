@@ -19,6 +19,13 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build args. NEXT_PUBLIC_* env vars are baked into the JS bundle at build time
+# by Next.js, NOT read at runtime. Setting them in the compose `environment:` is
+# too late — the build must see them. Default points at the e2e stack URL so
+# `make e2e` works out of the box.
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 

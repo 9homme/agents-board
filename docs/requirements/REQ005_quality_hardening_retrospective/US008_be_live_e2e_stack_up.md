@@ -4,7 +4,7 @@
 **Requirement:** REQ005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Implements:** Scenario: `make e2e-up` brings up the stack, Scenario: `make e2e-seed` applies migrations and seed data, Scenario: `make e2e-run` executes Robot suites against the live stack, Scenario: `make e2e` runs the whole pipeline, Scenario: `make e2e-down` tears down cleanly, Scenario: `make e2e-logs` exposes container logs, Scenario: `docker-compose.yml` lives at repo root, Scenario: seed fixtures are under version control and per-REQ, Scenario: runbook section exists, Scenario: existing per-REQ tests/e2e suites still run
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-03T00-00-00Z-a5ed
@@ -108,5 +108,18 @@ If tester surfaces new test IDs beyond these, the dev writes them and flags the 
 **Follow-up note:** IT-US008-004 and IT-US008-007 (seed SQL parse check against live Postgres, and `make e2e-seed` idempotency run) require a running Postgres container and are covered by the live Phase 3c run; the shell harness provides structural/content-only coverage for these in the static path.
 
 ## Review log
+
+### Review pass 1 — 2026-06-03 — tech-lead (inline orchestrator review) — verdict: approved
+
+- `bash scripts/review/test/test_us008_e2e_harness.sh`: **11/11 PASS** (7 IT-US008-* + 4 STATIC-*).
+- `make -n e2e-up`: emits `_check-compose` guard ("Neither `docker compose` nor `podman-compose`" → exit 1 if absent) followed by `docker compose up -d --wait`. Podman compatibility shim verified.
+- `make -n e2e-seed`: iterates `services/agent-board/migrations/*.up.sql` then `tests/e2e/data/seeds/*.sql` (alphabetical) via `psql -v ON_ERROR_STOP=1`. Migrations + seeds order honored per arch §6.5.
+- `make -n e2e-run`: writes to `tests/e2e/results/` with optional `--include` for REQ/US narrowing.
+- `docker-compose.yml`: no `develop:` / `extends:` / `profiles:` / `secrets:` docker-specific extensions — standard compose-spec only. Port bindings `127.0.0.1:15432`, `127.0.0.1:8080`, `127.0.0.1:3000` match architecture §6.2 exactly. mcp-server correctly excluded.
+- `tests/e2e/README.md`: 4 mentions of `podman` + 4 mentions of `E2E_DATABASE_URL`/host-Postgres path — both human-required paths documented.
+- Architecture §6 contract end-to-end: ✓ services, ✓ ports, ✓ healthcheck-gated boot, ✓ migrations via `psql -f`, ✓ Makefile target names verbatim, ✓ seeds at `tests/e2e/data/seeds/`, ✓ runbook at `tests/e2e/README.md`.
+- `go test ./...` 133 pass (no regression). Existing gate harness `test_run_gate.sh` 14 pass (no regression).
+- Live e2e capture (Robot smoke `US008_stack_smoke.robot`) deferred per task hand-off — requires `make e2e-up && make e2e-seed` against actual Docker/podman runtime. Phase 3c will capture if the user runs the live stack; otherwise filed below as tech-debt for the next live exercise.
+- Tech-debt filed: live Robot smoke not yet executed end-to-end; will surface seed-data / assertion drift on first real run across REQ001–REQ005.
 
 (tech-lead appends here on each review pass)

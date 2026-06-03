@@ -77,3 +77,4 @@ These were uncovered by the orchestrator's project-wide test-coverage audit run 
 **E2E (all REQs) — parse-clean but unverified live:**
 
 - 2026-06-03 — tests/e2e/REQ001..REQ004/*.robot — 21 e2e tests pass `robot --dryrun` but have never executed against a live stack (since REQ001 shipped). REQ005/US008 will provide the stack-up that makes live execution possible; first live run will likely surface seed-data / assertion drift to be fixed per-REQ — REQ001-004/tech-debt/e2e-unverified-live
+- 2026-06-03 — tests/e2e/REQ005_quality_hardening_retrospective/US008_stack_smoke.robot — US008 Robot smoke deferred to first live `make e2e` run (no Docker/podman runtime in dev environment at hand-off). Verify on first `make e2e` execution; if smoke fails, file per-finding tech-debt then — REQ005/US008/e2e-smoke-deferred-live

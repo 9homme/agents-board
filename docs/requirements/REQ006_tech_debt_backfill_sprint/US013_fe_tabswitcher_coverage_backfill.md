@@ -3,9 +3,9 @@
 **Requirement:** REQ006
 **Story:** US013
 **Track:** FE
-**Status:** pending
+**Status:** in_review
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** fe-dev-2026-06-05T00:00:00Z-a121
 **Implements:** REQ006/US013 AC (all 12 scenarios — click, ArrowRight/Left + wrap, Enter, Space, aria-selected, roving tabIndex, prop-driven override, tablist semantics, unrelated-key no-op), architecture §3 US013 touch row, architecture §7 (component capability confirmation + 12 FCT-* IDs + 80% coverage target + tooling pin), architecture D-009 (≥80% across stmts/branches/lines/functions).
 
 ## Goal
@@ -69,4 +69,37 @@ Tester's `US013_fe_unit_tests.md` FCT-* IDs map 1:1 onto the architecture §7.2 
 ## Notes
 - **No FE/BE pairing.** US013 stands alone; no API contract is touched. The BE-side state of REQ006 is irrelevant to this story's correctness.
 
+### Hand-off notes (fe-dev-2026-06-05T00:00:00Z-a121)
+
+**Files touched:**
+- `web/components/ProjectDetail/TabSwitcher.test.tsx` — edited: added 12 FCT-US013-* test cases; `@testing-library/user-event` imported
+- `docs/tech_debt.md` — line 75 struck through with `→ fixed in REQ006/US013`
+- `docs/requirements/REQ006_tech_debt_backfill_sprint/US013_fe_tabswitcher_coverage_backfill.md` — status updated
+- `docs/requirements/REQ006_tech_debt_backfill_sprint/US013_fe_unit_tests.md` — added to worktree (read-only reference)
+
+**Tests added:** 12 FCT-US013-* cases (FCT-US013-001 through FCT-US013-012). Total suite: 16 TabSwitcher tests, 142 total.
+
+**TabSwitcher.tsx:** byte-for-byte unchanged — `git diff web/components/ProjectDetail/TabSwitcher.tsx` is empty.
+
+**Coverage achieved:**
+- `TabSwitcher.tsx` stmts: **100%** (target ≥80%)
+- `TabSwitcher.tsx` branches: **100%** (target ≥80%)
+- `TabSwitcher.tsx` lines: **100%** (target ≥80%)
+- `TabSwitcher.tsx` functions: **100%** (target ≥80%)
+
+**react-doctor --diff score:** `100 / 100 — No issues found` (scanned `worktree-agent-a121284da93c79bfa → main`; no regression, no new errors, no new warnings)
+
+**Review gates:**
+- `scripts/review/run-gate.sh fe`: `REVIEW GATE: PASS`
+- `scripts/review/run-gate.sh cross`: `REVIEW GATE: FAIL` — pre-existing Dockerfile missing-USER semgrep finding; verified failing identically on base branch before this task's changes (not introduced by this diff)
+
+**Live e2e:** Architecture §10.2 explicitly waives e2e for this story (component-test only; no API contract touched). No e2e run required or performed.
+
+**TDG cycle commits:**
+- `red:` — 12 FCT-US013-* test cases written
+- `green:` — all 16 TabSwitcher tests pass; TabSwitcher.tsx unchanged
+- `refactor:` — tech_debt.md strike-through; REQ006 task files added to worktree
+
 ## Review log
+
+### Pass 1

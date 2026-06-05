@@ -4,9 +4,9 @@
 **Story:** US002
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-05T00:00:00Z-ad92
 **Implements:** REQ006/US002 AC (all four scenarios — 12 verbatim test function names, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change, existing suite still green). Architecture §3 US002 touch row + §4.2 cluster-1 sqlmock pattern + §4.5 exemption mechanism + §4.6 local verification command (US002 row).
 
 ## Goal
@@ -45,4 +45,56 @@ Dev makes these spec IDs pass (from `US002_be_unit_tests.md` once tester authors
 - **Live e2e NOT required** (tests-only, prod unchanged — architecture §10.4); instead 3 clean runs of `cd services/agent-board && go test -count=3 ./internal/repo -race`.
 - Dev set status to `in_review`; tech-lead approved.
 
+## Notes
+
+### Files touched
+- `services/agent-board/internal/repo/user_story_repo_test.go` — added 14 test functions (13 error-branch per spec UT-001..UT-013 + 1 empty-result test for IT-001 ≥95% coverage)
+
+### Tests added
+- UT-001: `TestUserStoryRepo_CreateUserStory_GenericError`
+- UT-002: `TestUserStoryRepo_GetUserStory_GenericError`
+- UT-003: `TestUserStoryRepo_GetUserStory_NotFound`
+- UT-004: `TestUserStoryRepo_UpdateUserStory_NotFound`
+- UT-005: `TestUserStoryRepo_UpdateUserStory_GenericError`
+- UT-006: `TestUserStoryRepo_UpdateUserStoryStatus_BeginTxError`
+- UT-007: `TestUserStoryRepo_UpdateUserStoryStatus_NotFound`
+- UT-008: `TestUserStoryRepo_UpdateUserStoryStatus_UpdateGenericError`
+- UT-009: `TestUserStoryRepo_UpdateUserStoryStatus_AuditInsertError`
+- UT-010: `TestUserStoryRepo_UpdateUserStoryStatus_CommitError`
+- UT-011: `TestUserStoryRepo_ListUserStories_QueryError`
+- UT-012: `TestUserStoryRepo_ListUserStories_ScanError`
+- UT-013: `TestUserStoryRepo_ListUserStories_RowsErr`
+- `TestUserStoryRepo_ListUserStories_EmptyResult` (IT-001 coverage — empty-result nil→empty-slice branch)
+
+### Coverage (per IT-001)
+```
+agent-board/internal/repo/user_story_repo.go:30: NewUserStoryRepo       100.0%
+agent-board/internal/repo/user_story_repo.go:35: CreateUserStory        100.0%
+agent-board/internal/repo/user_story_repo.go:45: GetUserStory           100.0%
+agent-board/internal/repo/user_story_repo.go:60: UpdateUserStoryStatus   95.2%
+agent-board/internal/repo/user_story_repo.go:97: UpdateUserStory        100.0%
+agent-board/internal/repo/user_story_repo.go:110: DeleteUserStory       100.0%
+agent-board/internal/repo/user_story_repo.go:117: ListUserStories       100.0%
+```
+All functions ≥95%. `UpdateUserStoryStatus` at 95.2% — the uncovered line is `:68` (`log.Printf` in the defer-rollback path), unreachable via sqlmock per architecture §4.5.
+
+### Coverage exemptions (OQ-4)
+- `services/agent-board/internal/repo/user_story_repo.go:68` — defer-rollback log.Printf path — unreachable via sqlmock (rollback returning non-ErrTxDone). Acceptable per §4.5.
+
+### Test run results
+- `cd services/agent-board && go test ./internal/repo -cover -v -run TestUserStoryRepo`: 21 passed
+- `cd services/agent-board && go vet ./... && go test ./...`: 147 passed, 0 failed
+- `cd services/agent-board && go test -count=3 ./internal/repo -race`: 174 passed (58 × 3), 0 races
+- `golangci-lint run ./...`: no issues
+- `scripts/review/run-gate.sh be services/agent-board`: REVIEW GATE: PASS
+- `scripts/review/run-gate.sh cross`: pre-existing semgrep FAIL on Dockerfile USER (not caused by this change — no Dockerfile edits)
+
+### Live e2e
+Per architecture §10.4 (tests-only, production code unchanged), live e2e is NOT required. Substitute: 3 clean race-detector runs (`go test -count=3 ./internal/repo -race`) — all 174 passed.
+
+### Production code
+`services/agent-board/internal/repo/user_story_repo.go` — byte-for-byte unchanged (confirmed via `git diff`).
+
 ## Review log
+
+### Pass 1

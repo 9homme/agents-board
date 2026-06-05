@@ -480,6 +480,26 @@ func TestUserStoryRepo_ListUserStories_RowsErr(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// IT-001 coverage: ListUserStories returns an empty (non-nil) slice when no rows are returned.
+func TestUserStoryRepo_ListUserStories_EmptyResult(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}
+	mock.ExpectQuery(`SELECT .* FROM user_stories WHERE`).
+		WillReturnRows(sqlmock.NewRows(cols))
+
+	result, err := r.ListUserStories(context.Background(), "project-id-1")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 0)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // UT-019: List user stories by Project
 func TestUserStoryRepo_ListUserStories(t *testing.T) {
 	db, mock, err := sqlmock.New()

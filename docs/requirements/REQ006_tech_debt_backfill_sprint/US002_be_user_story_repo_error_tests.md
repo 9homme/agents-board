@@ -4,7 +4,7 @@
 **Story:** US002
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-05T00:00:00Z-ad92
 **Implements:** REQ006/US002 AC (all four scenarios — 12 verbatim test function names, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change, existing suite still green). Architecture §3 US002 touch row + §4.2 cluster-1 sqlmock pattern + §4.5 exemption mechanism + §4.6 local verification command (US002 row).
@@ -175,3 +175,58 @@ Per architecture §10.4 (tests-only, production code unchanged), live e2e is NOT
 6. Flip US002 (and US001, US013) from `blocked_review_gate` back to `in_review` for tech-lead re-review.
 
 Once the Dockerfile fix lands and the cross gate emits PASS, re-review of THIS task will be a one-pass approval — the code-review checklist above is already entirely clean. No code change is requested of be-dev for US002.
+
+### Review pass 2 — 2026-06-05 — verdict: approved
+
+**Context:** Pass 1 returned `blocked_review_gate` because the cross-gate semgrep `dockerfile.security.missing-user.missing-user` finding (pre-existing in `services/agent-board/Dockerfile:31` + `web/Dockerfile:48`) blocked PASS, even though the US002 code under review was unimpeachable. The orchestrator routed a gate-fix task; commit `a22562e fix(docker): add non-root USER to api-server and web images` added `USER nonroot:nonroot` to the agent-board image and `USER node` to the web image. Both Dockerfiles now carry the directive (verified: agent-board Dockerfile line 31 = `USER nonroot:nonroot`; web Dockerfile line 49 = `USER node`). Re-flipped to `in_review` by orchestrator (commit `6ac27bf`).
+
+**Code (re-verified):** `services/agent-board/internal/repo/user_story_repo.go` byte-for-byte unchanged vs main (`git diff main..HEAD -- services/agent-board/internal/repo/user_story_repo.go` produces zero output). `user_story_repo_test.go` identical to pass 1 — 21 test functions total: 5 pre-existing happy-path + 1 pre-existing rollback-on-audit-failure + 13 new UT-001..UT-013 error-branch + 1 new `_EmptyResult` for IT-001 coverage. All 13 verbatim test-function names from US002 AC present at lines 197, 221, 241, 260, 284, 309, 326, 346, 370, 395, 420, 438, 462. Pass 1's code-review checklist remains entirely clean (architecture conformance, sqlmock pattern, exhaustiveness 11/11 sites, TDG red→green→refactor sequence with `(US002)` traceability) — re-stamping it here would just duplicate pass 1's findings.
+
+**Tests (tech-lead re-run):**
+- `cd services/agent-board && go vet ./...` → `Go vet: No issues found`
+- `cd services/agent-board && go test ./...` → `Go test: 160 passed in 6 packages`
+- `cd services/agent-board && go test ./internal/repo -coverprofile=/tmp/repo_us002_pass2.out -run TestUserStoryRepo` → `Go test: 21 passed in 1 packages`
+- `cd services/agent-board && go test -count=3 ./internal/repo -race` → `Go test: 213 passed in 1 packages` (71 × 3 runs, zero races, zero flakes — live-e2e substitute per architecture §10.4 + task DoD)
+
+**Coverage (per-file, ≥95% threshold):**
+```
+agent-board/internal/repo/user_story_repo.go:30:	NewUserStoryRepo	100.0%
+agent-board/internal/repo/user_story_repo.go:35:	CreateUserStory		100.0%
+agent-board/internal/repo/user_story_repo.go:45:	GetUserStory		100.0%
+agent-board/internal/repo/user_story_repo.go:60:	UpdateUserStoryStatus	95.2%
+agent-board/internal/repo/user_story_repo.go:97:	UpdateUserStory		100.0%
+agent-board/internal/repo/user_story_repo.go:110:	DeleteUserStory	100.0%
+agent-board/internal/repo/user_story_repo.go:117:	ListUserStories	100.0%
+```
+`UpdateUserStoryStatus` 95.2% — single uncovered statement is `user_story_repo.go:68` (`log.Printf` inside deferred rollback's `if rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone)`), enumerated in architecture §4.5 and declared in the task's `## Coverage exemptions (OQ-4)`. Threshold MET modulo enumerated exemption — OK.
+
+**Gate outcomes (verbatim):**
+
+- `scripts/review/run-gate.sh be services/agent-board`:
+  ```
+  == BE gate · services/agent-board ==
+    PASS  gofmt -s (no diff)
+    PASS  go vet ./...
+    PASS  golangci-lint run ./...
+    PASS  go test ./...
+  WARN  gosec (skipped — not installed; coverage via golangci-lint gosec linter)
+  WARN  govulncheck (skipped — not installed)
+
+  REVIEW GATE: PASS
+  ```
+- `scripts/review/run-gate.sh cross`:
+  ```
+  == Cross-cutting · repo ==
+    PASS  semgrep (owasp/golang/typescript)
+    PASS  gitleaks (no secrets)
+
+  REVIEW GATE: PASS
+  ```
+
+**Robot dryrun:** N/A — REQ006/US002 has no `tests/e2e/REQ006_*/US002_*.robot` suite (tests-only backfill task; e2e spec stub is a 176-byte placeholder).
+
+**Live e2e:** N/A — tests-only, production code byte-for-byte unchanged. Substitute (3 × `-race` runs) executed above, all green.
+
+**Tech-debt this pass:** none filed — pass 1 already filed the two Dockerfile `USER`-directive lines (now resolved by commit `a22562e`); the rest of the code review surfaced nothing additional. No new tech-debt items.
+
+**Verdict:** approved — Status flipped to `completed`.

@@ -97,7 +97,6 @@ After the verdict was first issued, human pushed: "make all tests pass." The sug
 - 2026-06-03 — services/agent-board/cmd/mcp-server/main.go:30 vs cmd/api-server/main.go:45 — pre-existing env-var name inconsistency (`DB_URL` vs `DATABASE_URL`) between the two binaries. Both binaries should accept both names with one preferred — REQ001-004/tech-debt/env-var-harmonisation
 - 2026-06-03 — services/agent-board/cmd/api-server/main.go — api-server only exposes 4 GET endpoints; ALL data writes go through MCP. Architecturally, this is by design (MCP-as-write-API). BUT it means: no FE-driven create-update-delete flows, no REST API for non-MCP clients, and e2e setups must always use MCP. If the project ever wants browser-direct CRUD, add REST POST/PUT/DELETE endpoints — REQ001-004/architecture/no-rest-writes
 - 2026-06-03 — All REQ001-004 robot tests now PASS live but the test-code fixes (role=tab disambiguation, Catenate SEPARATOR=\n for markdown content, etc.) suggest the original tester specs were not validated against a live stack. Once REQ005/US005-style "spec exhaustiveness" review lands, the existing specs should be re-audited for similar latent issues — REQ001-004/tech-debt/spec-live-validation
-<<<<<<< HEAD
 
 ### 2026-06-05 — REQ006 review-gate observations (surfaced during tech-lead review of US001/US002/US013)
 

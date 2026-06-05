@@ -4,7 +4,7 @@
 **Story:** US001
 **Track:** BE
 **Service:** services/agent-board
-**Status:** blocked_review_gate
+**Status:** in_review
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-05T00:00:00Z-aa86
 **Implements:** REQ006/US001 AC (all four scenarios — 12 verbatim test function names, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change, existing suite still green). Architecture §3 US001 touch row + §4.2 cluster-1 sqlmock pattern + §4.5 exemption mechanism + §4.6 local verification command (US001 row).

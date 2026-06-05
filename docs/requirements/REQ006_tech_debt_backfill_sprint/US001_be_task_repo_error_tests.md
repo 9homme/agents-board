@@ -4,7 +4,7 @@
 **Story:** US001
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-05T00:00:00Z-aa86
 **Implements:** REQ006/US001 AC (all four scenarios — 12 verbatim test function names, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change, existing suite still green). Architecture §3 US001 touch row + §4.2 cluster-1 sqlmock pattern + §4.5 exemption mechanism + §4.6 local verification command (US001 row).
@@ -159,4 +159,30 @@ Not required per task DoD (tests-only story, architecture §10.4). Equivalent 3-
 Tech-debt findings already filed to `docs/tech_debt.md` so they aren't lost regardless of which path the orchestrator takes.
 
 **Tech-debt: filed this pass.** See `docs/tech_debt.md` 2026-06-05 entries (two Dockerfile findings + one TDG prefix-shape observation).
+
+### Review pass 2 — 2026-06-05 — verdict: approved
+
+Re-review after the orchestrator's gate-fix patch landed `USER nonroot:nonroot` on `services/agent-board/Dockerfile:31` and `USER node` on `web/Dockerfile:49`. The code under review (`task_repo.go` + `task_repo_test.go`) is byte-for-byte unchanged from pass 1 — re-confirmed `git diff main -- services/agent-board/internal/repo/task_repo.go` is empty. All pass-1 findings (which were "would-be approved modulo the cross-gate blocker") carry forward unchanged. Only the gate-blocker is re-verified here.
+
+- **BE gate:** `scripts/review/run-gate.sh be services/agent-board` → exit 0; final line verbatim — `REVIEW GATE: PASS`. (gofmt -s, go vet, golangci-lint, go test ./... all green. gosec / govulncheck soft-skip per host config, identical to pass 1 and to REQ005/US005 baseline — not a regression.)
+- **Cross gate:** `scripts/review/run-gate.sh cross` → exit 0; final line verbatim — `REVIEW GATE: PASS`. Semgrep (owasp/golang/typescript) and gitleaks both PASS. The pre-existing `dockerfile.security.missing-user.missing-user` findings that blocked pass 1 are now resolved by the orchestrator's gate-fix patch (confirmed `USER nonroot:nonroot` at `services/agent-board/Dockerfile:31` and `USER node` at `web/Dockerfile:49`).
+- **Per-file coverage on `task_repo.go`** (architecture §4.6, US001 row):
+  ```
+  agent-board/internal/repo/task_repo.go:31:		NewTaskRepo		100.0%
+  agent-board/internal/repo/task_repo.go:36:		CreateTask		100.0%
+  agent-board/internal/repo/task_repo.go:51:		GetTask			100.0%
+  agent-board/internal/repo/task_repo.go:70:		UpdateTask		100.0%
+  agent-board/internal/repo/task_repo.go:91:		UpdateTaskStatus	95.2%
+  agent-board/internal/repo/task_repo.go:133:		DeleteTask		100.0%
+  agent-board/internal/repo/task_repo.go:140:		ListTasks		100.0%
+  ```
+  Threshold ≥95% met across the board. The one uncovered statement is `task_repo.go:99` (`log.Printf` in the deferred rollback error handler) — exempt per architecture §4.5 / OQ-4 and spec IT-001's `## Coverage exemptions` (sqlmock cannot make `tx.Rollback()` itself return a non-`sql.ErrTxDone` error).
+- **Race + 3-clean-run flake check (DoD line 71 substitution):** `cd services/agent-board && go test -count=3 ./internal/repo -race` → `Go test: 213 passed in 1 packages` (71 cases × 3 runs, zero failures, zero races). Equivalent to the live-e2e 3-clean-run flake check; the story is tests-only per architecture §10.4 so live e2e is not required.
+- **Full-module regression check:** `cd services/agent-board && go test ./...` → `Go test: 160 passed in 6 packages`. No regression elsewhere.
+- **Production code byte-for-byte unchanged:** `git log main..HEAD -- services/agent-board/internal/repo/task_repo.go` empty; `git diff main -- services/agent-board/internal/repo/task_repo.go` empty. Confirmed.
+- **All pass-1 conformance checks carry forward unchanged:** 12 verbatim function names present (+ exhaustiveness UT-003), sqlmock pattern §4.2 conformance, wrap-prefix assertions vs source, test-spec exhaustiveness (13 branches → 13 UT cases, 1:1 match, no SPEC_GAP_FOUND), TDG red-before-green ordering with `(US001)` traceability tags.
+
+**Verdict rationale.** Both gates emit `REVIEW GATE: PASS`. Coverage threshold met. Three clean race runs. Code review on the test code itself was already clean in pass 1 (`would otherwise be approved`). The blocker was the cross-gate Dockerfile finding outside US001's scope; the orchestrator's gate-fix track has cleared it. There is no remaining reason to withhold approval. **approved.**
+
+**Tech-debt: none filed this pass.** All findings from pass 1 are already on the ledger (two Dockerfile findings — now resolved by the gate-fix track and can be struck through on next sweep; one TDG prefix-shape observation — remains). No new findings surfaced by the unchanged code in this pass.
 

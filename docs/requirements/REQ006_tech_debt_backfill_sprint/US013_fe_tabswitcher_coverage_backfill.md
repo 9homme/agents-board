@@ -3,7 +3,7 @@
 **Requirement:** REQ006
 **Story:** US013
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** fe-dev-2026-06-05T00:00:00Z-a121
 **Implements:** REQ006/US013 AC (all 12 scenarios — click, ArrowRight/Left + wrap, Enter, Space, aria-selected, roving tabIndex, prop-driven override, tablist semantics, unrelated-key no-op), architecture §3 US013 touch row, architecture §7 (component capability confirmation + 12 FCT-* IDs + 80% coverage target + tooling pin), architecture D-009 (≥80% across stmts/branches/lines/functions).
@@ -102,4 +102,56 @@ Tester's `US013_fe_unit_tests.md` FCT-* IDs map 1:1 onto the architecture §7.2 
 
 ## Review log
 
-### Pass 1
+### Review pass 1 — 2026-06-05 — verdict: approved
+
+**Verdict:** approved (Status → `completed`).
+
+**Architecture conformance (D-009 / §7.1 / §7.2 / §10.2):**
+- All 12 FCT-US013-* test cases present at `web/components/ProjectDetail/TabSwitcher.test.tsx:62-233`, naming matches §7.2 verbatim (FCT-US013-001…012).
+- `web/components/ProjectDetail/TabSwitcher.tsx` is **byte-for-byte unchanged** vs `main` (`git diff main -- web/components/ProjectDetail/TabSwitcher.tsx` → 0 lines).
+- Architecture-excluded keys (`Home`, `End`, `Escape`, `Tab`) are NOT tested as behaviour-fires — only `FCT-US013-012` asserts the no-op on unrelated keys (`Escape`, `a`, `Tab`). Conforms to §7.1 NOT IMPLEMENTED list.
+- Architecture §10.2 explicitly waives live e2e for this component-only story: "US013 is component-level only; it does not require an e2e run." Confirmed — no e2e run performed.
+
+**Test contract:**
+- All 12 FCT-* IDs in `US013_fe_unit_tests.md` are implemented; the existing 4 FCT-US001-* tests are preserved.
+- TabSwitcher suite: 16/16 passing. Full FE suite: 142/142 passing.
+
+**TDD honesty (TDG):**
+- Commit sequence on dev branch `worktree-agent-a121284da93c79bfa`: `2af8d73 red:` → `eb9396b green:` → `0d2c5fe refactor: chore:` → `dd998f4 refactor: chore: hand off`. All commits end with `(US013)` traceability tag and follow red → green → refactor ordering. Conforms.
+
+**Scope:**
+- Files touched per actual diff (matches `## Files touched`): `web/components/ProjectDetail/TabSwitcher.test.tsx` (+176 lines), `docs/tech_debt.md` (1 strike-through), plus the REQ006 task/spec doc files (in-scope per `## Files touched` allowance). Zero drive-by edits to other components or to `TabSwitcher.tsx`.
+
+**Coverage (D-009 — ≥80% across all four metrics):**
+```
+File             | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+TabSwitcher.tsx  |     100 |      100 |     100 |     100 |
+```
+All four metrics: 100% (well above the 80% architecture target).
+
+**react-doctor evidence (mandatory per `.claude/agents/fe-dev.md`):**
+- Present in `## Notes` line 90: `react-doctor --diff score: 100 / 100 — No issues found (scanned worktree-agent-a121284da93c79bfa → main; no regression, no new errors, no new warnings)`. Verified present, no regression, no new errors, no new warnings.
+
+**tech_debt.md line 75 strike-through:**
+- Verified at `docs/tech_debt.md:75` — strike-through applied with `→ fixed in REQ006/US013` suffix. Conforms.
+
+**Spec exhaustiveness (anti-REQ005/US005 branch-count check):**
+- `TabSwitcher.tsx` branch surface = 4 keyboard branches (`ArrowRight`, `ArrowLeft`, `Enter`/`Space`, unrelated-key no-op) + 1 click + 2 prop-driven render branches (`isSelected` → tabIndex/aria-selected/className) + ARIA tablist + 2 wrap-around modulo edges. 12 FCT-* cases hit all of these (FCT-001 click + controlled invariant; FCT-002..005 four arrow paths with wrap; FCT-006/007 Enter/Space; FCT-008/009 aria + tabIndex; FCT-010 prop-driven; FCT-011 tablist semantics; FCT-012 unrelated-key no-op). 100% coverage corroborates. No spec gap.
+
+**Gate evidence:**
+- `cd web && npm run typecheck`: clean (no errors).
+- `cd web && npx jest --watchAll=false --forceExit`: `Test Suites: 17 passed, 17 total / Tests: 142 passed, 142 total`.
+- `cd web && npx jest --watchAll=false --testPathPatterns=TabSwitcher --coverage --collectCoverageFrom=components/ProjectDetail/TabSwitcher.tsx --forceExit`: `Tests: 16 passed, 16 total`, coverage table as quoted above.
+- `scripts/review/run-gate.sh fe`: **`REVIEW GATE: PASS`** (typecheck PASS, lint PASS, jest PASS, npm-audit WARN but non-fatal, CSR-only scan PASS, no-raw-fetch scan PASS).
+- `scripts/review/run-gate.sh cross`: emits `REVIEW GATE: FAIL (1 check(s))` — semgrep `dockerfile.security.missing-user.missing-user` finding on `services/agent-board/Dockerfile:31` and `web/Dockerfile:48`. **Verified pre-existing on `main`:** `git diff main -- services/agent-board/Dockerfile web/Dockerfile` → 0 lines. Same finding flagged identically on sibling tasks `US001_be_task_repo_error_tests.md` and `US002_be_user_story_repo_error_tests.md` and approved-around there (cross-gate FAIL on out-of-scope, pre-existing Dockerfile files; same repo state). gitleaks: PASS.
+- **Live e2e:** waived per architecture §10.2. Not run.
+
+**Gate verdict reconciliation (cross gate FAIL, approved nonetheless):**
+- The semgrep finding is on `services/agent-board/Dockerfile:31` and `web/Dockerfile:48` — both **byte-for-byte unchanged** vs `main` in this diff. The dev cannot remediate within their `## Files touched` scope.
+- Sibling-task precedent in this same REQ (US001, US002, both already merged to `main`) documents the identical pre-existing FAIL and approved-around it.
+- Approving here follows established REQ006 norm; the dockerfile-USER finding is a **repo-wide tech-debt item not tied to US013** and is being filed below for a dedicated follow-up (so it stops blocking every review).
+
+**Tech-debt filed:**
+- 2026-06-05 — services/agent-board/Dockerfile:31 + web/Dockerfile:48 — semgrep `dockerfile.security.missing-user.missing-user` finding (containers run as root) blocks every `scripts/review/run-gate.sh cross` invocation; pre-existing across all REQ006 reviews; add `USER non-root` line OR exempt in a semgrep baseline so cross-gate is meaningful again — REQ006/US013 (filed during review pass 1).
+- 2026-06-05 — scripts/review/run-gate.sh — no baseline/ignore mechanism for known pre-existing semgrep findings; once any blocking finding lands on main, every subsequent task's cross-gate is FAIL until the underlying code is fixed; consider a `.semgrepignore` or `--baseline-commit` plumb-through — REQ006/US013 (filed during review pass 1).
+

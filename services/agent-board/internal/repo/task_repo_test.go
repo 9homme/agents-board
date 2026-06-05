@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -220,5 +221,294 @@ func TestTaskRepo_ListTasks(t *testing.T) {
 	assert.Equal(t, id1, tasks[0].ID)
 	assert.Equal(t, id2, tasks[1].ID)
 
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-001 — CreateTask query fails (generic DB error)
+func TestTaskRepo_CreateTask_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectQuery(`INSERT INTO tasks`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.CreateTask(context.Background(), &domain.Task{
+		UserStoryID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:       "Test Task",
+		Description: "desc",
+		Status:      "pending",
+	})
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-002 — GetTask query fails (generic DB error)
+func TestTaskRepo_GetTask_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM tasks WHERE`).
+		WithArgs("task-id-1").
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.GetTask(context.Background(), "task-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-003 — GetTask returns no rows → ErrNotFound
+func TestTaskRepo_GetTask_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM tasks WHERE`).
+		WithArgs("task-id-1").
+		WillReturnError(sql.ErrNoRows)
+
+	result, err := r.GetTask(context.Background(), "task-id-1")
+
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-004 — UpdateTask returns no rows → ErrNotFound
+func TestTaskRepo_UpdateTask_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectQuery(`UPDATE tasks SET`).
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnError(sql.ErrNoRows)
+
+	result, err := r.UpdateTask(context.Background(), &domain.Task{
+		ID:          "task-id-1",
+		UserStoryID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:       "Updated",
+		Description: "desc",
+		Status:      "in_progress",
+	})
+
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-005 — UpdateTask query fails (non-NotFound generic error)
+func TestTaskRepo_UpdateTask_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectQuery(`UPDATE tasks SET`).
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.UpdateTask(context.Background(), &domain.Task{
+		ID:          "task-id-1",
+		UserStoryID: "123e4567-e89b-12d3-a456-426614174000",
+		Title:       "Updated",
+		Description: "desc",
+		Status:      "in_progress",
+	})
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-006 — UpdateTaskStatus BeginTx fails
+func TestTaskRepo_UpdateTaskStatus_BeginTxError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectBegin().WillReturnError(errors.New("begin fail"))
+
+	result, err := r.UpdateTaskStatus(context.Background(), "task-id-1", "in_progress", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to begin transaction")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-007 — UpdateTaskStatus QueryRowContext returns no rows → ErrNotFound
+func TestTaskRepo_UpdateTaskStatus_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE tasks SET status`).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectRollback()
+
+	result, err := r.UpdateTaskStatus(context.Background(), "task-id-1", "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-008 — UpdateTaskStatus QueryRowContext fails (non-NotFound generic error)
+func TestTaskRepo_UpdateTaskStatus_UpdateGenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE tasks SET status`).
+		WillReturnError(errors.New("db down"))
+	mock.ExpectRollback()
+
+	result, err := r.UpdateTaskStatus(context.Background(), "task-id-1", "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-009 — UpdateTaskStatus audit ExecContext fails → rollback
+func TestTaskRepo_UpdateTaskStatus_AuditInsertError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+	now := time.Now()
+	taskID := "223e4567-e89b-12d3-a456-426614174000"
+	userStoryID := "123e4567-e89b-12d3-a456-426614174000"
+
+	taskCols := []string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE tasks SET status`).
+		WillReturnRows(sqlmock.NewRows(taskCols).AddRow(taskID, userStoryID, "Test Task", "Desc", "done", now, now))
+	mock.ExpectExec(`INSERT INTO status_audit_trail`).
+		WillReturnError(errors.New("audit fail"))
+	mock.ExpectRollback()
+
+	result, err := r.UpdateTaskStatus(context.Background(), taskID, "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to insert audit log")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-010 — UpdateTaskStatus Commit fails
+func TestTaskRepo_UpdateTaskStatus_CommitError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+	now := time.Now()
+	taskID := "223e4567-e89b-12d3-a456-426614174000"
+	userStoryID := "123e4567-e89b-12d3-a456-426614174000"
+
+	taskCols := []string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE tasks SET status`).
+		WillReturnRows(sqlmock.NewRows(taskCols).AddRow(taskID, userStoryID, "Test Task", "Desc", "done", now, now))
+	mock.ExpectExec(`INSERT INTO status_audit_trail`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit().WillReturnError(errors.New("commit fail"))
+
+	result, err := r.UpdateTaskStatus(context.Background(), taskID, "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to commit transaction")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-011 — ListTasks QueryContext fails
+func TestTaskRepo_ListTasks_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM tasks WHERE`).
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.ListTasks(context.Background(), "user-story-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-012 — ListTasks rows.Scan type-mismatch
+func TestTaskRepo_ListTasks_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+
+	cols := []string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}
+	// bool value in created_at (time.Time) column forces a Scan type-mismatch error
+	mock.ExpectQuery(`SELECT .* FROM tasks WHERE`).
+		WillReturnRows(sqlmock.NewRows(cols).AddRow("task-id", "us-id", "Title", "Desc", "pending", true, true))
+
+	result, err := r.ListTasks(context.Background(), "user-story-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-013 — ListTasks rows.Err() after iteration
+func TestTaskRepo_ListTasks_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewTaskRepo(db)
+	now := time.Now()
+
+	cols := []string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}
+	mock.ExpectQuery(`SELECT .* FROM tasks WHERE`).
+		WillReturnRows(sqlmock.NewRows(cols).
+			AddRow("task-id", "us-id", "Title", "Desc", "pending", now, now).
+			RowError(0, errors.New("rows err")))
+
+	result, err := r.ListTasks(context.Background(), "user-story-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

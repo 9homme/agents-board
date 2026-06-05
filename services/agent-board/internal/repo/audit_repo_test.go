@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -83,6 +84,26 @@ func TestAuditRepo_GetUserStoryAuditTrail(t *testing.T) {
 	assert.Equal(t, "in_development", entries[1].FromStatus)
 	assert.Equal(t, "in_signoff", entries[1].ToStatus)
 
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-001: GetTaskAuditTrail propagates QueryContext errors.
+func TestAuditRepo_GetTaskAuditTrail_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewAuditRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM status_audit_trail WHERE entity_type`).
+		WithArgs("task", "task-id-1").
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.GetTaskAuditTrail(context.Background(), "task-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to query audit trail")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 

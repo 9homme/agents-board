@@ -4,7 +4,7 @@
 **Story:** US002
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** blocked_review_gate
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-05T00:00:00Z-ad92
 **Implements:** REQ006/US002 AC (all four scenarios — 12 verbatim test function names, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change, existing suite still green). Architecture §3 US002 touch row + §4.2 cluster-1 sqlmock pattern + §4.5 exemption mechanism + §4.6 local verification command (US002 row).
@@ -97,4 +97,81 @@ Per architecture §10.4 (tests-only, production code unchanged), live e2e is NOT
 
 ## Review log
 
-### Pass 1
+### Review pass 1 — 2026-06-05 — verdict: blocked_review_gate
+
+**Why blocked_review_gate (not approved, not changes_requested):** code under review is unimpeachable; cross review gate cannot emit `REVIEW GATE: PASS` because of a pre-existing semgrep finding in two Dockerfiles that this task does not touch. Tech-lead contract is strict: cannot issue `approved` without the gate emitting `REVIEW GATE: PASS` on stdout. Code is not at fault → not `changes_requested` either. Gate failure is environmental/baseline → `blocked_review_gate` per state-machine. Route to gate-fix track (Dockerfile USER backfill — filed in `docs/tech_debt.md` under REQ006/cross-gate/dockerfile-missing-user); do NOT route back to be-dev.
+
+**Code review (clean — would approve if gate were green):**
+
+- **Production code unchanged.** `git diff main..HEAD -- services/agent-board/internal/repo/user_story_repo.go` produces zero output. Confirmed byte-for-byte unchanged per task DoD + architecture §3 US002 row.
+- **All 13 verbatim test functions present in `user_story_repo_test.go`** matching spec UT-001..UT-013 IDs and the task's `## Test contract` list. Plus a 14th `TestUserStoryRepo_ListUserStories_EmptyResult` (legitimate addition for IT-001 ≥95% coverage — covers the `userStories == nil` → `[]*domain.UserStory{}` branch at user_story_repo.go:136-138, which sqlmock's empty `NewRows` exercises cleanly).
+- **Sqlmock pattern matches architecture §4.2 verbatim** for every branch suffix: `_GenericError` uses `errors.New("db down")`; `_NotFound` uses `sql.ErrNoRows`; `_BeginTxError` uses `ExpectBegin().WillReturnError`; `_AuditInsertError` + `_CommitError` correctly declare `ExpectRollback()` to match the deferred-rollback at user_story_repo.go:65-71 (architecture §4.2 explicit note); `_ScanError` uses wrong-type AddRow; `_RowsErr` uses `RowError(0, errors.New(...))`.
+- **Exhaustiveness check:** counted 11 `return ...err` / sentinel-mapping sites in user_story_repo.go (lines 39, 50-53, 67-68 [exempt], 76-80, 86, 89-90, 100-104, 119-121, 128-129, 133-134). All but the exempt line 68 (defer-rollback `log.Printf` per §4.5) are exercised by UT-001..UT-013 + the empty-result addition. 11 sites, 13 UT cases (some sites cover NotFound vs GenericError splits) — OK.
+- **TDG conformance:** verified commit history `6e3f75a red: test spec for UT-001..UT-013 error-branch tests (US002)` → `4778878 green: user_story_repo.go error-branch tests pass (US002)` → `d4dff2c refactor: add empty-result test to reach ≥95% ListUserStories coverage (US002)` → `29ad84e refactor: chore: hand off ... for review (US002)`. Strict red → green → refactor sequence; every subject carries `(US002)` traceability tag. OK.
+- **Test outcomes (locally re-run by tech-lead):**
+  - `cd services/agent-board && go vet ./...` → no issues
+  - `cd services/agent-board && go test ./...` → `Go test: 160 passed in 6 packages`
+  - `cd services/agent-board && go test ./internal/repo -coverprofile=/tmp/repo_us002.out -run TestUserStoryRepo` → `Go test: 21 passed in 1 packages`
+  - `go tool cover -func=/tmp/repo_us002.out | grep user_story_repo.go`:
+    ```
+    agent-board/internal/repo/user_story_repo.go:30: NewUserStoryRepo       100.0%
+    agent-board/internal/repo/user_story_repo.go:35: CreateUserStory        100.0%
+    agent-board/internal/repo/user_story_repo.go:45: GetUserStory           100.0%
+    agent-board/internal/repo/user_story_repo.go:60: UpdateUserStoryStatus   95.2%
+    agent-board/internal/repo/user_story_repo.go:97: UpdateUserStory        100.0%
+    agent-board/internal/repo/user_story_repo.go:110: DeleteUserStory       100.0%
+    agent-board/internal/repo/user_story_repo.go:117: ListUserStories       100.0%
+    ```
+    `UpdateUserStoryStatus` at 95.2% — the single uncovered statement is line :68 (`log.Printf` inside the deferred-rollback's `if rbErr != nil && !errors.Is(rbErr, sql.ErrTxDone)`), which is the architecture §4.5 enumerated unreachable line. ≥95% per-file threshold MET modulo enumerated exemption — OK.
+  - `cd services/agent-board && go test -count=3 ./internal/repo -race` → `Go test: 213 passed in 1 packages` (71 × 3 runs, zero races, zero flakes). 3-clean-run substitute for live e2e per architecture §10.4 + task DoD — OK.
+
+**Gate outcomes (verbatim):**
+
+- `scripts/review/run-gate.sh be services/agent-board`:
+  ```
+  == BE gate · services/agent-board ==
+    PASS  gofmt -s (no diff)
+    PASS  go vet ./...
+    PASS  golangci-lint run ./...
+    PASS  go test ./...
+  WARN  gosec (skipped — not installed; coverage via golangci-lint gosec linter)
+  WARN  govulncheck (skipped — not installed)
+
+  REVIEW GATE: PASS
+  ```
+- `scripts/review/run-gate.sh cross`:
+  ```
+  ┌─────────────────┐
+  │ 2 Code Findings │
+  └─────────────────┘
+      services/agent-board/Dockerfile
+     ❯❯❱ dockerfile.security.missing-user.missing-user
+            ❰❰ Blocking ❱❱
+             31┆ CMD ["./api-server"]
+      web/Dockerfile
+     ❯❯❱ dockerfile.security.missing-user.missing-user
+            ❰❰ Blocking ❱❱
+             48┆ CMD ["npm", "start"]
+    PASS  gitleaks (no secrets)
+
+  REVIEW GATE: FAIL (1 check(s))
+    - semgrep (owasp/golang/typescript)
+  ```
+- Confirmed pre-existing: `git diff main..HEAD -- services/agent-board/Dockerfile web/Dockerfile` produces zero output; checked out `services/agent-board/Dockerfile` and `web/Dockerfile` on `main` directly — both lack `USER` directives identically. US002's diff is `user_story_repo_test.go` + this task file ONLY (commits 29ad84e, 4778878, 6e3f75a, d4dff2c). The cross-gate failure is not introduced by this task and cannot be fixed by editing user_story_repo_test.go.
+- Same finding documented in prior tech-lead notes on US001 (`pre-existing semgrep Dockerfile failures unrelated to this task — confirmed on base branch too`) and US013 (`verified failing identically on base branch before this task's changes`). Pattern is recurring across all REQ006 tasks because the Dockerfiles are untouched by REQ006 scope.
+
+**Why I did not approve despite the prior-task precedent:** the tech-lead contract is unambiguous — "You cannot issue `approved` if any gate check failed" / "You cannot issue `approved` without pasting the gate's final `REVIEW GATE: PASS` line." The precedent in US001 / US013 of approving while the cross gate is FAIL is itself a process violation that this review breaks. The correct path is to file the Dockerfile-USER finding as tech-debt (done — `docs/tech_debt.md` REQ006/cross-gate/dockerfile-missing-user, both Dockerfile lines), set this task to `blocked_review_gate`, and let the orchestrator route a dedicated fix-up task (add `USER nonroot:nonroot` to `services/agent-board/Dockerfile`, `USER node` to `web/Dockerfile`) before the cross gate can emit PASS for ANY remaining REQ006 task.
+
+**Tech-debt filed this pass:**
+- `docs/tech_debt.md` — `2026-06-05 — services/agent-board/Dockerfile:31 — distroless runtime stage lacks an explicit USER directive; semgrep dockerfile.security.missing-user.missing-user flags as blocking and the cross review gate FAILs on every REQ006 task because of it. Distroless static images run as root by default. Add USER nonroot:nonroot (distroless static image ships with nonroot UID 65532) before the final CMD ["./api-server"]. This is a recurring cross-gate blocker across REQ006/US001, US002, US013 — file as REQ-level tech-debt for a dedicated fix-up task — REQ006/cross-gate/dockerfile-missing-user`
+- `docs/tech_debt.md` — `2026-06-05 — web/Dockerfile:48 — same as above for the FE image. Add USER node (the official node: images ship with the node user) before CMD ["npm", "start"]. Pair with the agent-board Dockerfile fix in a single PR — REQ006/cross-gate/dockerfile-missing-user`
+
+**Unblock recipe (for the gate-fix dev, not for be-dev):**
+1. Edit `services/agent-board/Dockerfile` — add `USER nonroot:nonroot` on a new line immediately before `CMD ["./api-server"]` (line 31 currently).
+2. Edit `web/Dockerfile` — add `USER node` on a new line immediately before `CMD ["npm", "start"]` (line 48 currently).
+3. Re-run `bash scripts/review/run-gate.sh cross` — expect `REVIEW GATE: PASS`.
+4. Re-run `bash scripts/review/run-gate.sh be services/agent-board` to confirm no regression.
+5. Strike-through the two tech-debt lines.
+6. Flip US002 (and US001, US013) from `blocked_review_gate` back to `in_review` for tech-lead re-review.
+
+Once the Dockerfile fix lands and the cross gate emits PASS, re-review of THIS task will be a one-pass approval — the code-review checklist above is already entirely clean. No code change is requested of be-dev for US002.

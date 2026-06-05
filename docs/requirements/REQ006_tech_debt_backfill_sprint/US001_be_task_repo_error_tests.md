@@ -4,7 +4,7 @@
 **Story:** US001
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** blocked_review_gate
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-05T00:00:00Z-aa86
 **Implements:** REQ006/US001 AC (all four scenarios — 12 verbatim test function names, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change, existing suite still green). Architecture §3 US001 touch row + §4.2 cluster-1 sqlmock pattern + §4.5 exemption mechanism + §4.6 local verification command (US001 row).
@@ -121,3 +121,42 @@ Not required per task DoD (tests-only story, architecture §10.4). Equivalent 3-
 
 ## Review log
 (tech-lead appends here on each review pass)
+
+### Review pass 1 — 2026-06-05 — verdict: blocked_review_gate
+
+**Code-quality review on the task itself is clean and would otherwise be `approved`.** The blocker is the cross-gate failure described below; once the gate-fix track clears the pre-existing Dockerfile findings, re-running the gate against this unchanged code should immediately flip to `approved` (no rework needed on US001).
+
+- **BE gate:** `scripts/review/run-gate.sh be services/agent-board` → exit 0; final line verbatim — `REVIEW GATE: PASS`. (gofmt -s, go vet, golangci-lint, go test ./... all green; gosec/govulncheck soft-warn skipped per host config — same baseline as REQ005/US005.)
+- **Cross gate:** `scripts/review/run-gate.sh cross` → exit 1; final line — `REVIEW GATE: FAIL (1 check(s))` — failing check is `semgrep (owasp/golang/typescript)` with TWO `dockerfile.security.missing-user.missing-user` findings (`services/agent-board/Dockerfile:31` + `web/Dockerfile:48`). These findings are PRE-EXISTING — `git log -- services/agent-board/Dockerfile web/Dockerfile` shows the last touch on either file is `7b836c5` (REQ005/US008 — May 2026), well before REQ006 was opened. US001's `Scope: In` is exactly one file (`services/agent-board/internal/repo/task_repo_test.go`); the Dockerfiles are outside US001's lane. The cross gate cannot emit PASS regardless of what US001 does.
+- **Per-file coverage on `task_repo.go`** (architecture §4.6 + spec IT-001):
+  ```
+  agent-board/internal/repo/task_repo.go:31:		NewTaskRepo		100.0%
+  agent-board/internal/repo/task_repo.go:36:		CreateTask		100.0%
+  agent-board/internal/repo/task_repo.go:51:		GetTask			100.0%
+  agent-board/internal/repo/task_repo.go:70:		UpdateTask		100.0%
+  agent-board/internal/repo/task_repo.go:91:		UpdateTaskStatus	95.2%
+  agent-board/internal/repo/task_repo.go:133:		DeleteTask		100.0%
+  agent-board/internal/repo/task_repo.go:140:		ListTasks		100.0%
+  ```
+  Six of seven functions at 100%; `UpdateTaskStatus` at 95.2% (one uncovered line is `task_repo.go:99` — the `log.Printf` inside the `defer` rollback path, sqlmock-unreachable). Exempt per architecture §4.5 (OQ-4) and spec IT-001's `## Coverage exemptions`. Threshold ≥95% met.
+- **Test contract conformance:** all 12 verbatim function names from `## Test contract` present in `task_repo_test.go` (lines 228, 253, 292, 317, 342, 360, 380, 401, 429, 457, 475, 495). Plus UT-003 `TestTaskRepo_GetTask_NotFound` per spec's exhaustiveness mandate. `go test ./internal/repo -run TestTaskRepo` → 20 passed (7 pre-existing + 13 new).
+- **Sqlmock pattern conformance (architecture §4.2):** every branch shape audited against §4.2 — `_GenericError` uses `WillReturnError(errors.New("db down"))`; `_NotFound` uses `WillReturnError(sql.ErrNoRows)`; `_BeginTxError` uses `ExpectBegin().WillReturnError(...)`; `_AuditInsertError` and `_CommitError` declare `ExpectRollback()` per §4.2's note about `task_repo.go:96-102`; `_UpdateGenericError` declares `ExpectRollback()` (transactional path with the same defer); `_ScanError` uses `AddRow(...wrong-type...)` (bool in `created_at` time.Time column); `_RowsErr` uses `.RowError(0, errors.New("rows err"))`. All correct.
+- **Wrap-prefix assertions vs source:** confirmed `task_repo.go:94` → `"failed to begin transaction"`, `task_repo.go:122` → `"failed to insert audit log"`, `task_repo.go:126` → `"failed to commit transaction"`. UT-006/009/010 `assert.Contains` strings match the source verbatim.
+- **Production code byte-for-byte unchanged:** `git log fb4e882..HEAD -- services/agent-board/internal/repo/task_repo.go` returns empty. Confirmed.
+- **Full suite regression:** `cd services/agent-board && go test ./...` → `Go test: 160 passed in 6 packages`. No regression elsewhere.
+- **Race + 3-clean-run flake check:** `go test -count=3 ./internal/repo -race` → `Go test: 213 passed in 1 packages` (71 cases × 3 runs, no races). Equivalent to the live-e2e 3-clean-run flake check (story is tests-only per architecture §10.4; DoD line 71 names this substitution explicitly).
+- **Test spec exhaustiveness audit (anti-REQ005/US005 check):** counted `task_repo.go` error branches vs UT-* cases — `CreateTask` 1 err site → UT-001; `GetTask` 2 (sql.ErrNoRows + generic) → UT-002 + UT-003; `UpdateTask` 2 (sql.ErrNoRows + generic) → UT-004 + UT-005; `UpdateTaskStatus` 5 (begin + sql.ErrNoRows + generic + audit-exec + commit) → UT-006 + UT-007 + UT-008 + UT-009 + UT-010; `DeleteTask` trivial passthrough (no err-branch test required); `ListTasks` 3 (query + scan + rows.Err) → UT-011 + UT-012 + UT-013. 13 branches → 13 UT cases. Exact 1:1 match. No SPEC_GAP_FOUND.
+- **TDG conformance:** commit chain `fb4e882..a3fe1a8` → `red:` (fb4e882) → `green:` (873cf2b) → `refactor: chore:` (b1dcdc4) → `refactor: chore:` (a3fe1a8). Red-before-green ordering OK; every commit carries the `(US001)` traceability tag. The two `refactor: chore:` subjects are mildly off-shape (chore-like work is being labeled as refactor — should arguably use a dedicated `chore:` prefix if the TDG skill supports it). Not blocking — filed as tech-debt.
+- **Dev hand-off `## Notes` evidence:** dev recorded `REVIEW GATE: PASS` for BE gate and explicitly disclosed pre-existing semgrep Dockerfile failures (lines 104–105) — honest hand-off, no rationalisation.
+
+**Verdict rationale.** Per `.claude/agents/tech-lead.md` strict reading: "You cannot issue `approved` if any gate check failed... [use] `blocked_review_gate` when the gate, coverage tooling, or `robot --dryrun` could not run cleanly through to a clear PASS/FAIL — i.e. the gate or tooling is at fault, not the code." The cross-gate semgrep check IS working correctly and IS reporting two real (pre-existing) Dockerfile security findings — that is the gate behaving as intended. The code US001 introduces is NOT at fault (US001 touches only `task_repo_test.go`; Dockerfiles are outside `Scope: In`). This is the "gate cannot emit PASS for reasons unrelated to this task's code" branch: `blocked_review_gate` is the only valid verdict. `changes_requested` would be wrong (US001's code is not the defect); `approved` is forbidden (the gate did not emit `REVIEW GATE: PASS` on cross).
+
+**Orchestrator routing.** Do NOT re-route to be-dev as a US001 rework. The unblock is one of:
+
+1. **Preferred:** spawn a dedicated gate-fix track task to add `USER non-root` (or equivalent) to both Dockerfiles — one-line patch per file. After merge, re-run the cross gate against this unchanged code and the verdict flips to `approved`.
+2. **Alternative:** if the orchestrator + human decide Dockerfile hardening is out of scope for REQ006, add a documented carve-out to `scripts/review/run-gate.sh` (semgrep `--exclude=Dockerfile` or similar) with a comment citing the deferral REQ. Re-run cross gate, approve US001.
+
+Tech-debt findings already filed to `docs/tech_debt.md` so they aren't lost regardless of which path the orchestrator takes.
+
+**Tech-debt: filed this pass.** See `docs/tech_debt.md` 2026-06-05 entries (two Dockerfile findings + one TDG prefix-shape observation).
+

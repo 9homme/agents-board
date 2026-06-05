@@ -72,7 +72,7 @@ These were uncovered by the orchestrator's project-wide test-coverage audit run 
 
 **Frontend (`TabSwitcher.tsx`) — pre-existing REQ004 gap, not in REQ005 scope:**
 
-- 2026-06-03 — web/components/ProjectDetail/TabSwitcher.tsx:35-47,67 — 41.66% stmts / 33.33% branches / 39.13% lines coverage; only the default-tab render path is tested. Missing FCT-* for: tab change handler, keyboard navigation, aria-selected state on each tab, prop-driven tab override — REQ004/tech-debt/fe-tab-switcher
+- ~~2026-06-03 — web/components/ProjectDetail/TabSwitcher.tsx:35-47,67 — 41.66% stmts / 33.33% branches / 39.13% lines coverage; only the default-tab render path is tested. Missing FCT-* for: tab change handler, keyboard navigation, aria-selected state on each tab, prop-driven tab override — REQ004/tech-debt/fe-tab-switcher~~ → fixed in REQ006/US013
 
 **E2E (all REQs) — parse-clean but unverified live:**
 

@@ -19,11 +19,11 @@ import (
 // Each method delegates to its corresponding Func field; if the field is nil the method no-ops.
 type MockProjectRepo struct {
 	repo.ProjectRepository // embed for forward-compat
-	CreateProjectFunc func(ctx context.Context, p *domain.Project) (*domain.Project, error)
-	GetProjectFunc    func(ctx context.Context, id string) (*domain.Project, error)
-	UpdateProjectFunc func(ctx context.Context, p *domain.Project) (*domain.Project, error)
-	DeleteProjectFunc func(ctx context.Context, id string) error
-	ListProjectsFunc  func(ctx context.Context) ([]*domain.Project, error)
+	CreateProjectFunc      func(ctx context.Context, p *domain.Project) (*domain.Project, error)
+	GetProjectFunc         func(ctx context.Context, id string) (*domain.Project, error)
+	UpdateProjectFunc      func(ctx context.Context, p *domain.Project) (*domain.Project, error)
+	DeleteProjectFunc      func(ctx context.Context, id string) error
+	ListProjectsFunc       func(ctx context.Context) ([]*domain.Project, error)
 }
 
 // CreateProject delegates to CreateProjectFunc if set, otherwise returns nil.

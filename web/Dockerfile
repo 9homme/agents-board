@@ -45,4 +45,7 @@ COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000
 
+# Run as non-root (node:alpine ships with the `node` user, UID 1000).
+USER node
+
 CMD ["npm", "start"]

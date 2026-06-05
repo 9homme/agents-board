@@ -27,5 +27,8 @@ WORKDIR /
 COPY --from=build /work/api-server .
 COPY --from=build /work/mcp-server .
 
+# Run as non-root (distroless static ships with `nonroot`, UID 65532).
+USER nonroot:nonroot
+
 # api-server is the default entry; compose may override with ["./mcp-server"].
 CMD ["./api-server"]

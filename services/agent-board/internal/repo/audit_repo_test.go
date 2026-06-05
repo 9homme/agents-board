@@ -107,6 +107,120 @@ func TestAuditRepo_GetTaskAuditTrail_QueryError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// UT-002: GetTaskAuditTrail propagates Scan type-mismatch errors.
+func TestAuditRepo_GetTaskAuditTrail_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewAuditRepo(db)
+
+	// bool in changed_at (time.Time) column forces a Scan type-mismatch error.
+	auditCols := []string{"id", "entity_id", "entity_type", "from_status", "to_status", "changed_at"}
+	mock.ExpectQuery(`SELECT .* FROM status_audit_trail WHERE entity_type`).
+		WithArgs("task", "task-id-1").
+		WillReturnRows(sqlmock.NewRows(auditCols).AddRow(
+			"audit-id-1", "task-id-1", "task", "pending", "done", true, // bool forces Scan failure on time.Time
+		))
+
+	result, err := r.GetTaskAuditTrail(context.Background(), "task-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to scan audit trail entry")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-003: GetTaskAuditTrail propagates rows.Err() after iteration.
+func TestAuditRepo_GetTaskAuditTrail_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewAuditRepo(db)
+
+	auditCols := []string{"id", "entity_id", "entity_type", "from_status", "to_status", "changed_at"}
+	mock.ExpectQuery(`SELECT .* FROM status_audit_trail WHERE entity_type`).
+		WithArgs("task", "task-id-1").
+		WillReturnRows(sqlmock.NewRows(auditCols).
+			AddRow("audit-id-1", "task-id-1", "task", "pending", "done", time.Now()).
+			RowError(0, errors.New("rows err")))
+
+	result, err := r.GetTaskAuditTrail(context.Background(), "task-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error iterating audit trail")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-004: GetUserStoryAuditTrail propagates QueryContext errors.
+func TestAuditRepo_GetUserStoryAuditTrail_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewAuditRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM status_audit_trail WHERE entity_type`).
+		WithArgs("user_story", "us-id-1").
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.GetUserStoryAuditTrail(context.Background(), "us-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to query audit trail")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-005: GetUserStoryAuditTrail propagates Scan type-mismatch errors.
+func TestAuditRepo_GetUserStoryAuditTrail_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewAuditRepo(db)
+
+	// bool in changed_at (time.Time) column forces a Scan type-mismatch error.
+	auditCols := []string{"id", "entity_id", "entity_type", "from_status", "to_status", "changed_at"}
+	mock.ExpectQuery(`SELECT .* FROM status_audit_trail WHERE entity_type`).
+		WithArgs("user_story", "us-id-1").
+		WillReturnRows(sqlmock.NewRows(auditCols).AddRow(
+			"audit-id-1", "us-id-1", "user_story", "draft", "done", true, // bool forces Scan failure on time.Time
+		))
+
+	result, err := r.GetUserStoryAuditTrail(context.Background(), "us-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to scan audit trail entry")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-006: GetUserStoryAuditTrail propagates rows.Err() after iteration.
+func TestAuditRepo_GetUserStoryAuditTrail_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewAuditRepo(db)
+
+	auditCols := []string{"id", "entity_id", "entity_type", "from_status", "to_status", "changed_at"}
+	mock.ExpectQuery(`SELECT .* FROM status_audit_trail WHERE entity_type`).
+		WithArgs("user_story", "us-id-1").
+		WillReturnRows(sqlmock.NewRows(auditCols).
+			AddRow("audit-id-1", "us-id-1", "user_story", "draft", "done", time.Now()).
+			RowError(0, errors.New("rows err")))
+
+	result, err := r.GetUserStoryAuditTrail(context.Background(), "us-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "error iterating audit trail")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // GetTaskAuditTrail returns empty slice (not nil) when no audit entries exist.
 func TestAuditRepo_GetTaskAuditTrail_Empty(t *testing.T) {
 	db, mock, err := sqlmock.New()

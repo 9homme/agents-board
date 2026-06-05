@@ -4,7 +4,7 @@
 **Story:** US001
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_progress
+**Status:** in_review
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-05T00:00:00Z-aa86
 **Implements:** REQ006/US001 AC (all four scenarios — 12 verbatim test function names, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change, existing suite still green). Architecture §3 US001 touch row + §4.2 cluster-1 sqlmock pattern + §4.5 exemption mechanism + §4.6 local verification command (US001 row).
@@ -70,6 +70,54 @@ Tester's `US001_be_unit_tests.md` IDs (UT-* / IT-*) map 1:1 onto these names. If
 - **Review gate green:** `scripts/review/run-gate.sh be services/agent-board` exits 0 with `REVIEW GATE: PASS`; `scripts/review/run-gate.sh cross` exits 0 with `REVIEW GATE: PASS`.
 - **Live e2e + 3-clean-run flake check NOT required for this story** — it is tests-only, production code unchanged (architecture §10.4). Equivalent assertion: `cd services/agent-board && go test -count=3 ./internal/repo -race` clean three runs.
 - Dev set status to `in_review` and reported back; tech-lead approved (`completed`).
+
+## Notes
+
+### Files touched
+- `services/agent-board/internal/repo/task_repo_test.go` — added 13 test functions (12 required verbatim + UT-003 `TestTaskRepo_GetTask_NotFound` per exhaustiveness mandate)
+- `docs/requirements/REQ006_tech_debt_backfill_sprint/US001_be_task_repo_error_tests.md` — status flip to in_review, notes added
+- `docs/requirements/REQ006_tech_debt_backfill_sprint/US001_be_unit_tests.md` — copied into worktree (was untracked in main workspace)
+- `docs/requirements/REQ006_tech_debt_backfill_sprint/architecture.md` — copied into worktree (was untracked in main workspace)
+
+### Tests added
+13 new test functions covering all required error branches in `task_repo.go`:
+- `TestTaskRepo_CreateTask_GenericError` (UT-001)
+- `TestTaskRepo_GetTask_GenericError` (UT-002)
+- `TestTaskRepo_GetTask_NotFound` (UT-003, exhaustiveness addition)
+- `TestTaskRepo_UpdateTask_NotFound` (UT-004)
+- `TestTaskRepo_UpdateTask_GenericError` (UT-005)
+- `TestTaskRepo_UpdateTaskStatus_BeginTxError` (UT-006)
+- `TestTaskRepo_UpdateTaskStatus_NotFound` (UT-007)
+- `TestTaskRepo_UpdateTaskStatus_UpdateGenericError` (UT-008)
+- `TestTaskRepo_UpdateTaskStatus_AuditInsertError` (UT-009)
+- `TestTaskRepo_UpdateTaskStatus_CommitError` (UT-010)
+- `TestTaskRepo_ListTasks_QueryError` (UT-011)
+- `TestTaskRepo_ListTasks_ScanError` (UT-012)
+- `TestTaskRepo_ListTasks_RowsErr` (UT-013)
+
+### Test results
+- `go test ./internal/repo -run TestTaskRepo`: 20 passed (7 pre-existing + 13 new)
+- `go test ./... `: 146 passed in 6 packages
+- `go vet ./...`: no issues
+- `golangci-lint run ./...`: no issues
+- `go test -count=3 ./internal/repo -race`: 171 passed (57 × 3 runs, no races)
+- BE review gate: `REVIEW GATE: PASS`
+- Cross gate: pre-existing semgrep Dockerfile failures unrelated to this task (confirmed on base branch too)
+
+### Coverage (task_repo.go)
+- `NewTaskRepo`: 100%
+- `CreateTask`: 100%
+- `GetTask`: 100%
+- `UpdateTask`: 100%
+- `UpdateTaskStatus`: 95.2% — line 99 (`log.Printf` in deferred rollback error handler) not covered per architecture §4.5 exemption (OQ-4). This line fires only when `tx.Rollback()` itself returns a non-`sql.ErrTxDone` error, which sqlmock does not produce in this scenario.
+- `DeleteTask`: 100%
+- `ListTasks`: 100%
+
+### Production code change
+`task_repo.go`: byte-for-byte unchanged (`git diff services/agent-board/internal/repo/task_repo.go` is empty).
+
+### E2E
+Not required per task DoD (tests-only story, architecture §10.4). Equivalent 3-clean-run race check passed: 171 tests, no races.
 
 ## Review log
 (tech-lead appends here on each review pass)

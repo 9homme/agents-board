@@ -503,6 +503,146 @@ func TestHandleListProjects_RepoError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Happy-path tests — named to match the IT-001 coverage-filter pattern
+// so that the architecture §4.6 command achieves ≥95% per-file coverage.
+// ---------------------------------------------------------------------------
+
+// TestHandleCreateProject_Success tests the successful creation path.
+func TestHandleCreateProject_Success(t *testing.T) {
+	now := time.Now()
+	expected := &domain.Project{
+		ID:          "proj-1",
+		Name:        "My Project",
+		Description: "",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockProjectRepo{
+		CreateProjectFunc: func(_ context.Context, _ *domain.Project) (*domain.Project, error) {
+			return expected, nil
+		},
+	}
+	RegisterProjectTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("create_project")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"name": "My Project"}`))
+	require.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+// TestHandleGetProject_Success tests the successful retrieval path.
+func TestHandleGetProject_Success(t *testing.T) {
+	now := time.Now()
+	expected := &domain.Project{
+		ID:        "proj-1",
+		Name:      "My Project",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockProjectRepo{
+		GetProjectFunc: func(_ context.Context, _ string) (*domain.Project, error) {
+			return expected, nil
+		},
+	}
+	RegisterProjectTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("get_project")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "proj-1"}`))
+	require.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+// TestHandleUpdateProject_Success tests the successful update path.
+func TestHandleUpdateProject_Success(t *testing.T) {
+	now := time.Now()
+	existing := &domain.Project{ID: "proj-1", Name: "Old", CreatedAt: now, UpdatedAt: now}
+	updated := &domain.Project{ID: "proj-1", Name: "New Name", CreatedAt: now, UpdatedAt: now}
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockProjectRepo{
+		GetProjectFunc: func(_ context.Context, _ string) (*domain.Project, error) {
+			return existing, nil
+		},
+		UpdateProjectFunc: func(_ context.Context, _ *domain.Project) (*domain.Project, error) {
+			return updated, nil
+		},
+	}
+	RegisterProjectTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("update_project")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "proj-1", "name": "New Name"}`))
+	require.NoError(t, err)
+	assert.Equal(t, updated, result)
+}
+
+// TestHandleDeleteProject_Success tests the successful delete path.
+func TestHandleDeleteProject_Success(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockProjectRepo{
+		DeleteProjectFunc: func(_ context.Context, _ string) error { return nil },
+	}
+	RegisterProjectTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("delete_project")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "proj-1"}`))
+	require.NoError(t, err)
+	assert.Equal(t, map[string]bool{"success": true}, result)
+}
+
+// TestHandleListProjects_Success tests the successful list path (non-nil result).
+func TestHandleListProjects_Success(t *testing.T) {
+	now := time.Now()
+	projects := []*domain.Project{{ID: "proj-1", Name: "P1", CreatedAt: now, UpdatedAt: now}}
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockProjectRepo{
+		ListProjectsFunc: func(_ context.Context) ([]*domain.Project, error) {
+			return projects, nil
+		},
+	}
+	RegisterProjectTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("list_projects")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{}`))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+// TestHandleListProjects_NilReturnsEmpty verifies that a nil slice from the repo
+// is normalised to an empty (non-null) list.
+func TestHandleListProjects_NilReturnsEmpty(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockProjectRepo{
+		ListProjectsFunc: func(_ context.Context) ([]*domain.Project, error) {
+			return nil, nil
+		},
+	}
+	RegisterProjectTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("list_projects")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{}`))
+	require.NoError(t, err)
+	m, ok := result.(map[string]interface{})
+	require.True(t, ok)
+	projects, ok := m["projects"].([]*domain.Project)
+	require.True(t, ok)
+	assert.NotNil(t, projects)
+	assert.Empty(t, projects)
+}
+
+// ---------------------------------------------------------------------------
 // Legacy happy-path tests (pre-existing — kept for regression coverage)
 // ---------------------------------------------------------------------------
 

@@ -4,7 +4,7 @@
 **Story:** US005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a5b3
 **Implements:** REQ006/US005 AC (all scenarios — 20 verbatim test function names including `TestRegisterDocumentTools_RegistersAllFiveTools` + sub-95% sibling backfill, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US005 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US005 row).
@@ -47,3 +47,17 @@ Dev makes the 20 verbatim test-function names from US005 AC pass. Includes `Test
 - Dev set status to `in_review`; tech-lead approved.
 
 ## Review log
+
+### Review pass 1 — 2026-06-06 — verdict: approved
+2026-06-06 Approved.
+
+Evidence:
+- Tests: `go test ./internal/handler/ -v -run "Document|RegisterDocument"` — all 41 pass. Full module `go test ./...` — 210 passed across 6 packages. `go vet ./...` clean.
+- Verbatim names: all 20 spec test functions (UT-001..UT-020) present, including `TestRegisterDocumentTools_RegistersAllFiveTools`. 5 additional pre-existing happy-path tests (`TestDocumentTools_*`) — extra coverage, acceptable.
+- Coverage: `document_tools.go` = 100.0% statements (66/66) — clears ≥95% (IT-001). `RegisterDocumentTools` 100.0%, `mapDocumentToResponse` 100.0%.
+- Production code unchanged: `git diff HEAD -- document_tools.go` empty (byte-for-byte unchanged, per Scope: Out).
+- Branch exhaustiveness: 19 error/state branches across the 5 tool closures, each mapped 1:1 to a UT-* case — no spec gap. NotFound branches assert both `"document not found"` substring and `errors.Is(err, repo.ErrNotFound) == false` (fresh sentinel-less error). Empty-slice (UT-020) asserts non-nil `documents` of length 0.
+- TDG: commit `4d11369 red: test spec for all 20 document_tools error-mapping tests (US005)` — `red:` prefix + `(US005)` tag, tests-only (legitimate single-phase cycle for coverage backfill against pre-existing production code).
+- Cross gate: `scripts/review/run-gate.sh cross` — `REVIEW GATE: PASS` (semgrep PASS, gitleaks PASS).
+- Race: `go test -count=3 ./internal/handler -race` — 324 passed, no flakes.
+- Tech-debt: none filed this pass.

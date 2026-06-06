@@ -3,6 +3,15 @@
 This runbook covers running the Robot Framework e2e test suites against the local
 Docker/Podman stack. Architecture reference: REQ005 §6.
 
+## `dev-*` vs `e2e-*` — which family to use?
+
+| Family | Targets | Postgres | Services | Use case |
+|---|---|---|---|---|
+| `dev-*` | `make dev-up` / `make dev-down` / `make dev-migrate` / `make dev-seed` | Native `:5432` | Go binaries + Next.js run as background processes (no Docker) | Daily local development; fast iteration |
+| `e2e-*` | `make e2e-up` / `make e2e-down` / `make e2e-seed` / `make e2e-run` | Docker compose `:15432` | All services in containers (healthcheck-gated) | Robot Framework end-to-end test runs; CI |
+
+Both families accept env-var overrides: `DEV_PG_CONN=...` for `dev-*`; `PG_CONN=...` for `e2e-*`.
+
 ---
 
 ## Prerequisites
@@ -87,7 +96,7 @@ for f in tests/e2e/data/seeds/*.sql; do
 done
 ```
 
-Then start `api-server` and `web` as usual (e.g. via `startup.sh`).
+Then start `api-server` and `web` as usual (e.g. via `make dev-up`).
 
 ---
 

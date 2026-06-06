@@ -16,7 +16,7 @@ Deliver the local e2e stack-up harness — a repo-root `docker-compose.yml` (Pos
 ## Scope
 
 - **In:** New files at the paths listed in architecture §2 US008 row and §6.1 layout: `/docker-compose.yml` (three services per §6.2); `/Makefile` (six targets verbatim per §6.3); `/services/agent-board/Dockerfile` (multi-stage Go build per §6, golang:1.x-alpine builder → distroless/alpine runtime, same binary for both api-server and mcp-server via CMD override); `/web/Dockerfile` (multi-stage Node 20 build, `npm ci && npm run build && npm start` per D-012); `/.dockerignore` (`node_modules/`, `.next/`, `services/agent-board/bin/`, `*.log`, `tests/e2e/results/`); `/tests/e2e/data/seeds/REQ000_baseline.sql` (one project + two documents with deterministic UUIDs per §6.5); `/tests/e2e/README.md` (runbook per §6.6 / story AC); append `tests/e2e/results/` to `/.gitignore`.
-- **Out:** CI integration (GitHub Actions, etc.); containerised Robot Framework — Robot runs on host per §6.7; replacing `psql -f` with `golang-migrate` (D-010); test-data seeding via REST/MCP API (D-010); `mcp-server` in compose (§6 note — UI e2e doesn't need it); rewriting existing `.robot` files; touching `startup.sh`.
+- **Out:** CI integration (GitHub Actions, etc.); containerised Robot Framework — Robot runs on host per §6.7; replacing `psql -f` with `golang-migrate` (D-010); test-data seeding via REST/MCP API (D-010); `mcp-server` in compose (§6 note — UI e2e doesn't need it); rewriting existing `.robot` files; touching the then-existing startup scripts (retired in REQ006/US015).
 
 ## Files touched (estimated, exclusive)
 

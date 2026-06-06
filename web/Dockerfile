@@ -4,7 +4,7 @@
 #
 # Architecture ref: REQ005 §6 (US008 scope), D-012.
 # Decision D-012: containerised production build (npm run build + npm start).
-# Dev-loop usage: use `startup.sh` or `cd web && npm run dev` directly on the host.
+# Dev-loop usage: `make dev-up` (or `cd web && npm run dev`) directly on the host.
 
 FROM node:20-alpine AS deps
 

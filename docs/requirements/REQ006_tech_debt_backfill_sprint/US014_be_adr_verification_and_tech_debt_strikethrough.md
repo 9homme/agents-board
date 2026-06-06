@@ -4,9 +4,9 @@
 **Story:** US014
 **Track:** BE
 **Service:** services/agent-board   (nominal — this task touches NO Go code; meta/docs-only — see Notes)
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T00:00:00Z-a7f3
 **Implements:** REQ006/US014 AC (all scenarios — architecture.md contains an explicit ADR section, decision stated, four read-only endpoints enumerated, five MCP tool families enumerated, rationale documented, alternatives considered, conditions-for-revisiting documented, tech-debt strike-through applied, no executable tests required), architecture §3 US014 touch row, architecture §9 (ADR-001 text — INLINE per D-008), architecture §10.3 (no TDG, no live e2e, no react-doctor; grep + manual read verification).
 
 ## Goal

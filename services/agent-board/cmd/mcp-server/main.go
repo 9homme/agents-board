@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"agent-board/internal/config"
 	"agent-board/internal/handler"
 	"agent-board/internal/mcp"
 	"agent-board/internal/repo"
@@ -27,10 +28,12 @@ func main() {
 }
 
 func run() error {
-	dbURL := os.Getenv("DB_URL")
-	if dbURL == "" {
-		log.Fatal("DB_URL environment variable is required")
+	// Resolve DATABASE_URL via the config helper (D-006: DB_URL rejected at startup).
+	dbURL, err := config.ResolveDBURL()
+	if err != nil {
+		log.Fatal(err)
 	}
+	log.Print("db config: using DATABASE_URL")
 
 	db, err := sql.Open("pgx", dbURL)
 	if err != nil {

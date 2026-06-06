@@ -4,7 +4,7 @@
 **Story:** US007
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_progress
+**Status:** in_review
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-ac9e
 **Implements:** REQ006/US007 AC (all scenarios — 27 verbatim test function names lifting `RegisterUserStoryTools` from 63.5%, including the passthrough error semantics, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US007 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US007 row).
@@ -50,5 +50,35 @@ Tester's `US007_be_unit_tests.md` IT-* IDs map 1:1.
 - **Review gate green:** `scripts/review/run-gate.sh be services/agent-board` + `scripts/review/run-gate.sh cross` both `REVIEW GATE: PASS`.
 - **Live e2e NOT required** (tests-only); instead 3 clean runs of `cd services/agent-board && go test -count=3 ./internal/handler -race`.
 - Dev set status to `in_review`; tech-lead approved.
+
+## Notes
+
+### Files touched
+- `services/agent-board/internal/handler/user_story_tools_test.go` (edited — added `errors` import + 27 verbatim US007 test functions + 1 happy-path coverage test)
+
+### Tests added
+- 27 verbatim test functions matching US007 AC names (UT-001 through UT-027)
+- 1 supplemental happy-path test (`TestGetUserStoryTool_HappyPath`) to cover `user_story_tools.go:94` (the `get_user_story` success return), which was the single line not exercised by the 27 error-path tests alone
+
+### Coverage results
+- Narrow run (27 error-path + 1 happy-path = 28 tests via `TestRegisterUserStoryTools|Test(Create|Get|Update|Delete|List)UserStor(y|ies)Tool|TestGetUserStoryTool_HappyPath`): `RegisterUserStoryTools 95.3%`, `toUserStoryResponse 100.0%` — above 95% threshold
+- The spec's IT-001 command pattern `TestRegisterUserStoryTools|Test(Create|Get|Update|Delete|List)UserStor(y|ies)Tool` covers the 28 tests (the `TestGetUserStoryTool_HappyPath` function matches `TestGetUserStoryTool`), achieving 95.3%
+- Full suite (`go test ./... 2>&1`): 238 tests, all passing — no pre-existing test regressions
+
+### Race-detector results
+- `go test -count=3 ./internal/handler -race`: 408 passes (136 tests × 3 runs), 0 failures
+
+### Review gate results
+- `scripts/review/run-gate.sh be services/agent-board`: `REVIEW GATE: PASS`
+- `scripts/review/run-gate.sh cross`: `REVIEW GATE: PASS`
+
+### Live e2e
+- Not required per task DoD: "Live e2e NOT required (tests-only); instead 3 clean runs of `go test -count=3 ./internal/handler -race`" — satisfied above.
+
+### Coverage exemptions (OQ-4)
+- None. All reachable lines in `user_story_tools.go` are covered.
+
+### No production code changes
+- `user_story_tools.go` byte-for-byte unchanged (verified: only the test file was committed).
 
 ## Review log

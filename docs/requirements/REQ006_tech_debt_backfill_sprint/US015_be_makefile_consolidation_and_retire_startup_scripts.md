@@ -4,7 +4,7 @@
 **Story:** US015
 **Track:** BE
 **Service:** services/agent-board   (nominal — repo-root + Makefile + docs + agent-defs sweep; NO Go production code touched — see Notes)
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** none (soft sequencing — see Notes; US015 SHOULD ship before or with US010 per architecture D-013 / D-014 / R-6, but no hard `Blocked by`)
 **Worked-by:** be-dev-2026-06-06T00-00-00Z-a3f7
 **Implements:** REQ006/US015 AC (all scenarios — delete `startup.sh` / `shutdown.sh`, four new Makefile `dev-*` targets, `PG_CONN := → ?=` flip [absorbed from former US011 per D-014], new `DEV_PG_CONN ?=`, PID + log file conventions byte-identical to `startup.sh`, e2e family byte-identical, zero `DB_URL` in any new recipe, doc + agent-def sweep, tech-debt strike-throughs), architecture §3 US015 touch row (full table), architecture §11 D-013 (US015 charter) + D-014 (US011 absorbed, Option A union), architecture §10.1 (live-e2e + 3-clean-run flake check required).

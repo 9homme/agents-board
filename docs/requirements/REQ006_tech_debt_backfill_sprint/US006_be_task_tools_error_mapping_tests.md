@@ -4,7 +4,7 @@
 **Story:** US006
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T10:00:00Z-a2f2
 **Implements:** REQ006/US006 AC (all scenarios — 25 verbatim test function names lifting `RegisterTaskTools` from 67.4%, including the 5 distinct status-change branches of `UpdateTaskTool` + the no-status-change branch, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US006 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US006 row).
@@ -91,3 +91,44 @@ Tester's `US006_be_unit_tests.md` IT-* IDs map 1:1.
 None. All reachable lines are covered. The 4.7% gap in `RegisterTaskTools` consists of lines reachable only when the list_tasks / update_task success paths are exercised by tests outside the narrow coverage-command regex (pre-existing `TestTaskTools_*` tests cover them when the full test suite runs). The 2 additional tests above bring the 25-test-only run to 95.3%.
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: approved
+
+**Test execution**
+- `cd services/agent-board && go vet ./internal/handler/` — clean ("No issues found").
+- `cd services/agent-board && go test ./internal/handler -run "Task"` — `ok agent-board/internal/handler 0.346s` (40 task tests pass).
+- `cd services/agent-board && go test ./...` — all 7 packages `ok`.
+
+**25 verbatim UT-* names present (UT-001..UT-025)** — all confirmed in `task_tools_test.go`:
+UT-001 `TestRegisterTaskTools_RegistersAllFiveTools`; UT-002..006 `TestCreateTaskTool_{InvalidArguments,MissingUserStoryIDOrTitle,DefaultStatusWhenOmitted,InvalidInitialStatus,RepoError}`; UT-007..010 `TestGetTaskTool_{InvalidArguments,EmptyID,NotFound,GenericError}`; UT-011..019 `TestUpdateTaskTool_{InvalidArguments,EmptyID,NotFoundOnInitialGet,GenericErrorOnInitialGet,InvalidStatusTransition,StatusChange_FieldUpdateError,StatusChange_UpdateTaskStatusError,NoStatusChange_RepoUpdateError,StatusChange_HappyPath}`; UT-020..022 `TestDeleteTaskTool_{InvalidArguments,EmptyID,RepoError}`; UT-023..025 `TestListTasksTool_{InvalidArguments,MissingUserStoryID,RepoError}`. Plus 2 coverage helpers (`TestUpdateTaskTool_NoStatusChange_HappyPath`, `TestListTasksTool_HappyPath`) — legitimate, complete the 95% run.
+
+**Exhaustiveness (anti-REQ005 branch audit)** — every error/return site in `task_tools.go` has a 1:1 spec case:
+- create_task: invalid-args (UT-002), missing-fields (UT-003), default-status (UT-004), invalid-initial-status via NewTask (UT-005), CreateTask err (UT-006) — 5 branches, 5 cases.
+- get_task: invalid-args (UT-007), empty-id (UT-008), ErrNotFound→"task not found" (UT-009), generic wrap (UT-010) — 4 branches, 4 cases.
+- update_task: invalid-args (UT-011), empty-id (UT-012), Get-ErrNotFound (UT-013), Get-generic (UT-014), invalid-transition (UT-015), status-change field-update err (UT-016), UpdateTaskStatus err (UT-017), no-status UpdateTask err (UT-018), status-change happy (UT-019), no-status happy (helper) — all 5 status branches + no-status branch covered.
+- delete_task: invalid-args (UT-020), empty-id (UT-021), repo err (UT-022) — 3 branches, 3 cases.
+- list_tasks: invalid-args (UT-023), missing-userStoryId (UT-024), repo err (UT-025), happy+loop (helper) — covered.
+- VERDICT: 25 return/branch sites, 25 UT-* spec cases — OK, no SPEC_GAP.
+
+**Coverage (IT-001, 25-test regex run)**
+```
+agent-board/internal/handler/task_tools.go:26:  mapTaskToResponse  100.0%
+agent-board/internal/handler/task_tools.go:39:  RegisterTaskTools  95.3%
+```
+Both functions in the touched file clear ≥95%. No exemption needed.
+
+**Production code unchanged** — `git diff HEAD -- services/agent-board/internal/handler/task_tools.go` produced no output (byte-for-byte unchanged, per IT-002 / DoD).
+
+**TDG conformance** — dev's work landed in commit `d2d837a` `red: test spec for all 25 task_tools error-mapping + 2 coverage tests (US006)`. Valid `red:` prefix + `(US006)` tag. For a tests-only backfill against unchanged production code, a single `red:` commit is the correct complete TDG shape (no separate `green:` since the SUT already exists). No non-tdg prefix present.
+
+**Review gate (mandatory)**
+- `scripts/review/run-gate.sh be services/agent-board` → gofmt/go vet/golangci-lint/go test all PASS; gosec + govulncheck WARN-skipped (not installed; gosec coverage via golangci-lint gosec linter — informational, not a failure). Final line: `REVIEW GATE: PASS`
+- `scripts/review/run-gate.sh cross` → semgrep PASS, gitleaks PASS. Final line: `REVIEW GATE: PASS`
+
+**Robot e2e / live e2e** — N/A. Tests-only BE task; no `tests/e2e/REQ006_*` suite exercises this code path and the task DoD explicitly substitutes `go test -count=3 -race` for live e2e (dev reported 405 tests 0 failures across 3 race runs).
+
+**§4.3 style note** — task `## Notes` claims "hand-written MockTaskRepo" but the file actually uses `testify/mock` consistently (no style mixing). Architecture §4.3 explicitly allows `testify/mock` for US006; not a defect. Filed to tech-debt as a Notes-vs-reality drift, non-blocking.
+
+**Tech-debt:** one non-blocking finding filed to `docs/tech_debt.md` this pass (task-Notes style-claim drift).
+
+Verdict: **approved** → Status: completed.

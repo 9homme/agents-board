@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"agent-board/internal/handler"
 	"agent-board/internal/mcp"
@@ -79,7 +80,7 @@ func drainQueueMessages(t *testing.T, sess *mcp.Session, n int) [][]byte {
 	t.Helper()
 	var out [][]byte
 	for i := 0; i < n; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 50*1e6) // 50 ms
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 		msg, err := sess.ReceiveMessage(ctx)
 		cancel()
 		if err != nil {

@@ -4,9 +4,9 @@
 **Story:** US006
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T10:00:00Z-a2f2
 **Implements:** REQ006/US006 AC (all scenarios — 25 verbatim test function names lifting `RegisterTaskTools` from 67.4%, including the 5 distinct status-change branches of `UpdateTaskTool` + the no-status-change branch, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US006 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US006 row).
 
 ## Goal

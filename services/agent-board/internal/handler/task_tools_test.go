@@ -3,14 +3,17 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	"agent-board/internal/domain"
 	"agent-board/internal/mcp"
+	"agent-board/internal/repo"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockTaskRepo is a mock implementation of repo.TaskRepository
@@ -348,6 +351,592 @@ func TestTaskTools_CreateTask_EnforcesInitialStatus(t *testing.T) {
 	// Repo should NOT be called
 	mockRepo.AssertNotCalled(t, "CreateTask")
 }
+
+// --- US006 verbatim test functions (UT-001..UT-025) ---
+
+// UT-001 — TestRegisterTaskTools_RegistersAllFiveTools
+func TestRegisterTaskTools_RegistersAllFiveTools(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	for _, name := range []string{"create_task", "get_task", "update_task", "delete_task", "list_tasks"} {
+		handler, ok := registry.GetTool(name)
+		assert.True(t, ok, "expected tool %q to be registered", name)
+		assert.NotNil(t, handler)
+	}
+
+	h, ok := registry.GetTool("nonexistent_tool")
+	assert.False(t, ok)
+	assert.Nil(t, h)
+}
+
+// UT-002 — TestCreateTaskTool_InvalidArguments
+func TestCreateTaskTool_InvalidArguments(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("create_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage("not-valid-json"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid arguments")
+}
+
+// UT-003 — TestCreateTaskTool_MissingUserStoryIDOrTitle
+func TestCreateTaskTool_MissingUserStoryIDOrTitle(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("create_task")
+	require.True(t, ok)
+
+	// missing title
+	_, err := tool(context.Background(), json.RawMessage(`{"userStoryId": "us-1", "title": ""}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "userStoryId and title are required")
+
+	// missing userStoryId
+	_, err = tool(context.Background(), json.RawMessage(`{"userStoryId": "", "title": "T"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "userStoryId and title are required")
+}
+
+// UT-004 — TestCreateTaskTool_DefaultStatusWhenOmitted
+func TestCreateTaskTool_DefaultStatusWhenOmitted(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	var capturedTask *domain.Task
+	mockRepo.On("CreateTask", mock.Anything, mock.AnythingOfType("*domain.Task")).
+		Run(func(args mock.Arguments) {
+			capturedTask = args.Get(1).(*domain.Task)
+		}).
+		Return(&domain.Task{
+			ID:          "t-1",
+			UserStoryID: "us-1",
+			Title:       "Do thing",
+			Status:      domain.TaskStatusPending,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}, nil)
+
+	tool, ok := registry.GetTool("create_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"userStoryId": "us-1", "title": "Do thing"}`))
+	require.NoError(t, err)
+	require.NotNil(t, capturedTask)
+	assert.Equal(t, domain.TaskStatusPending, capturedTask.Status)
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-005 — TestCreateTaskTool_InvalidInitialStatus
+func TestCreateTaskTool_InvalidInitialStatus(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("create_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"userStoryId": "us-1", "title": "T", "status": "in_progress"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid initial status:")
+}
+
+// UT-006 — TestCreateTaskTool_RepoError
+func TestCreateTaskTool_RepoError(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	mockRepo.On("CreateTask", mock.Anything, mock.AnythingOfType("*domain.Task")).
+		Return(nil, errors.New("db down"))
+
+	tool, ok := registry.GetTool("create_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"userStoryId": "us-1", "title": "T"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create task:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-007 — TestGetTaskTool_InvalidArguments
+func TestGetTaskTool_InvalidArguments(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("get_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage("not-valid-json"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid arguments")
+}
+
+// UT-008 — TestGetTaskTool_EmptyID
+func TestGetTaskTool_EmptyID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("get_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": ""}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "id is required")
+}
+
+// UT-009 — TestGetTaskTool_NotFound
+func TestGetTaskTool_NotFound(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(nil, repo.ErrNotFound)
+
+	tool, ok := registry.GetTool("get_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "task not found")
+	assert.False(t, errors.Is(err, repo.ErrNotFound))
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-010 — TestGetTaskTool_GenericError
+func TestGetTaskTool_GenericError(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(nil, errors.New("db down"))
+
+	tool, ok := registry.GetTool("get_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get task:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-011 — TestUpdateTaskTool_InvalidArguments
+func TestUpdateTaskTool_InvalidArguments(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage("not-valid-json"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid arguments")
+}
+
+// UT-012 — TestUpdateTaskTool_EmptyID
+func TestUpdateTaskTool_EmptyID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": ""}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "id is required")
+}
+
+// UT-013 — TestUpdateTaskTool_NotFoundOnInitialGet
+func TestUpdateTaskTool_NotFoundOnInitialGet(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(nil, repo.ErrNotFound)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "task not found")
+	assert.False(t, errors.Is(err, repo.ErrNotFound))
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-014 — TestUpdateTaskTool_GenericErrorOnInitialGet
+func TestUpdateTaskTool_GenericErrorOnInitialGet(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(nil, errors.New("db down"))
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get task:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-015 — TestUpdateTaskTool_InvalidStatusTransition
+// pending → done is invalid per domain state machine (pending only allows → in_progress)
+func TestUpdateTaskTool_InvalidStatusTransition(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "status": "done"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid transition from pending to done")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-016 — TestUpdateTaskTool_StatusChange_FieldUpdateError
+// valid transition AND title update; UpdateTask (field update) returns error
+func TestUpdateTaskTool_StatusChange_FieldUpdateError(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	mockRepo.On("UpdateTask", mock.Anything, mock.AnythingOfType("*domain.Task")).
+		Return(nil, errors.New("db down"))
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "status": "in_progress", "title": "Updated"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update task fields:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-017 — TestUpdateTaskTool_StatusChange_UpdateTaskStatusError
+// valid transition, no field changes; UpdateTaskStatus returns error
+func TestUpdateTaskTool_StatusChange_UpdateTaskStatusError(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	mockRepo.On("UpdateTaskStatus", mock.Anything, "task-1", domain.TaskStatusPending, domain.TaskStatusInProgress).
+		Return(nil, errors.New("db down"))
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "status": "in_progress"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update task status:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-018 — TestUpdateTaskTool_NoStatusChange_RepoUpdateError
+// no status change, field update; UpdateTask returns error
+func TestUpdateTaskTool_NoStatusChange_RepoUpdateError(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	mockRepo.On("UpdateTask", mock.Anything, mock.AnythingOfType("*domain.Task")).
+		Return(nil, errors.New("db down"))
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "title": "New title"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update task:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-019 — TestUpdateTaskTool_StatusChange_HappyPath
+// pending → in_progress, no field changes; full success
+func TestUpdateTaskTool_StatusChange_HappyPath(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	updated := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusInProgress,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	mockRepo.On("UpdateTaskStatus", mock.Anything, "task-1", domain.TaskStatusPending, domain.TaskStatusInProgress).
+		Return(updated, nil)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "status": "in_progress"}`))
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	resp, ok := result.(TaskResponse)
+	require.True(t, ok)
+	assert.Equal(t, domain.TaskStatusInProgress, resp.Status)
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-020 — TestDeleteTaskTool_InvalidArguments
+func TestDeleteTaskTool_InvalidArguments(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("delete_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage("not-valid-json"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid arguments")
+}
+
+// UT-021 — TestDeleteTaskTool_EmptyID
+func TestDeleteTaskTool_EmptyID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("delete_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": ""}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "id is required")
+}
+
+// UT-022 — TestDeleteTaskTool_RepoError
+func TestDeleteTaskTool_RepoError(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	mockRepo.On("DeleteTask", mock.Anything, "task-1").Return(errors.New("db down"))
+
+	tool, ok := registry.GetTool("delete_task")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"id": "task-1"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete task:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-023 — TestListTasksTool_InvalidArguments
+func TestListTasksTool_InvalidArguments(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("list_tasks")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage("not-valid-json"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid arguments")
+}
+
+// UT-024 — TestListTasksTool_MissingUserStoryID
+func TestListTasksTool_MissingUserStoryID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	tool, ok := registry.GetTool("list_tasks")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"userStoryId": ""}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "userStoryId is required")
+}
+
+// UT-025 — TestListTasksTool_RepoError
+func TestListTasksTool_RepoError(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	mockRepo.On("ListTasks", mock.Anything, "us-1").Return(nil, errors.New("db down"))
+
+	tool, ok := registry.GetTool("list_tasks")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"userStoryId": "us-1"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to list tasks:")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// TestUpdateTaskTool_NoStatusChange_HappyPath exercises the update path where no
+// status field is sent and UpdateTask succeeds — covers the success return on the
+// no-status-change branch (required for ≥95% statement coverage per IT-001).
+func TestUpdateTaskTool_NoStatusChange_HappyPath(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	updated := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "New title",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	mockRepo.On("UpdateTask", mock.Anything, mock.AnythingOfType("*domain.Task")).Return(updated, nil)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "title": "New title"}`))
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	resp, ok := result.(TaskResponse)
+	require.True(t, ok)
+	assert.Equal(t, "New title", resp.Title)
+	assert.Equal(t, domain.TaskStatusPending, resp.Status)
+
+	mockRepo.AssertExpectations(t)
+}
+
+// TestListTasksTool_HappyPath exercises the list_tasks success path including the
+// for loop over task results — required for ≥95% statement coverage per IT-001.
+func TestListTasksTool_HappyPath(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	tasks := []*domain.Task{
+		{
+			ID:          "t-1",
+			UserStoryID: "us-1",
+			Title:       "Task 1",
+			Status:      domain.TaskStatusPending,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		},
+		{
+			ID:          "t-2",
+			UserStoryID: "us-1",
+			Title:       "Task 2",
+			Status:      domain.TaskStatusInProgress,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		},
+	}
+	mockRepo.On("ListTasks", mock.Anything, "us-1").Return(tasks, nil)
+
+	tool, ok := registry.GetTool("list_tasks")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"userStoryId": "us-1"}`))
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	respMap, ok := result.(map[string]interface{})
+	require.True(t, ok)
+	taskList, ok := respMap["tasks"].([]TaskResponse)
+	require.True(t, ok)
+	assert.Len(t, taskList, 2)
+	assert.Equal(t, "t-1", taskList[0].ID)
+	assert.Equal(t, "t-2", taskList[1].ID)
+
+	mockRepo.AssertExpectations(t)
+}
+
+// --- end US006 verbatim test functions ---
 
 // IT-021: `list_tasks` tool call
 func TestTaskTools_ListTasks(t *testing.T) {

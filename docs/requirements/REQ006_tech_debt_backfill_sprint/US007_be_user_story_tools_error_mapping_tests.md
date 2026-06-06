@@ -4,9 +4,9 @@
 **Story:** US007
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T00:00:00Z-ac9e
 **Implements:** REQ006/US007 AC (all scenarios — 27 verbatim test function names lifting `RegisterUserStoryTools` from 63.5%, including the passthrough error semantics, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US007 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US007 row).
 
 ## Goal

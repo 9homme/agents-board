@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-05T00-00-00Z-a6c9
 **Implements:** REQ006/US004 AC (all scenarios — 18 verbatim test function names including `TestRegisterProjectTools_RegistersAllFiveTools` to lift `RegisterProjectTools` from 0%, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US004 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US004 row).
@@ -81,4 +81,35 @@ handleListProjects     100.0%
 
 ## Review log
 
-### Pass 1
+### Review pass 1 — 2026-06-06 — verdict: approved
+
+Approved. All 18 verbatim test functions present, ≥95% per-file coverage, no production change, gate green.
+
+**Verbatim test functions:** all 18 from US004 AC (UT-001 through UT-018) present and passing — verified by name. Plus 7 supporting success/nil-normalisation tests and 5 migrated legacy happy-path tests; mock style is uniformly the §4.3 hand-written `MockProjectRepo` func-field pattern (no style mixing). `TestRegisterProjectTools_RegistersAllFiveTools` lifts `RegisterProjectTools` to 100%.
+
+**Production unchanged:** `git diff HEAD -- project_tools.go` empty (exit 0). Confirmed tests-only.
+
+**Tests:** `go vet ./internal/handler/` clean; `go test ./internal/handler/ -run 'Project|RegisterProject'` → 51 passed. Full module `go test ./...` → 210 passed across 6 packages.
+
+**Coverage (IT-001 filter, architecture §4.6):**
+```
+RegisterProjectTools   100.0%
+handleCreateProject    100.0%
+handleGetProject       100.0%
+handleUpdateProject     95.5%
+handleDeleteProject    100.0%
+handleListProjects     100.0%
+```
+project_tools.go per-file avg 99.25% across 6 funcs — well above ≥95%. The single sub-100% line in `handleUpdateProject` (description-only branch when no name change) is a non-error happy-path branch covered by the legacy `TestProjectTools_UpdateProject` test; file coverage clears the threshold so no §4.5 exemption is required.
+
+**Spec exhaustiveness (anti-REQ005):** counted error branches in project_tools.go — Create 3, Get 4, Update 6, Delete 3, List 1, Register 1 = 18 error/registration branches; spec names 18 UT-* cases mapping 1:1. No spec gap.
+
+**TDG conformance:** US004 commit subjects — `red: test spec for project_tools.go error-mapping + RegisterProjectTools (US004)`, `green: add happy-path tests to achieve ≥95% coverage via architecture filter (US004)`, `refactor: chore: apply gofmt to project_tools_test.go (US004)`, `refactor: chore: hand off ... (US004)`. All use valid TDG prefixes, red→green→refactor ordering honored, `(US004)` traceability tag present. The `refactor: chore:` vocabulary drift is filed to tech_debt (non-blocking, cross-refs the existing US001 entry).
+
+**Race stability (live-e2e substitute per task DoD / architecture §10.4 — tests-only, prod unchanged):** `go test -count=3 ./internal/handler -race` → 324 passed, 0 failed, 0 races.
+
+**Review gates:**
+- `scripts/review/run-gate.sh be services/agent-board` → REVIEW GATE: PASS (gosec/govulncheck WARN-skipped as not installed; gate self-resolves to PASS)
+- `scripts/review/run-gate.sh cross` → REVIEW GATE: PASS
+
+**Tech-debt:** 2 lines filed (`refactor: chore:` prefix drift recurrence on US004; retrospective prune of now-resolved 2026-06-03 project_tools.go coverage-gap entries at docs/tech_debt.md:50-55).

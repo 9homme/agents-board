@@ -394,6 +394,37 @@ func TestCreateUserStoryTool_RepoError(t *testing.T) {
 	assert.True(t, errors.Is(returnedErr, mockErr), "expected passthrough error, got: %v", returnedErr)
 }
 
+// UT-007 (happy-path companion — not in the 27 error-case names but required for ≥95% coverage of line 94)
+func TestGetUserStoryTool_HappyPath(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := &MockUserStoryRepo{}
+	handler.RegisterUserStoryTools(registry, mockRepo)
+
+	now := time.Now()
+	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
+		return &domain.UserStory{
+			ID:          id,
+			ProjectID:   "pid-1",
+			Title:       "Story",
+			Description: "Desc",
+			Status:      domain.UserStoryStatusDraft,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}, nil
+	}
+
+	toolHandler, ok := registry.GetTool("get_user_story")
+	require.True(t, ok)
+
+	res, err := toolHandler(context.Background(), json.RawMessage(`{"id":"some-id"}`))
+	require.NoError(t, err)
+
+	resp, ok := res.(handler.UserStoryResponse)
+	require.True(t, ok)
+	assert.Equal(t, "some-id", resp.ID)
+	assert.Equal(t, domain.UserStoryStatusDraft, resp.Status)
+}
+
 // UT-007
 func TestGetUserStoryTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()

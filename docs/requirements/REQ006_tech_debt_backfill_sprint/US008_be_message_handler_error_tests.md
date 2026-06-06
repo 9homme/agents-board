@@ -4,9 +4,9 @@
 **Story:** US008
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T00:00:00Z-a6a4
 **Implements:** REQ006/US008 AC (all scenarios — 13 verbatim test function names for `HandleMessage` / `sendError` / `sendToolResultError`, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US008 touch row + §4.3 cluster-2 patterns (where applicable) + §8 message.go test harness shape (D-010) + §4.5 exemption mechanism + §4.6 local verification command (US008 row).
 
 ## Goal
@@ -78,5 +78,53 @@ Tester's `US008_be_unit_tests.md` IT-* IDs map 1:1 onto these names.
 - **Review gate green:** `scripts/review/run-gate.sh be services/agent-board` + `scripts/review/run-gate.sh cross` both `REVIEW GATE: PASS`.
 - **Live e2e NOT required** (tests-only); instead 3 clean runs of `cd services/agent-board && go test -count=3 ./internal/handler -race`.
 - Dev set status to `in_review`; tech-lead approved.
+
+## Notes
+
+### Files touched
+- `services/agent-board/internal/handler/message_test.go` — NEW file, 14 test functions (13 AC + 1 optional chan-int coverage chase for message.go:46)
+- `services/agent-board/internal/handler/handler_internal_test.go` — NEW file, re-exports `sendError`/`sendToolResultError` as `handler.SendError`/`handler.SendToolResultError` for UT-010..UT-013 direct-call tests (architecture §8.3 path-a)
+
+### Tests added
+- UT-001 `TestHandleMessage_MissingSessionID` — PASS
+- UT-002 `TestHandleMessage_InvalidSessionID` — PASS
+- UT-003 `TestHandleMessage_InvalidJSONPayload` — PASS
+- UT-004 `TestHandleMessage_NonToolsCallMethod` — PASS
+- UT-005 `TestHandleMessage_WrongJSONRPCVersion` — PASS
+- UT-006 `TestHandleMessage_ToolNotFound` — PASS
+- UT-007 `TestHandleMessage_ToolExecutionError` — PASS
+- UT-008 `TestHandleMessage_HappyPath` — PASS
+- UT-009 `TestHandleMessage_QueueMessageFails` — PASS
+- UT-010 `TestSendError_QueuesAndReturnsEchoError` — PASS
+- UT-011 `TestSendToolResultError_QueuesAndReturnsEchoError` — PASS
+- UT-012 `TestSendError_QueueFailure_LogsButReturnsEchoError` — PASS
+- UT-013 `TestSendToolResultError_QueueFailure_LogsButReturnsEchoError` — PASS
+- Optional: `TestHandleMessage_NonMarshalableToolResult` — PASS (drives message.go:46)
+
+### Coverage results (`go test ./internal/handler -coverprofile`)
+- `HandleMessage`: 96.3% (26/27 stmts) — message.go:64 json.Marshal fallback exempt (§4.5)
+- `sendError`: 75.0% (3/4 stmts) — message.go:84-86 json.Marshal fallback exempt (§4.5)
+- `sendToolResultError`: 75.0% (3/4 stmts) — message.go:109-111 json.Marshal fallback exempt (§4.5)
+
+### Coverage exemptions (OQ-4)
+- `services/agent-board/internal/handler/message.go:84-86` — `json.Marshal` failure fallback in `sendError` — `JSONRPCResponse` struct contains only marshallable fields (string/int/interface{} of string/int). Unreachable without non-marshallable content. Acceptable per architecture.md §4.5.
+- `services/agent-board/internal/handler/message.go:109-111` — symmetric fallback in `sendToolResultError` — same rationale. Acceptable per architecture.md §4.5.
+- `services/agent-board/internal/handler/message.go:63-64` — `json.Marshal(resp)` fallback after tool result already serialised to `[]byte` — the `JSONRPCResponse` at this point contains only string fields; unreachable. Acceptable per architecture.md §4.5 / §8.5.
+
+### Race check (3 clean runs)
+`cd services/agent-board && go test -count=3 ./internal/handler -race` — 366 tests passed, 0 race conditions.
+
+### Full suite
+`cd services/agent-board && go test ./...` — 224 tests, 0 failures.
+
+### Review gates
+- `scripts/review/run-gate.sh be services/agent-board` — REVIEW GATE: PASS
+- `scripts/review/run-gate.sh cross` — REVIEW GATE: PASS
+
+### Live e2e
+Not required per DoD (tests-only story). Race-checked 3 clean runs substituted per DoD item.
+
+### Production code
+`message.go` is byte-for-byte unchanged. No new production symbols introduced.
 
 ## Review log

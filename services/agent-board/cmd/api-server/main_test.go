@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -83,4 +85,24 @@ func TestMain_NoContextBackgroundAtPingSite(t *testing.T) {
 		"main.go must use signal.NotifyContext for signal-cancellable lifecycle context")
 	assert.Contains(t, content, "context.WithTimeout",
 		"main.go must use context.WithTimeout to bound the DB ping")
+}
+
+// IT-001 — TestRun_LogsDBConfigLine_BeforePing (api-server)
+// Verifies the startup log line "db config: using DATABASE_URL" is emitted
+// before the DB ping attempt, even when the ping itself fails (no real DB).
+// Architecture cite: architecture.md §5.3; §5.7 approach (b)
+func TestRun_LogsDBConfigLine_BeforePing(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/test_db_nonexistent")
+	os.Unsetenv("DB_URL") //nolint:errcheck
+
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	// run() will log "db config: using DATABASE_URL" then fail on DB ping — expected.
+	_ = run()
+
+	output := buf.String()
+	assert.Contains(t, output, "db config: using DATABASE_URL",
+		"startup log line must appear before DB ping attempt")
 }

@@ -4,9 +4,9 @@
 **Story:** US014
 **Track:** BE
 **Service:** services/agent-board   (nominal — this task touches NO Go code; meta/docs-only — see Notes)
-**Status:** pending
+**Status:** in_review
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T00:00:00Z-a7f3
 **Implements:** REQ006/US014 AC (all scenarios — architecture.md contains an explicit ADR section, decision stated, four read-only endpoints enumerated, five MCP tool families enumerated, rationale documented, alternatives considered, conditions-for-revisiting documented, tech-debt strike-through applied, no executable tests required), architecture §3 US014 touch row, architecture §9 (ADR-001 text — INLINE per D-008), architecture §10.3 (no TDG, no live e2e, no react-doctor; grep + manual read verification).
 
 ## Goal
@@ -71,5 +71,29 @@ Plus a manual scenario-by-scenario walkthrough of the US014 AC against §9.
 - **Track field clarification.** `Track: BE` is set above because the project's task contract only allows `BE | FE` (per `.claude/agents/tech-lead.md` template). The REQ006 README's per-story track column refers to this as `BE-meta (docs)` — that maps to BE-track here, but the dev should treat this as a pure docs/verification task. No Go code is involved.
 - **Dev type for orchestrator routing.** Orchestrator should spawn a `be-dev` (lower setup cost than `fe-dev` for a docs touch). The `be-dev` skill is irrelevant to the actual work — the dev's task is `Read` + `Edit` on `docs/tech_debt.md` plus a structured walkthrough of architecture §9 vs. US014 AC. Any be-dev who would otherwise want to write Go code SHOULD instead stop and re-read this `Notes` block.
 - **Architecture is the deliverable.** If `architecture.md` §9 is complete and the strike-through is applied, the story is effectively done. Most of the work happened during Phase 1 architecture authoring; this Phase-3 task is the closing housekeeping.
+
+## Notes
+
+**Files touched:**
+- `docs/tech_debt.md` — line 98 struck through with `→ won't-fix per REQ006/US014 ADR-001 (MCP-only-writes is permanent)`. Line 91 ("Suggested fold-into-REQ006: REST surface") also struck through as a sibling "add REST writes" proposal.
+
+**AC verification results (architecture §9 vs US014_adr_mcp_only_writes.md scenarios):**
+- Scenario 1 (explicit ADR section): PASS — `## 9. ADR-001 — MCP-only-writes is the permanent write API` at line 746; referenced in executive summary (line 20).
+- Scenario 2 (Decision subsection — verbatim): PASS — §9.3 contains the exact required text.
+- Scenario 3 (four GET endpoints enumerated): PASS — §9.4 lists all four `/api/v1/` GET endpoints.
+- Scenario 4 (MCP tool families enumerated): PASS — §9.5 lists all five families including RegisterAuditTools.
+- Scenario 5 (Rationale ≥3 bullets): PASS — §9.6 has 4 bullets covering all 3 required plus composability.
+- Scenario 6 (Alternatives ≥3 bullets): PASS — §9.7 has 4 entries covering all 3 required plus GraphQL.
+- Scenario 7 (Conditions for revisiting ≥3 + disclaimer): PASS — §9.8 has all three conditions plus "NOT revisited just because adding a REST endpoint would be technically easy" verbatim.
+- Scenario 8 (tech-debt strike-throughs): PASS — applied in this task.
+- Scenario 9 (no tests required): N/A (tester's domain, confirmed in US014_be_unit_tests.md).
+
+**Three §10.3 grep assertions:** all PASS.
+
+**Review gate:** `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep OWASP/Go/TS + gitleaks both clean).
+
+**No executable tests.** Documentation-verification + strike-through only, as per architecture §10.3.
+
+**Live e2e:** NOT required (architecture §10.3 explicit).
 
 ## Review log

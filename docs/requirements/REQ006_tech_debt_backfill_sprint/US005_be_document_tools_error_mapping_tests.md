@@ -4,9 +4,9 @@
 **Story:** US005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T00:00:00Z-a5b3
 **Implements:** REQ006/US005 AC (all scenarios — 20 verbatim test function names including `TestRegisterDocumentTools_RegistersAllFiveTools` + sub-95% sibling backfill, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US005 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US005 row).
 
 ## Goal

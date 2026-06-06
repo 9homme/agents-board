@@ -4,9 +4,9 @@
 **Story:** US012
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T00:00:00Z-a4f2
 **Implements:** REQ006/US012 AC (all scenarios — `go.mod` bump, `Dockerfile` builder bump, `govulncheck` clean, `go test ./...` clean, `golangci-lint` clean, `go build ./...` clean for both binaries, `make e2e-up` clean), architecture §3 US012 touch row, architecture §6 (toolchain decision + verified findings + version pin + CI/Docker knock-on + govulncheck post-bump assertion), architecture D-007 (`go 1.26.4`).
 
 ## Goal

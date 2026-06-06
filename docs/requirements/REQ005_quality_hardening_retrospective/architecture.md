@@ -580,7 +580,7 @@ Notes:
 - ~~**`api-server` healthcheck hits `/api/v1/projects`** — endpoint is unauthenticated and always returns 200 (possibly empty list) once DB is reachable.~~ **DEPRECATED by Revision 4 / D-016.** The api-server runtime is distroless (no shell, no `wget`, no `curl`); a container-level healthcheck calling `wget` can never succeed. The Makefile's host-side `curl http://localhost:8080/api/v1/projects` poll loop replaces it. `web depends_on api-server` flipped from `service_healthy` to `service_started`. See D-016.
 - **`web` has no healthcheck** — Next.js's HTTP server is ready as soon as it binds; Robot's `Wait For Elements State` handles UI-render readiness.
 - ~~**`mcp-server` is NOT in the compose stack** by default.~~ **DEPRECATED by Revision 4 / D-015.** mcp-server IS in compose (port `:8081` host-mapped). See D-015.
-- **Bind mounts vs build context:** D-012 chooses **build context** (no bind mount of source). Pros: reproducibility, single command. Cons: any source change requires `make e2e-down && make e2e-up` to rebuild. Acceptable for an e2e-after-tests workflow; dev-loop people use `startup.sh` (preserved unchanged for that use case).
+- **Bind mounts vs build context:** D-012 chooses **build context** (no bind mount of source). Pros: reproducibility, single command. Cons: any source change requires `make e2e-down && make e2e-up` to rebuild. Acceptable for an e2e-after-tests workflow; dev-loop people use `make dev-up` (native process dev stack added in REQ006/US015).
 
 ### 6.3 `Makefile` — targets
 
@@ -780,8 +780,8 @@ A code-review check at tech-lead's gate (US004 / US006 reviews) confirms that ha
 #### D-012 — US008 web service runs as a containerised production build
 - **Context:** US008 notes give two options — containerised vs host `next dev`.
 - **Decision:** Containerised. `web/Dockerfile` does `npm ci && npm run build && npm start` in a multi-stage build. Compose runs the prod build.
-- **Alternatives rejected:** Host `next dev` — splits the orchestrator's "one command" into "one command plus a sidecar terminal," and stale build state between compose-up and the host dev server is a real foot-gun. The `startup.sh` already covers the host-dev-loop workflow and remains unchanged.
-- **Consequences:** Source changes require `make e2e-down && make e2e-up` to rebuild; that is acceptable for an "after the unit tests pass, run e2e once" workflow. FE devs in tight loop use `startup.sh` or `cd web && npm run dev`.
+- **Alternatives rejected:** Host `next dev` — splits the orchestrator's "one command" into "one command plus a sidecar terminal," and stale build state between compose-up and the host dev server is a real foot-gun. The `make dev-up` target (added REQ006/US015) covers the host-dev-loop workflow.
+- **Consequences:** Source changes require `make e2e-down && make e2e-up` to rebuild; that is acceptable for an "after the unit tests pass, run e2e once" workflow. FE devs in tight loop use `make dev-up` or `cd web && npm run dev`.
 
 #### D-013 — DB-ping timeout literal `5 * time.Second`; no env-var for now
 - **Context:** US004 leaves the timeout value to the architect; suggests an optional `DB_PING_TIMEOUT_SECONDS`.
@@ -847,7 +847,7 @@ Reasoning:
 Reasoning:
 
 - A repo-root `docker-compose.yml` is discoverable by anyone who clones the repo and runs `docker compose up`, with no path argument needed.
-- Useful beyond e2e: a dev who wants a local Postgres without using `startup.sh` can `docker compose up postgres`. Even FE devs may want it.
+- Useful beyond e2e: a dev who wants a local Postgres without using the native dev stack can `docker compose up postgres`. Even FE devs may want it.
 - Keeps the Makefile targets simple — no `-f tests/e2e/docker-compose.yml` flag clutter.
 - The e2e-specific bits (seed fixtures, Robot runbook) DO live under `tests/e2e/`; only the compose file moves up.
 

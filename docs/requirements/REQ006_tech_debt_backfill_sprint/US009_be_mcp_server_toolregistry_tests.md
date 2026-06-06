@@ -4,7 +4,7 @@
 **Story:** US009
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_progress
+**Status:** in_review
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a9f3
 **Implements:** REQ006/US009 AC (all scenarios — 15 verbatim test function names covering `NewToolRegistry`, `ToolRegistry.RegisterTool` / `GetTool` / `ListTools` / concurrent register-and-get, `Session.QueueMessage` / `ReceiveMessage`, `SessionManager.RemoveSession`, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US009 touch row + §4.4 cluster-3 bare-struct test pattern + §4.5 exemption mechanism + §4.6 local verification command (US009 row).
@@ -65,5 +65,45 @@ Tester's `US009_be_unit_tests.md` UT-* IDs map 1:1 onto these names.
 - **Race-clean assertion:** `cd services/agent-board && go test -race ./internal/mcp` passes; in particular the two concurrent tests do NOT report data races.
 - **Live e2e NOT required** (tests-only); instead 3 clean runs of `cd services/agent-board && go test -count=3 -race ./internal/mcp`.
 - Dev set status to `in_review`; tech-lead approved.
+
+## Notes
+
+### Files touched
+- `services/agent-board/internal/mcp/server_test.go` (NEW — 226 lines, 15 test functions)
+
+### Tests added (all 15 verbatim UT-* names per US009_be_unit_tests.md)
+| UT-ID | Test function | Result |
+|---|---|---|
+| UT-001 | `TestNewToolRegistry_ReturnsEmptyRegistry` | PASS |
+| UT-002 | `TestToolRegistry_RegisterTool_AddsHandler` | PASS |
+| UT-003 | `TestToolRegistry_RegisterTool_OverwritesPriorHandler` | PASS |
+| UT-004 | `TestToolRegistry_GetTool_UnknownNameReturnsFalse` | PASS |
+| UT-005 | `TestToolRegistry_GetTool_KnownNameReturnsHandler` | PASS |
+| UT-006 | `TestToolRegistry_ListTools_ReturnsAllRegisteredNames` | PASS |
+| UT-007 | `TestToolRegistry_ListTools_EmptyAfterNoRegistrations` | PASS |
+| UT-008 | `TestToolRegistry_ConcurrentRegisterAndGet` | PASS |
+| UT-009 | `TestSession_QueueMessage_HappyPath` | PASS |
+| UT-010 | `TestSession_QueueMessage_FullReturnsError` | PASS |
+| UT-011 | `TestSession_ReceiveMessage_HappyPath` | PASS |
+| UT-012 | `TestSession_ReceiveMessage_ContextCancelled` | PASS |
+| UT-013 | `TestSessionManager_RemoveSession_RemovesSession` | PASS |
+| UT-014 | `TestSessionManager_RemoveSession_UnknownIDIsNoop` | PASS |
+| UT-015 | `TestSessionManager_RemoveSession_ConcurrentSafe` | PASS |
+
+### Coverage
+`server.go` coverage: **100.0%** (all 10 exported functions at 100%). Requirement was ≥95%.
+
+### Race detector
+`go test -count=3 -race ./internal/mcp/` — 3/3 clean runs. No data races detected.
+
+### Review gates
+- `scripts/review/run-gate.sh be services/agent-board` → **REVIEW GATE: PASS**
+- `scripts/review/run-gate.sh cross` → **REVIEW GATE: PASS**
+
+### OQ-4 tech-debt flag (per spec §4.4 + §13.1 R-5)
+`ListTools` doc-comment in `server.go:116` claims "lexicographic order" but the implementation iterates a map (unordered). `TestToolRegistry_ListTools_ReturnsAllRegisteredNames` uses `assert.ElementsMatch` (unordered membership) intentionally. The doc-comment vs. code mismatch is NOT fixed here — it is flagged as a follow-up tech-debt item (OQ-4). Resolution options: sort in the implementation, or correct the doc-comment to "unspecified order".
+
+### Production code
+`server.go` is byte-for-byte unchanged (no production code modified).
 
 ## Review log

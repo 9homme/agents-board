@@ -43,9 +43,8 @@ services:
       dockerfile: Dockerfile
     command: ["./mcp-server"]
     environment:
-      # mcp-server reads DB_URL (not DATABASE_URL — pre-existing inconsistency
-      # between the two binaries, filed to tech-debt for harmonisation).
-      DB_URL: postgres://agent_board:agent_board@postgres:5432/agent_board?sslmode=disable
+      # Standardised on DATABASE_URL per REQ006/US010 (D-006). DB_URL is rejected at startup.
+      DATABASE_URL: postgres://agent_board:agent_board@postgres:5432/agent_board?sslmode=disable
       PORT: "8080"
     ports:
       - "127.0.0.1:8081:8080"

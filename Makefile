@@ -1,6 +1,8 @@
 # Makefile — repo root
-# e2e harness targets for the local Docker/Podman stack.
-# Architecture ref: REQ005 §6.3.
+# Two target families:
+#   dev-*   — native local-dev stack (no Docker; native Postgres on :5432)  [REQ006/US015]
+#   e2e-*   — Docker/Podman compose stack for Robot Framework e2e tests      [REQ005/US008]
+# Architecture refs: REQ005 §6.3 (e2e family); REQ006/US015 D-013/D-014 (dev family).
 #
 # Podman compatibility: prefers 'docker compose' when docker is present;
 # falls back to 'podman-compose' when only Podman is available.

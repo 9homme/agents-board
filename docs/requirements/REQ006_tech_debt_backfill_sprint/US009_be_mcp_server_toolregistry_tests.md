@@ -4,9 +4,9 @@
 **Story:** US009
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-06T00:00:00Z-a9f3
 **Implements:** REQ006/US009 AC (all scenarios — 15 verbatim test function names covering `NewToolRegistry`, `ToolRegistry.RegisterTool` / `GetTool` / `ListTools` / concurrent register-and-get, `Session.QueueMessage` / `ReceiveMessage`, `SessionManager.RemoveSession`, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US009 touch row + §4.4 cluster-3 bare-struct test pattern + §4.5 exemption mechanism + §4.6 local verification command (US009 row).
 
 ## Goal

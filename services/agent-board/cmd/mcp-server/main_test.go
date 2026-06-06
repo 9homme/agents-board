@@ -163,7 +163,10 @@ func TestRun_LogsDBConfigLine_BeforePing(t *testing.T) {
 // Asserts non-zero exit code and error message containing rename instructions.
 // Architecture cite: architecture.md §5.7 optional hard-fail regression test; §5.4
 func TestRun_HardFail_WhenOnlyDBURLSet(t *testing.T) {
-	cmd := exec.Command("go", "run", ".")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "run", ".")
 	// Build env: inherit current env, add DB_URL, strip DATABASE_URL
 	filteredEnv := make([]string, 0, len(os.Environ()))
 	for _, e := range os.Environ() {

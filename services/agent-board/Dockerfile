@@ -6,7 +6,7 @@
 #
 # Default CMD starts api-server. Override via compose `command:` to run mcp-server.
 
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 
 WORKDIR /work
 

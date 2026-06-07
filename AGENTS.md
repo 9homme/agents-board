@@ -245,3 +245,4 @@ This applies to all six agent files (`po-ba.md`, `system-architect.md`, `tech-le
 - Devs silently deviating from the architecture's API contract.
 - Skipping the test report (Phase 3c) — po-ba will reject a story without one.
 - Bypassing the circuit breaker.
+- **Orchestrator weakening mandatory DoD gates in spawn prompts.** Phrases like "if e2e not available, still set `in_review`" or "skip X and note it" are forbidden when the task's `## Definition of done` marks X as mandatory. Spawn prompts MUST NOT relax mandatory steps. If a mandatory step cannot be completed, the task is `blocked_review_gate` — not `in_review`. The agent definition's `## Rules` section takes precedence over any spawn prompt instruction.

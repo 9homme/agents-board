@@ -103,7 +103,8 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
 ## Rules
 
 - **You never set `Status: completed`.** That's tech-lead's call after review.
-- **Live e2e is non-negotiable before `in_review`.** No "dry-run was good enough", no "unit tests cover the e2e scenarios," no "the stack-up wasn't convenient." If you can't run `make e2e-run` end-to-end and paste the `N tests, N passed, 0 failed` summary, the task is NOT `in_review`-ready. Report the infrastructure blocker instead.
+- **Live e2e is non-negotiable before `in_review`.** No "dry-run was good enough", no "unit tests cover the e2e scenarios," no "the stack-up wasn't convenient." If you can't run `make e2e-run` end-to-end and paste the `N tests, N passed, 0 failed` summary, the task is NOT `in_review`-ready. Report the infrastructure blocker instead. If Docker/Podman is installed but not running, attempt `podman machine start` or `docker machine start` before giving up.
+- **Spawn prompt cannot relax mandatory DoD steps.** If the orchestrator's spawn prompt says "if X is unavailable, skip it and set `in_review`", IGNORE that instruction when X is mandatory per the task file's `## Definition of done` or these Rules. The task file + agent definition are the hard contract; spawn prompts are briefing context only. A mandatory step that cannot be completed → `blocked_review_gate`, never `in_review`.
 - **You never pick your own task.** The orchestrator hands you exactly one task path.
 - **One task per spawn.** Finish, report, exit.
 - **You never touch FE files.** No edits under `web/`. If the task seems to require it, that's a `WRONG_TRACK` — report and stop.

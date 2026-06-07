@@ -1,7 +1,7 @@
 # US015 — Consolidate dev workflow into the Makefile; retire `startup.sh` / `shutdown.sh`
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **developer**, I want **`make dev-up` / `make dev-down` / `make dev-migrate` / `make dev-seed` to manage the local-dev stack of three native processes (`mcp-server`, `api-server`, `web`) against a native Postgres on `localhost:5432`**, so that **the root `startup.sh` / `shutdown.sh` scripts can be retired and the Makefile becomes the single entry point for both local-dev and docker e2e workflows.**
@@ -168,3 +168,8 @@ As a **developer**, I want **`make dev-up` / `make dev-down` / `make dev-migrate
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** Every AC scenario maps to at least one UT-* / IT-* in `US015_be_unit_tests.md`. Script-deletion → UT-001/UT-002; reference sweep → UT-003; `PG_CONN := → ?=` flip (byte-identical default, port 15432) → UT-004; new `DEV_PG_CONN ?=` (port 5432) → UT-005; zero `DB_URL` / `DATABASE_URL`-only → UT-006; four `dev-*` targets → UT-007..010; e2e byte-identical → IT-001; both vars env-overridable → IT-003/IT-004; e2e regression ×3 → IT-002. The process-lifecycle, port-kill fallback, idempotent teardown, and preflight-guard AC scenarios are covered behaviourally by the e2e regression bar + structural target-existence checks — consistent with the architecture-mandated "no Go tests for a Makefile/script/docs story" pyramid shape. No e2e inflation, no missing AC. Spec is honest and complete.
+- **Result review:** 14/14 test IDs PASS in `US015_test_report.md`; Skipped Tests: None. Verified directly (not trusted): `git ls-files startup.sh shutdown.sh` empty; `git grep -nE 'startup\.sh|shutdown\.sh'` returns only AC-excluded REQ005/REQ006 doc-history hits; `Makefile:18 PG_CONN ?=` (default byte-identical, :15432); `Makefile:19 DEV_PG_CONN ?=` (:5432); zero `DB_URL` in Makefile with `DATABASE_URL=$(DEV_PG_CONN)` at lines 97/103; `dev-up`/`dev-down`/`dev-migrate`/`dev-seed` present (lines 91/122/147/155); all four `e2e-*` targets present; `docs/tech_debt.md` line 86 struck through with the exact §3 wording. IT-002 is the 3×`5 tests, 5 passed, 0 failed` flake check via the human-accepted `podman-compose up -d` workaround (the `make e2e-up` deadlock is a pre-existing, separately-tracked bug; e2e recipe bodies are byte-identical per IT-001, so the same Robot suite is exercised). Tech-lead independently re-verified all structural checks and the cross review gate (`REVIEW GATE: PASS`) on review pass 2.
+- **Routed to:** none — story set to `done`.

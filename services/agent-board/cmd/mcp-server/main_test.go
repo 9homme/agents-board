@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"os"
+	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -132,4 +136,53 @@ func indexOfSubstring(s, sub string) int {
 		}
 	}
 	return -1
+}
+
+// IT-002 — TestRun_LogsDBConfigLine_BeforePing (mcp-server)
+// Verifies the startup log line "db config: using DATABASE_URL" is emitted
+// before the DB ping attempt, even when the ping itself fails (no real DB).
+// Architecture cite: architecture.md §5.3; §5.7 approach (b)
+func TestRun_LogsDBConfigLine_BeforePing(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/test_db_nonexistent")
+	os.Unsetenv("DB_URL") //nolint:errcheck
+
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	// run() will log "db config: using DATABASE_URL" then fail on DB ping — expected.
+	_ = run()
+
+	output := buf.String()
+	assert.Contains(t, output, "db config: using DATABASE_URL",
+		"startup log line must appear before DB ping attempt")
+}
+
+// IT-003 — TestRun_HardFail_WhenOnlyDBURLSet (mcp-server subprocess hard-fail regression)
+// Spawns the mcp-server binary with DB_URL set and DATABASE_URL absent.
+// Asserts non-zero exit code and error message containing rename instructions.
+// Architecture cite: architecture.md §5.7 optional hard-fail regression test; §5.4
+func TestRun_HardFail_WhenOnlyDBURLSet(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "run", ".")
+	// Build env: inherit current env, add DB_URL, strip DATABASE_URL
+	filteredEnv := make([]string, 0, len(os.Environ()))
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "DATABASE_URL=") {
+			filteredEnv = append(filteredEnv, e)
+		}
+	}
+	filteredEnv = append(filteredEnv, "DB_URL=postgres://x")
+	cmd.Env = filteredEnv
+
+	output, err := cmd.CombinedOutput()
+
+	assert.Error(t, err, "process must exit non-zero when only DB_URL is set")
+	combinedOut := string(output)
+	assert.Contains(t, combinedOut, "DB_URL is no longer supported",
+		"stderr must contain rename instruction")
+	assert.Contains(t, combinedOut, "rename to DATABASE_URL",
+		"stderr must contain rename target")
 }

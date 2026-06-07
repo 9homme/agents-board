@@ -56,16 +56,44 @@ The project progresses through three distinct, gated phases:
 
 ### Prerequisites
 - **Go:** 1.22+
-- **Postgres:** 15+
+- **Node.js / npm:** 18+ (for the frontend)
+- **Postgres:** 15+ (native install on `localhost:5432` for local dev; or use the Docker compose stack for e2e)
+- **psql** (PostgreSQL client tools) for `make dev-migrate` / `make dev-seed`
 - **Python 3:** (for Robot Framework tests)
 
-### Running the Backend
+### Local dev workflow (native Postgres on `:5432`)
+
+The `Makefile` provides a `dev-*` family of targets for daily development against a native Postgres instance. No Docker required.
+
+```bash
+# One-time setup: create and migrate the local dev database
+createdb agent_board
+make dev-migrate        # applies all migrations against localhost:5432
+
+# Optionally seed fixtures
+make dev-seed
+
+# Start all three services in the background
+make dev-up             # starts mcp-server (:8081), api-server (:8080), web (:3000)
+
+# Stop them
+make dev-down           # idempotent — safe to re-run even if nothing is running
+```
+
+Override the connection string via environment:
+```bash
+DEV_PG_CONN=postgres://myuser:mypass@localhost:5432/mydb make dev-migrate
+```
+
+Logs are written to `mcp-server.log`, `api-server.log`, and `web.log` at the repo root.
+
+### Running the Backend manually
 The backend is a unified Go module in `services/agent-board` that produces two separate binaries.
 
 **1. MCP Server (AI Interface)**
 ```bash
 cd services/agent-board
-export DB_URL=postgres://localhost/agent_board?sslmode=disable
+export DATABASE_URL=postgres://localhost/agent_board?sslmode=disable
 go run cmd/mcp-server/main.go
 ```
 

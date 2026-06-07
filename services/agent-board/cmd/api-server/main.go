@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"agent-board/internal/config"
 	"agent-board/internal/handler"
 	"agent-board/internal/repo"
 
@@ -41,11 +42,12 @@ func run() error {
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
 
-	// Read DATABASE_URL
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL environment variable is not set")
+	// Resolve DATABASE_URL via the config helper (D-006: DB_URL rejected at startup).
+	dbURL, err := config.ResolveDBURL()
+	if err != nil {
+		log.Fatal(err)
 	}
+	log.Print("db config: using DATABASE_URL")
 
 	db, err := sql.Open("pgx", dbURL)
 	if err != nil {

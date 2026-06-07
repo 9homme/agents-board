@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -189,6 +190,313 @@ func TestUserStoryRepo_UpdateUserStoryStatus_RollbackOnAuditFailure(t *testing.T
 	require.Error(t, err)
 	assert.Nil(t, updated)
 
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-001: CreateUserStory returns error when DB fails
+func TestUserStoryRepo_CreateUserStory_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectQuery(`INSERT INTO user_stories`).
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.CreateUserStory(context.Background(), &domain.UserStory{
+		ProjectID:   "proj-id-1",
+		Title:       "Test Story",
+		Description: "desc",
+		Status:      "draft",
+	})
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-002: GetUserStory returns error when DB fails (non-NotFound)
+func TestUserStoryRepo_GetUserStory_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM user_stories WHERE`).
+		WithArgs("us-id-1").
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.GetUserStory(context.Background(), "us-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-003: GetUserStory maps sql.ErrNoRows to ErrNotFound
+func TestUserStoryRepo_GetUserStory_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM user_stories WHERE`).
+		WithArgs("us-id-1").
+		WillReturnError(sql.ErrNoRows)
+
+	result, err := r.GetUserStory(context.Background(), "us-id-1")
+
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-004: UpdateUserStory maps sql.ErrNoRows to ErrNotFound
+func TestUserStoryRepo_UpdateUserStory_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectQuery(`UPDATE user_stories SET`).
+		WillReturnError(sql.ErrNoRows)
+
+	result, err := r.UpdateUserStory(context.Background(), &domain.UserStory{
+		ID:          "us-id-1",
+		ProjectID:   "proj-id-1",
+		Title:       "Title",
+		Description: "desc",
+		Status:      "draft",
+	})
+
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-005: UpdateUserStory returns error when DB fails (non-NotFound)
+func TestUserStoryRepo_UpdateUserStory_GenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectQuery(`UPDATE user_stories SET`).
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.UpdateUserStory(context.Background(), &domain.UserStory{
+		ID:          "us-id-1",
+		ProjectID:   "proj-id-1",
+		Title:       "Title",
+		Description: "desc",
+		Status:      "draft",
+	})
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-006: UpdateUserStoryStatus returns error when BeginTx fails
+func TestUserStoryRepo_UpdateUserStoryStatus_BeginTxError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectBegin().WillReturnError(errors.New("begin fail"))
+
+	result, err := r.UpdateUserStoryStatus(context.Background(), "us-id-1", "in_development", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-007: UpdateUserStoryStatus maps sql.ErrNoRows to ErrNotFound within transaction
+func TestUserStoryRepo_UpdateUserStoryStatus_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE user_stories SET status`).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectRollback()
+
+	result, err := r.UpdateUserStoryStatus(context.Background(), "us-id-1", "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.True(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-008: UpdateUserStoryStatus returns error when QueryRowContext fails (non-NotFound)
+func TestUserStoryRepo_UpdateUserStoryStatus_UpdateGenericError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE user_stories SET status`).
+		WillReturnError(errors.New("db down"))
+	mock.ExpectRollback()
+
+	result, err := r.UpdateUserStoryStatus(context.Background(), "us-id-1", "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// userStoryCols defines the column names returned by user_story SELECT/UPDATE queries.
+var userStoryCols = []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}
+
+// UT-009: UpdateUserStoryStatus returns error and rolls back when audit insert fails
+func TestUserStoryRepo_UpdateUserStoryStatus_AuditInsertError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	now := time.Now()
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE user_stories SET status`).
+		WillReturnRows(sqlmock.NewRows(userStoryCols).AddRow(
+			"us-id-1", "proj-id-1", "Title", "desc", "done", now, now,
+		))
+	mock.ExpectExec(`INSERT INTO status_audit_trail`).
+		WillReturnError(errors.New("audit fail"))
+	mock.ExpectRollback()
+
+	result, err := r.UpdateUserStoryStatus(context.Background(), "us-id-1", "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-010: UpdateUserStoryStatus returns error when Commit fails
+func TestUserStoryRepo_UpdateUserStoryStatus_CommitError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	now := time.Now()
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`UPDATE user_stories SET status`).
+		WillReturnRows(sqlmock.NewRows(userStoryCols).AddRow(
+			"us-id-1", "proj-id-1", "Title", "desc", "done", now, now,
+		))
+	mock.ExpectExec(`INSERT INTO status_audit_trail`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit().WillReturnError(errors.New("commit fail"))
+
+	result, err := r.UpdateUserStoryStatus(context.Background(), "us-id-1", "done", "user-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-011: ListUserStories returns error when QueryContext fails
+func TestUserStoryRepo_ListUserStories_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	mock.ExpectQuery(`SELECT .* FROM user_stories WHERE`).
+		WillReturnError(errors.New("db down"))
+
+	result, err := r.ListUserStories(context.Background(), "project-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-012: ListUserStories returns error when Scan fails due to type mismatch
+func TestUserStoryRepo_ListUserStories_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	// Pass a non-time string for created_at to force Scan failure (time.Time cannot unmarshal arbitrary string).
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}
+	mock.ExpectQuery(`SELECT .* FROM user_stories WHERE`).
+		WillReturnRows(sqlmock.NewRows(cols).AddRow(
+			"us-id-1", "proj-id-1", "Title", "desc", "draft",
+			"not-a-time", /* wrong type for time.Time created_at */
+			"not-a-time",
+		))
+
+	result, err := r.ListUserStories(context.Background(), "project-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-013: ListUserStories returns error when rows.Err() is set after iteration
+func TestUserStoryRepo_ListUserStories_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	now := time.Now()
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}
+	mock.ExpectQuery(`SELECT .* FROM user_stories WHERE`).
+		WillReturnRows(sqlmock.NewRows(cols).
+			AddRow("us-id-1", "proj-id-1", "Title", "desc", "draft", now, now).
+			RowError(0, errors.New("rows err")))
+
+	result, err := r.ListUserStories(context.Background(), "project-id-1")
+
+	assert.Nil(t, result)
+	assert.Error(t, err)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// IT-001 coverage: ListUserStories returns an empty (non-nil) slice when no rows are returned.
+func TestUserStoryRepo_ListUserStories_EmptyResult(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}
+	mock.ExpectQuery(`SELECT .* FROM user_stories WHERE`).
+		WillReturnRows(sqlmock.NewRows(cols))
+
+	result, err := r.ListUserStories(context.Background(), "project-id-1")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result, 0)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 

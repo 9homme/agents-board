@@ -97,7 +97,20 @@
       "Bash(git symbolic-ref*)",
       "Bash(git worktree*)",
       "Bash(git ls-tree*)",
-      "Bash(git show-ref*)"
+      "Bash(git show-ref*)",
+      "Bash(./node_modules/.bin/jest --watchAll=false --testPathPattern=\"useProject|useProjectDocuments|useDocument|projects\")",
+      "Bash(npm ls *)",
+      "Bash(./node_modules/.bin/jest --watchAll=false hooks/useProjectDocuments)",
+      "Bash(node_modules/.bin/jest --forceExit --watchAll=false hooks/useProjectDocuments)",
+      "Bash(node_modules/.bin/jest --forceExit --watchAll=false)",
+      "Bash(ln -s /Users/a667282/workspace/agents-board/web/node_modules node_modules)",
+      "Bash(./node_modules/.bin/jest --watchAll=false --testPathPattern=\"useDocument\" --forceExit)",
+      "Bash(go tool *)",
+      "Bash(./node_modules/.bin/jest --watchAll=false --testPathPatterns=\"useDocument\" --forceExit)",
+      "Bash(./node_modules/.bin/jest --watchAll=false --forceExit)",
+      "Bash(/tmp/repo_test.bin -test.v)",
+      "Bash(/usr/bin/go test *)",
+      "Bash(/opt/homebrew/bin/go test *)"
     ]
   }
 }

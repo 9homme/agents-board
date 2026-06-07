@@ -6,7 +6,7 @@
 #
 # Default CMD starts api-server. Override via compose `command:` to run mcp-server.
 
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 
 WORKDIR /work
 
@@ -26,6 +26,9 @@ WORKDIR /
 
 COPY --from=build /work/api-server .
 COPY --from=build /work/mcp-server .
+
+# Run as non-root (distroless static ships with `nonroot`, UID 65532).
+USER nonroot:nonroot
 
 # api-server is the default entry; compose may override with ["./mcp-server"].
 CMD ["./api-server"]

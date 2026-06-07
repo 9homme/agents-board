@@ -4,7 +4,7 @@
 **Story:** US012
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a4f2
 **Implements:** REQ006/US012 AC (all scenarios — `go.mod` bump, `Dockerfile` builder bump, `govulncheck` clean, `go test ./...` clean, `golangci-lint` clean, `go build ./...` clean for both binaries, `make e2e-up` clean), architecture §3 US012 touch row, architecture §6 (toolchain decision + verified findings + version pin + CI/Docker knock-on + govulncheck post-bump assertion), architecture D-007 (`go 1.26.4`).
@@ -159,3 +159,31 @@ changes_requested verdict — it is recorded here so the next pass is not re-fla
 tester to reconcile the spec wording on next touch.)
 
 **Tech-debt filed this pass:** 1 line appended to `docs/tech_debt.md` (UT-001 spec-wording reconciliation).
+
+### Review pass 2 — 2026-06-07 — verdict: approved
+
+**Scope of this pass:** the sole pass-1 blocker was missing IT-005 live-e2e evidence. Re-verified the implementation is still intact and the IT-005 evidence is now present.
+
+**Implementation re-verified (unchanged from pass 1):**
+- `go.mod:3` — `go 1.26.4` ✓ (architecture §6.2 / D-007). The `go 1.26.4`-only form (no separate `toolchain` line) was accepted/waived at pass 1 as the idiomatic Go 1.21+ shape — re-confirmed.
+- `Dockerfile:9` — `FROM golang:1.26-alpine AS build` ✓; runtime distroless stage unchanged ✓.
+- `docs/tech_debt.md:28` — struck through with `→ fixed in REQ006/US012` ✓.
+
+**Test + gate results (re-run on review host):**
+- `cd services/agent-board && go test ./...` — `Go test: 301 passed in 7 packages`, exit 0 ✓ (IT-002).
+- `scripts/review/run-gate.sh be services/agent-board` — `REVIEW GATE: PASS` ✓
+  (gofmt -s / go vet / golangci-lint / go test all PASS; gosec + govulncheck WARN-skipped on review host — not installed; gate treats as WARN not FAIL, so gate is not blocked).
+- `scripts/review/run-gate.sh cross` — `REVIEW GATE: PASS` ✓ (semgrep owasp/golang/typescript + gitleaks clean).
+
+**IT-005 live e2e evidence — NOW PRESENT and ACCEPTED.**
+The dev's `## Notes` (IT-005, 2026-06-07 re-attempt) contains the three required verbatim Robot Framework summary lines, all clean:
+- Run 1 — **23 tests, 23 passed, 0 failed**
+- Run 2 — **23 tests, 23 passed, 0 failed**
+- Run 3 — **23 tests, 23 passed, 0 failed**
+No flakes across the three consecutive runs. The compose images were built from `golang:1.26-alpine` (the US012 Dockerfile change), confirming the new builder image works for both api-server and mcp-server binaries.
+
+**Workaround accepted (per human direction + documented pre-existing bugs).** The exact DoD sequence `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` could not run because `make e2e-up` has two pre-existing infrastructure bugs (api-server health-check circular dependency on migrations; mcp-server SSE curl hang with no `--max-time`). Both bugs predate US012 (since REQ005/US008 commit `1ba4793`) and are NOT caused by the go toolchain bump. They are filed in `docs/tech_debt.md:113` (REQ006/US012). The equivalent workaround (`podman-compose up -d` + `make e2e-seed` + `make e2e-run` ×3 + `make e2e-down`) was explicitly accepted by the human as equivalent IT-005 evidence. This is an accepted deviation, not a waived mandatory gate — the three-clean-run flake bar (architecture §10.1) was met; only the orchestration entrypoint differed.
+
+**TDG conformance:** pass-2 rework commits `39310e6 refactor: chore: hand off go toolchain bump 1.26.4 for review (US012)` carries the `(US012)` traceability tag; `9001ddd chore: document make e2e-up health-check bugs in tech_debt.md` is a tech_debt.md documentation commit (not test/production code). The `refactor: chore:` prefix drift on hand-off commits is the same recurring housekeeping-prefix pattern already filed for REQ006/US001, US004, US007 (tech_debt.md:105,107,110) — red→green→refactor ordering is honored; tolerated as the established precedent on this REQ, not a new `changes_requested`.
+
+**Tech-debt filed this pass:** none filed this pass — the two relevant items (UT-001 spec wording; `make e2e-up` health-check bugs) were already filed at pass 1 / by the dev (tech_debt.md:112-113). No new non-blocking findings.

@@ -1,7 +1,7 @@
 # US010 — Standardise on `DATABASE_URL`; reject `DB_URL` at startup
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As an **operator deploying both `api-server` and `mcp-server`**, I want **both binaries to read a single `DATABASE_URL` env var and refuse to start with a clear, actionable error if the deprecated `DB_URL` env var is set**, so that there is one obvious source of truth for the DB connection string and partially-migrated environments fail loudly at startup instead of silently using the wrong source.
@@ -120,3 +120,17 @@ As an **operator deploying both `api-server` and `mcp-server`**, I want **both b
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 9 AC scenarios map to test IDs in `US010_be_unit_tests.md` and are genuinely proven, not just adjacent:
+  - "Both binaries accept only DATABASE_URL" → UT-001 (helper happy path) + IT-001/IT-002 (both binaries emit log line and proceed); byte-identical call site confirmed at tech-lead review pass 2 (§5.3).
+  - "Deprecated DB_URL rejected with actionable error" → UT-002 (DB_URL-only, exact rename wording), UT-003 (both-set, exact disambiguate wording), and IT-003 (mcp-server subprocess: non-zero exit + rename message before any DB ping). All three §5.4 error strings asserted verbatim via `assert.EqualError`.
+  - "Neither set" → UT-004 (exact required-error wording).
+  - "Startup log line names resolved var (single-var)" → IT-001/IT-002 assert literal `"db config: using DATABASE_URL"`; single happy-path variant confirmed (no "using DB_URL" variant survives).
+  - "Happy path preserved / mcp-server DB_URL deliberately broken" → IT-002 (mcp happy path) + IT-003 (mcp hard-fail). Deliberate breaking change exercised.
+  - "Env-var resolution unit-tested, ≥95% cov, t.Setenv" → UT-001..UT-004 + IT-004 (100% statement coverage on dburl.go).
+  - "Startup log integration-tested on real logged output" → IT-001/IT-002 use approach (b) `run()` helper asserting captured buffer output (not a mocked logger), log line before ping — honest e2e/unit split.
+  - "Docker/compose updated" + "docs updated" + "closes OQ-7" → doc/config concerns, verified by tech-lead (DB_URL→DATABASE_URL rename, §5.5 comment present, tech_debt.md line 97 struck through, e2e README grep-clean) and exercised live by the e2e stack.
+  - Edge/error paths the AC implies are all present; no skipped scenarios. E2E justification honest — the helper logic stays at unit level; only the live-stack integration is exercised via the existing Robot suite.
+- **Result review:** `US010_test_report.md` reports 9/9 test IDs PASS (UT-001..UT-004, IT-001..IT-005), counts match the spec coverage matrix exactly (no silent dropping). `Skipped Tests: None`; no `t.Skip` / `[Tags] skip`. Full module `go test ./...` 301 passed / 0 failed across 7 packages. Live e2e + 3-clean-run flake check satisfied: 3 consecutive `make e2e-run` invocations each `23 tests, 23 passed, 0 failed` (architecture §10.1 gate met). Tech-lead reached task `Status: completed` at review pass 2 (live e2e gate completed once Podman was available). Report carries timestamp + commit SHA `6fa0726`. The E2E table's "(workaround applied)" annotation is benign — it denotes `DATABASE_URL` supplied via the compose stack (the intended config), corroborated by the tech-lead's pass-2 fresh-rebuild run; not a test bypass or masked failure.
+- **Routed to:** none — story approved, `Status: done`.

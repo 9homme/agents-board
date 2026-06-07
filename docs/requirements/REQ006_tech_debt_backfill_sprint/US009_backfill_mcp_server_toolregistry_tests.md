@@ -1,7 +1,7 @@
 # US009 — Backfill `internal/mcp/server.go` ToolRegistry + Session message tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/mcp/server.go`**, I want **every method on `ToolRegistry` (`NewToolRegistry`, `RegisterTool`, `GetTool`, `ListTools`), the `Session.QueueMessage` queue-full branch, the `Session.ReceiveMessage` context-cancel branch, and `SessionManager.RemoveSession` to be covered by unit tests**, so that a regression in MCP plumbing (e.g. dropping the channel-based backpressure, returning `(nil, nil)` from `GetTool` on a missing tool, or leaking sessions after `RemoveSession`) fails CI immediately.
@@ -81,3 +81,8 @@ As a **future contributor changing `services/agent-board/internal/mcp/server.go`
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 5 AC scenarios are covered by `US009_be_unit_tests.md`. The 15 verbatim test-function names map 1:1 onto UT-001..UT-015 (coverage matrix lines 14-28); the two integration scenarios (≥95% coverage, full-suite+race) map onto IT-001 and IT-002. Branch coverage is honest — every SUT branch has a case: `QueueMessage` send/full (UT-009/010), `ReceiveMessage` msg/ctx-cancel (UT-011/012), `RemoveSession` present/unknown/concurrent (UT-013/014/015), `GetTool` found/not-found/concurrent (UT-004/005/008), `RegisterTool` add/overwrite/concurrent (UT-002/003/008), `ListTools` populated/empty/concurrent (UT-006/007/008), constructors (UT-001). Edge/error paths present, none skipped. No e2e inflation — e2e correctly N/A for a tests-only BE story.
+- **Result review:** `US009_test_report.md` reports 17 test IDs (UT-001..015 + IT-001 + IT-002), 17 PASS, 0 FAIL. Counts match the spec (15 unit functions, confirmed independently by tech-lead `grep` = 15). No tests skipped, no `t.Skip`. Coverage on `server.go` = 100.0% (target ≥95%, exceeded). Race detector clean across 3 runs; concurrent tests (UT-008, UT-015) report no data races. Production code `server.go` byte-for-byte unchanged (no-prod-change AC satisfied). OQ-4 (`ListTools` doc-comment "lexicographic order" vs. unsorted map implementation) is a documented non-blocking follow-up tech-debt item, handled correctly via `assert.ElementsMatch` with the implementation untouched — not a blocker.
+- **Routed to:** none (approved — story set to done)

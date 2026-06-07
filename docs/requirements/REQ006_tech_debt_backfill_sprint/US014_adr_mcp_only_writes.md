@@ -1,7 +1,7 @@
 # US014 — ADR — formalise MCP-only-writes as the permanent write API
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor (human or sub-agent) considering whether to add `POST` / `PUT` / `DELETE` endpoints to `api-server`**, I want **a written Architecture Decision Record (ADR) that explicitly states "MCP-only-writes" is the permanent architectural intent — not an oversight or a TODO**, so that I do not waste cycles proposing REST-writes again without first reading the rationale, the alternatives that were considered, and the conditions under which the decision could be revisited.
@@ -125,3 +125,17 @@ This story is a **documentation deliverable**. po-ba authors the AC; the system-
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** This is a documentation-only story per the AC ("Scenario: tester confirms no tests are required"). `US014_be_unit_tests.md` correctly contains only the disclaimer; no UT-*/IT-*/E2E-* cases are in scope. FE and e2e specs carry the same disclaimer, and no `.robot` file was created for US014 — all consistent with the AC. Spec honesty confirmed: there is no user-observable runtime behavior to test; the deliverable is the ADR document text plus tech-debt strike-throughs, which are verified structurally.
+- **Result review:** `US014_test_report.md` reports zero tests / zero failures / zero skipped by design — matches the AC's "test report confirms zero tests" scenario. No `t.Skip`/`[Tags] skip` (none possible — no tests). Deliverable-verification table confirms ADR presence + strike-throughs; existing e2e suite remained green.
+- **Deliverable verification (substantive — checked directly against `architecture.md` §9 and `docs/tech_debt.md`):**
+  - Scenario 1 (explicit ADR section): PASS — `## 9. ADR-001 — MCP-only-writes is the permanent write API` at architecture.md:746.
+  - Scenario 2 (Decision stated verbatim): PASS — §9.3 (architecture.md:768) contains the required text verbatim.
+  - Scenario 3 (four read-only GET endpoints): PASS — §9.4 (architecture.md:774–777) enumerates all four `/api/v1/` GET endpoints.
+  - Scenario 4 (five MCP tool families): PASS — §9.5 (architecture.md:785–789) enumerates Project/Document/UserStory/Task + RegisterAuditTools.
+  - Scenario 5 (Rationale ≥3 bullets): PASS — §9.6 has 4 bullets covering all 3 required.
+  - Scenario 6 (Alternatives considered ≥3): PASS — §9.7 has 4 entries covering all 3 required.
+  - Scenario 7 (Conditions for revisiting ≥3 + disclaimer): PASS — §9.8 has all 3 conditions plus the verbatim "This decision is NOT revisited just because adding a REST endpoint would be technically easy" disclaimer at architecture.md:815.
+  - Scenario 8 (tech-debt strike-throughs): PASS — `docs/tech_debt.md:98` struck through with `→ won't-fix per REQ006/US014 ADR-001 (MCP-only-writes is permanent)`; sibling line 91 ("Suggested fold-into-REQ006 … REST surface") also struck through with the same pointer. No other "add REST writes" line remains unstruck.
+- **Routed to:** none — all AC scenarios pass. Story flipped to `Status: done`.

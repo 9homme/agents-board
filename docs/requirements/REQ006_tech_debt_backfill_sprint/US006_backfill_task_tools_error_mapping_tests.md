@@ -1,7 +1,7 @@
 # US006 — Backfill `task_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/task_tools.go`**, I want **every repo-error → MCP-error-envelope mapping AND every status-transition guard in `RegisterTaskTools` and its 5 underlying tool closures to be covered by integration tests**, so that a regression (e.g. swallowing `repo.ErrNotFound`, dropping the `existing.IsValidTransition` check, or breaking the audit-trail-coupled `UpdateTaskStatus` call) fails CI immediately.
@@ -92,3 +92,12 @@ As a **future contributor changing `services/agent-board/internal/handler/task_t
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 5 AC scenarios covered. The 25 verbatim test-function names in AC scenario 1 map 1:1 to UT-001..UT-025 in `US006_be_unit_tests.md`. The load-bearing `UpdateTaskTool` branch matrix (invalid-transition, status-change-field-error, status-change-status-error, no-status-change-update-error, status-change-happy) is each explicitly covered (UT-015..UT-019). Per-branch assertion semantics (wrap-prefix `"failed to <op> task:"`, fresh `"task not found"` with `errors.Is(...)==false`, `"invalid transition from <from> to <to>"` format) are specified in the spec. Coverage-target AC (IT-001 ≥95%) and no-prod-change AC (scenario 5) both have explicit integration cases. No spec gaps.
+- **Result review:** All 27 test IDs (UT-001..UT-025 + IT-001 + IT-002) report PASS in `US006_test_report.md`; 0 fail, 0 skipped. Independently verified, not just trusted:
+  - `git diff HEAD -- internal/handler/task_tools.go` → empty (production file byte-for-byte unchanged) — satisfies AC scenario 5 and the "no production-code changes" requirement.
+  - Coverage command reproduced: `mapTaskToResponse` 100.0%, `RegisterTaskTools` 95.3% — clears the ≥95% target (AC scenario 3). The 2 extra coverage-helper tests are legitimate (not in AC but needed to hit 95% under the narrow coverage-regex run); they do not weaken any spec case.
+  - All 25 verbatim AC test names confirmed present in `task_tools_test.go`; `grep` for `t.Skip`/`Skip(` returned 0 — no skipped or tagged-out cases.
+  - tech-lead review pass 1 approved with both review gates `REVIEW GATE: PASS` and `go test -count=3 -race` clean.
+- **Routed to:** none (approved).

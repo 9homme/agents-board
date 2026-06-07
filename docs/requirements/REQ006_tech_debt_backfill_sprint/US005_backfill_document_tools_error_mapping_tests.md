@@ -1,7 +1,7 @@
 # US005 — Backfill `document_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/document_tools.go`**, I want **every repo-error → MCP-error-envelope mapping in `RegisterDocumentTools` and its 5 underlying tool closures to be covered by integration tests**, so that a regression (e.g. swallowing a `repo.ErrNotFound`, dropping a `fmt.Errorf("failed to ...: %w", err)` wrap, or breaking the `mapDocumentToResponse` time-formatting) fails CI immediately.
@@ -83,3 +83,12 @@ As a **future contributor changing `services/agent-board/internal/handler/docume
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 5 AC scenarios are covered. The 20 verbatim test-function names in AC scenario 1 map 1:1 onto UT-001..UT-020 in `US005_be_unit_tests.md`; coverage matrix is complete. Branch/error-path scenario 2 is faithfully specced (invalid args, missing fields, empty id, NotFound-unwrap, wrap-prefix assertions, empty-slice → non-nil `{"documents":[]}`). NotFound cases correctly assert both the `"document not found"` substring AND `errors.Is(err, repo.ErrNotFound) == false`. Tool name resolved to `list_documents` (confirmed against `document_tools.go:147`), matching UT-001's "confirm exact name" note. No e2e/unit mis-leveling — tests-only story, correctly BE-unit-only.
+- **Result review:** Verified independently, not trusted from the report.
+  - All 20 AC test functions present in `internal/handler/document_tools_test.go` (lines 205–556) plus 5 pre-existing `TestDocumentTools_*` happy-path tests. Scoped run: 20 passed. Full module: 301 tests passed, 0 failed (matches report). No skips, no `t.Skip`.
+  - Production code unchanged: `git diff` on `document_tools.go` is empty; working tree clean; only the test file was touched. AC scenario 5 satisfied.
+  - Per-file coverage on `document_tools.go` measured at **100.0%** (`mapDocumentToResponse` 100%, `RegisterDocumentTools` 100%) when the package's full test set runs — clears the ≥95% target. AC scenario 3 met in substance.
+- **Finding (non-blocking, accepted):** The IT-001 coverage command as written in this story (scenario 3) and in `US005_be_unit_tests.md` uses `-run "TestRegisterDocumentTools|Test(Create|Get|Update|Delete|List)Document(s?)Tool"`. That regex EXCLUDES the pre-existing `TestDocumentTools_*` happy-path tests, so running IT-001 verbatim yields `mapDocumentToResponse 0.0%`, `RegisterDocumentTools 89.2%` — below 95%. The ≥95% target is only demonstrably met by the full-package run. The defect is in the AC/spec measurement command, not in the code or behavior: the real per-file coverage is 100% and all required branches are exercised. Approving because the substantive intent (≥95% per-file coverage, no prod-code change, 20 named tests all green) is fully and verifiably satisfied. Recommend the tester correct IT-001's `-run` regex to append `|TestDocumentTools` (or drop the `-run` filter) so a future contributor running the documented command sees the true figure; the test report's coverage line should also cite the exact command used. This is a documentation/measurement fix, not a behavioral one, and does not warrant blocking or re-running the pipeline.
+- **Routed to:** none (approved). Advisory follow-up for tester to tighten the IT-001 command wording (non-blocking).

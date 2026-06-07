@@ -4,7 +4,7 @@
 **Story:** US010
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** blocked_review_gate
 **Blocked by:** none (soft sequencing — see Notes below; US015 SHOULD ship before or with this task per architecture D-013 / D-014 / R-6, but no hard `Blocked by` link)
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-aa93
 **Implements:** REQ006/US010 AC (all scenarios per architecture §5.8 reconciliation — see Notes), architecture §3 US010 touch row, architecture §5 (decision + helper API + main.go call sites + locked error wording + docker-compose change + four-case unit tests + startup-log integration test + migration impact), architecture D-006, architecture D-012 (`internal/config` is the only NEW production file across REQ006).
@@ -136,3 +136,56 @@ This is a `REVIEW_GATE_BLOCKED` infrastructure issue. The unit + integration tes
 **Orchestrator action required:** run `make e2e-up && make e2e-seed && make e2e-run` on a host with Docker/Podman running to complete the live e2e gate before tech-lead approval.
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: blocked_review_gate
+
+**Why blocked (NOT changes_requested, NOT approved):** the code is correct on every check I was able to run, but the mandatory **live-e2e + 3-clean-run flake verification** required by architecture §10.1 (which names US010 explicitly: "Any story that touches `services/<>/` production code (US010, US012) requires a `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` clean run three times in a row before code review can pass") and by this task's own DoD line 99 **cannot be performed on the review host** — the container runtime is unavailable. Per tech-lead.md review-mode rule (REQ005/US008 follow-up): "If the e2e stack itself is unavailable on the review host, that's `blocked_review_gate` — NOT `approved`." The three live-e2e summary lines are required evidence for an `approved` verdict and cannot be produced; I may not approve around a missing gate, and I may not fabricate the evidence. This routes to the gate-fix / infra track, not back to the dev — the dev's code is not at fault.
+
+**Container-runtime probe on review host (verbatim):**
+- `which docker` → `docker not found` (exit 1)
+- `docker-compose` → `not found` (exit 1)
+- `podman-compose` → not installed
+- `podman machine list` → `podman-machine-default ... LAST UP: Never`; `podman info` → exit 125 (machine not started)
+- Makefile `_check-compose` guard would fail at recipe time; `make e2e-up` cannot run.
+
+**Everything that COULD be verified — all green (recorded so the next reviewer does not re-run the code-level checks, only the live e2e):**
+
+Code-level conformance:
+- `dburl.go` matches architecture §5.2 contract exactly: package `config`, exported `ResolveDBURL() (string, error)`, four-branch switch, no `log.Fatal`/no log emission inside the helper (properties #1–#4 hold). All three error strings are byte-identical to the locked §5.4 wording.
+- `cmd/api-server/main.go` (lines 45–50) and `cmd/mcp-server/main.go` (lines 31–36) call sites are byte-identical to §5.3, with the happy-path log line `"db config: using DATABASE_URL"` emitted from `main.go` (not the helper).
+- `docker-compose.yml`: both `api-server` and `mcp-server` set `DATABASE_URL` only; `DB_URL` key removed; §5.5 comment present verbatim (`# Standardised on DATABASE_URL per REQ006/US010 (D-006). DB_URL is rejected at startup.`).
+- `git grep DB_URL services/ docker-compose.yml tests/e2e/`: every remaining hit is an error-message string literal, test code (UT-002/UT-003 + IT-003 subprocess setup), or an explanatory comment — zero live env-var usages. As DoD line 96 requires.
+- `tests/e2e/README.md`: no `DB_URL` reference (grep exit 1) — correctly left untouched.
+- `startup.sh`/`shutdown.sh`: not touched (already removed by US015, which landed first in this merge sequence — §3 US010 note honoured).
+- `docs/tech_debt.md` line 97: struck through with the exact required suffix `→ fixed in REQ006/US010 (standardised on DATABASE_URL; DB_URL rejected at startup)`.
+
+Test contract (all named tests present + passing):
+- UT-001..UT-004 (`internal/config/dburl_test.go`): 4/4 PASS, `coverage: 100.0% of statements`.
+- IT-001 `TestRun_LogsDBConfigLine_BeforePing` (api-server): PASS.
+- IT-002 `TestRun_LogsDBConfigLine_BeforePing` (mcp-server): PASS.
+- IT-003 `TestRun_HardFail_WhenOnlyDBURLSet` (mcp-server subprocess, non-zero exit + rename message): PASS.
+- Full module suite `go test ./...`: all 7 packages `ok` (api-server, mcp-server, config, domain, handler, mcp, repo).
+- `go vet ./...`: clean. `go build ./...`: both binaries build.
+
+Gates:
+- `scripts/review/run-gate.sh be services/agent-board` → `REVIEW GATE: PASS` (gofmt -s, go vet, golangci-lint, go test all PASS; gosec/govulncheck WARN-skipped by the gate itself — not installed — with gosec coverage via the golangci-lint gosec linter, the gate's designed fallback).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep owasp/golang/typescript PASS, gitleaks no secrets).
+- No REQ006 Robot e2e suite exists (`tests/e2e/REQ006_*` absent), so robot `--dryrun` is N/A for this task.
+
+Per-file coverage (recorded for the next reviewer — NOT the blocker, see note below):
+- `internal/config/dburl.go`: 100.0% — clears ≥80%.
+- `cmd/api-server/main.go`: `main` 0.0%, `run` 52.6%, `pingDB` 100.0% (file 50.0%).
+- `cmd/mcp-server/main.go`: `main` 0.0%, `run` 34.2%, `pingDB` 100.0% (file 33.3%).
+  - The two `main.go` files are below the 80% per-file threshold, but the uncovered portion is the pre-existing server-wiring/`e.Start` path that is inherently e2e-only (not unit-testable) and predates this task. The lines US010 actually added (the `ResolveDBURL()` call + happy-path log line) ARE exercised by IT-001/IT-002. This is the standard `main`-package exemption pattern. I am NOT treating this as the blocking issue — it is the live-e2e UNAVAILABILITY that blocks. When the e2e gate is satisfied on a runtime-capable host, the next reviewer should note the main.go sub-threshold coverage as an accepted exemption (main wiring, validated by e2e) rather than `changes_requested`.
+
+TDG discipline (verified on branch commits): clean red → green → refactor cycles, all tagged `(US010)`:
+- `red: test spec for ResolveDBURL four env-state branches (US010)`
+- `green: implement ResolveDBURL four-branch config helper (US010)`
+- `red: test spec for startup log line integration tests IT-001 IT-002 IT-003 (US010)`
+- `green: wire both main.go files to use config.ResolveDBURL (US010)`
+- `refactor: rename DB_URL to DATABASE_URL in docker-compose; strike tech_debt.md line 97 (US010)`
+- `refactor: use exec.CommandContext in IT-003 to satisfy noctx linter (US010)`
+
+**Action required (orchestrator → gate-fix / infra track, NOT the dev):** start a container runtime on the review host (`podman machine start` or install Docker + a compose provider), then run `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` THREE consecutive times and confirm all three are 100% green (`N tests, N passed, 0 failed`). Paste the three summary lines, then re-review for `approved`. No code change is needed for the verdict to flip — the implementation is already correct.
+
+Tech-debt: none filed this pass. The implementation is clean — no style nits, no scope creep, no sibling-pattern divergence, no dead code, no unowned TODOs in the US010 diff.

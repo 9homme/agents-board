@@ -1,7 +1,7 @@
 # US006 — Backfill `task_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/task_tools.go`**, I want **every repo-error → MCP-error-envelope mapping AND every status-transition guard in `RegisterTaskTools` and its 5 underlying tool closures to be covered by integration tests**, so that a regression (e.g. swallowing `repo.ErrNotFound`, dropping the `existing.IsValidTransition` check, or breaking the audit-trail-coupled `UpdateTaskStatus` call) fails CI immediately.

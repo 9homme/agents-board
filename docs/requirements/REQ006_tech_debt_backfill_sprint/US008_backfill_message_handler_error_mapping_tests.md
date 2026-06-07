@@ -1,7 +1,7 @@
 # US008 — Backfill `message.go` error-routing tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/message.go`**, I want **every error-routing branch in `HandleMessage`, `sendError`, and `sendToolResultError` to be covered by integration tests against `httptest`**, so that a regression (e.g. dropping the `sessionId` validation, returning the wrong JSON-RPC error code, or queue-failure not surfacing 500) fails CI immediately.

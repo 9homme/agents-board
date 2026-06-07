@@ -1,7 +1,7 @@
 # US009 — Backfill `internal/mcp/server.go` ToolRegistry + Session message tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/mcp/server.go`**, I want **every method on `ToolRegistry` (`NewToolRegistry`, `RegisterTool`, `GetTool`, `ListTools`), the `Session.QueueMessage` queue-full branch, the `Session.ReceiveMessage` context-cancel branch, and `SessionManager.RemoveSession` to be covered by unit tests**, so that a regression in MCP plumbing (e.g. dropping the channel-based backpressure, returning `(nil, nil)` from `GetTool` on a missing tool, or leaking sessions after `RemoveSession`) fails CI immediately.

@@ -1,7 +1,7 @@
 # US001 — Backfill `task_repo.go` error-branch tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/repo/task_repo.go`**, I want **every error branch in `CreateTask`, `GetTask`, `UpdateTask`, `UpdateTaskStatus`, and `ListTasks` to be covered by `sqlmock`-driven tests**, so that a regression in error handling (e.g. dropping a `fmt.Errorf` wrap, removing a `rows.Err()` check, or breaking the `sql.ErrNoRows → ErrNotFound` mapping) fails CI immediately instead of silently shipping.

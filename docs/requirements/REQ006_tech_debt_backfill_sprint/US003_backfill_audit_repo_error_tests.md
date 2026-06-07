@@ -1,7 +1,7 @@
 # US003 — Backfill `audit_repo.go` error-branch tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/repo/audit_repo.go`**, I want **every error branch in `getAuditTrail` (and its two public callers `GetTaskAuditTrail` / `GetUserStoryAuditTrail`) to be covered by `sqlmock`-driven tests**, so that a regression in the audit-trail read path (e.g. dropping a `fmt.Errorf` wrap or removing a `rows.Err()` check) fails CI immediately instead of silently shipping.

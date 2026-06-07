@@ -1,7 +1,7 @@
 # US013 — Backfill `TabSwitcher.tsx` coverage
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **user navigating the project detail page**, I want the **tab switcher (Documents / User Stories) to work correctly when I click a tab, when I use the arrow keys / Home / End to move between tabs, and when the page receives a different `activeTab` prop** (e.g. from a URL change), so that I can reach either tab pane reliably via mouse OR keyboard, with the WAI-ARIA `tablist` pattern's accessibility guarantees intact (correct `aria-selected`, roving `tabIndex`, focus management).

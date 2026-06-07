@@ -1,7 +1,7 @@
 # US015 — Consolidate dev workflow into the Makefile; retire `startup.sh` / `shutdown.sh`
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **developer**, I want **`make dev-up` / `make dev-down` / `make dev-migrate` / `make dev-seed` to manage the local-dev stack of three native processes (`mcp-server`, `api-server`, `web`) against a native Postgres on `localhost:5432`**, so that **the root `startup.sh` / `shutdown.sh` scripts can be retired and the Makefile becomes the single entry point for both local-dev and docker e2e workflows.**

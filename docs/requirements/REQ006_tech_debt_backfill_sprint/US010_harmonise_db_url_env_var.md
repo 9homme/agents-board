@@ -1,7 +1,7 @@
 # US010 — Standardise on `DATABASE_URL`; reject `DB_URL` at startup
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As an **operator deploying both `api-server` and `mcp-server`**, I want **both binaries to read a single `DATABASE_URL` env var and refuse to start with a clear, actionable error if the deprecated `DB_URL` env var is set**, so that there is one obvious source of truth for the DB connection string and partially-migrated environments fail loudly at startup instead of silently using the wrong source.

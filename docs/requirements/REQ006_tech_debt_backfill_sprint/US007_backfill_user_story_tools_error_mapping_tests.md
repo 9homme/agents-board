@@ -1,7 +1,7 @@
 # US007 — Backfill `user_story_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/user_story_tools.go`**, I want **every repo-error → MCP-error-envelope mapping AND every status-transition guard in `RegisterUserStoryTools` and its 5 underlying tool closures to be covered by integration tests**, so that a regression (e.g. swallowing `repo.ErrNotFound`, dropping the `IsValidTransition` check, or breaking the post-status-change field update) fails CI immediately.

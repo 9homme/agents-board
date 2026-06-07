@@ -1,7 +1,7 @@
 # US002 — Backfill `user_story_repo.go` error-branch tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/repo/user_story_repo.go`**, I want **every error branch in `CreateUserStory`, `GetUserStory`, `UpdateUserStory`, `UpdateUserStoryStatus`, and `ListUserStories` to be covered by `sqlmock`-driven tests**, so that a regression in error handling (e.g. dropping the `sql.ErrNoRows → ErrNotFound` mapping or breaking the transactional `UpdateUserStoryStatus` audit-write) fails CI immediately instead of silently shipping.

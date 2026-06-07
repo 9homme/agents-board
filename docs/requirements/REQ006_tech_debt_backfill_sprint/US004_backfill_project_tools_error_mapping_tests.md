@@ -1,7 +1,7 @@
 # US004 — Backfill `project_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/project_tools.go`**, I want **every repo-error → MCP-error-envelope mapping in `RegisterProjectTools` and its 5 underlying tool handlers to be covered by integration tests**, so that a regression in error mapping (e.g. swallowing a `repo.ErrNotFound` or dropping a `fmt.Errorf` wrap) fails CI immediately instead of silently shipping a tool that returns the wrong error string to MCP clients.

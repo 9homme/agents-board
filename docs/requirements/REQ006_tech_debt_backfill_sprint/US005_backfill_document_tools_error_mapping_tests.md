@@ -1,7 +1,7 @@
 # US005 — Backfill `document_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/document_tools.go`**, I want **every repo-error → MCP-error-envelope mapping in `RegisterDocumentTools` and its 5 underlying tool closures to be covered by integration tests**, so that a regression (e.g. swallowing a `repo.ErrNotFound`, dropping a `fmt.Errorf("failed to ...: %w", err)` wrap, or breaking the `mapDocumentToResponse` time-formatting) fails CI immediately.

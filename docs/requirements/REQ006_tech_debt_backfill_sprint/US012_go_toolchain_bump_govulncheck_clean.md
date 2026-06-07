@@ -1,7 +1,7 @@
 # US012 — Go toolchain bump to clear transitive `crypto/x509` govulncheck finding
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **security-conscious operator running `govulncheck` on every push**, I want **the Go toolchain in `services/agent-board/go.mod` bumped to the next minor version that contains the fix for the transitive `crypto/x509` finding**, so that `cd services/agent-board && govulncheck ./...` returns clean and the BE quality gate does not silently soft-warn on a known stdlib vulnerability.

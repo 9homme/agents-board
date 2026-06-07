@@ -1,7 +1,7 @@
 # US014 — ADR — formalise MCP-only-writes as the permanent write API
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a **future contributor (human or sub-agent) considering whether to add `POST` / `PUT` / `DELETE` endpoints to `api-server`**, I want **a written Architecture Decision Record (ADR) that explicitly states "MCP-only-writes" is the permanent architectural intent — not an oversight or a TODO**, so that I do not waste cycles proposing REST-writes again without first reading the rationale, the alternatives that were considered, and the conditions under which the decision could be revisited.

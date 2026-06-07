@@ -1,7 +1,7 @@
 # US008 — Backfill `message.go` error-routing tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/message.go`**, I want **every error-routing branch in `HandleMessage`, `sendError`, and `sendToolResultError` to be covered by integration tests against `httptest`**, so that a regression (e.g. dropping the `sessionId` validation, returning the wrong JSON-RPC error code, or queue-failure not surfacing 500) fails CI immediately.
@@ -79,3 +79,8 @@ As a **future contributor changing `services/agent-board/internal/handler/messag
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 13 AC verbatim test functions map 1:1 onto UT-001..UT-013 in `US008_be_unit_tests.md`; the optional `json.Marshal` chase (`TestHandleMessage_NonMarshalableToolResult`) is present too. The two integration scenarios (≥95% coverage, full-suite regression) map to IT-001/IT-002. Every Given/When/Then branch — missing/invalid sessionId, malformed JSON, non-`tools/call` method → `sendError`, wrong JSON-RPC version → `sendError`, tool-not-found / tool-exec-error → `sendToolResultError`, queue-fail 500, happy path, plus direct `sendError`/`sendToolResultError` queue-success and queue-full log paths — is covered. AC's required `log.Printf` queue-full paths (UT-012/UT-013) confirmed genuinely exercised (not in the uncovered-block list). No spec gap; pyramid is honest (BE-only tests-only story, e2e correctly N/A).
+- **Result review:** Verified independently, not just trusted the report. `go test ./internal/handler -run "TestHandleMessage|TestSendError|TestSendToolResultError"` → 14 PASS / 0 FAIL. Full module `go test ./...` → 301 passed across 7 packages, 0 failures, 0 skips. Coverage on `message.go`: `HandleMessage` 96.3% (≥95%); `sendError`/`sendToolResultError` 75.0% with the shortfall being exclusively the named-exempt `json.Marshal` fallbacks. The three uncovered blocks (`message.go:63-65`, `:84-87`, `:110-113`) are exactly those unreachable `json.Marshal` error fallbacks — legitimate per architecture §4.5/§8.5 and documented in test report OQ-4. No tests skipped, no `t.Skip`. No production-code change: `git diff HEAD -- internal/handler/message.go` empty and working tree clean (verified). New test files only (`message_test.go`, `handler_internal_test.go`, both `_test.go`).
+- **Routed to:** none (approved → Status: done).

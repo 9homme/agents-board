@@ -118,7 +118,7 @@ Populated by tech-lead 2026-06-04 after `architecture.md` rev 5 was approved (hu
 | `US012_be_go_toolchain_bump_1_26_4.md` | US012 | BE | services/agent-board | Bump Go toolchain to 1.26.4; govulncheck clean; Dockerfile builder bump | none | pending |
 | `US013_fe_tabswitcher_coverage_backfill.md` | US013 | FE | (web) | Backfill `TabSwitcher.test.tsx` to ≥80% (12 FCT-* cases) | none | pending |
 | `US014_be_adr_verification_and_tech_debt_strikethrough.md` | US014 | BE (meta/docs) | services/agent-board (nominal) | Verify `architecture.md` §9 ADR-001; strike `docs/tech_debt.md` line 98 | none | pending |
-| `US015_be_makefile_consolidation_and_retire_startup_scripts.md` | US015 | BE | services/agent-board (nominal — repo root + Makefile + docs) | Retire `startup.sh`/`shutdown.sh`; add four `make dev-*`; flip `PG_CONN := → ?=`; add `DEV_PG_CONN ?=`; doc + agent-def sweep | none (soft: SHOULD precede US010) | pending |
+| `US015_be_makefile_consolidation_and_retire_startup_scripts.md` | US015 | BE | services/agent-board (nominal — repo root + Makefile + docs) | Retire `startup.sh`/`shutdown.sh`; add four `make dev-*`; flip `PG_CONN := → ?=`; add `DEV_PG_CONN ?=`; doc + agent-def sweep | none (soft: SHOULD precede US010) | completed |
 
 **Track summary:** 9 BE-test (US001..US009), 3 BE-prod (US010, US012, US015), 1 FE (US013), 1 BE-meta/docs (US014). **Total: 14 tasks** — one per story. No cross-track pairs (REQ006 adds no API endpoints; FE and BE do not meet at any contract).
 

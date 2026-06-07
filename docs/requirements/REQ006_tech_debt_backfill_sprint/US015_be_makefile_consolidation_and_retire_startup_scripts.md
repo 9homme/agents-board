@@ -4,7 +4,7 @@
 **Story:** US015
 **Track:** BE
 **Service:** services/agent-board   (nominal — repo-root + Makefile + docs + agent-defs sweep; NO Go production code touched — see Notes)
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none (soft sequencing — see Notes; US015 SHOULD ship before or with US010 per architecture D-013 / D-014 / R-6, but no hard `Blocked by`)
 **Worked-by:** be-dev-2026-06-07T00-00-00Z-acdc
 **Implements:** REQ006/US015 AC (all scenarios — delete `startup.sh` / `shutdown.sh`, four new Makefile `dev-*` targets, `PG_CONN := → ?=` flip [absorbed from former US011 per D-014], new `DEV_PG_CONN ?=`, PID + log file conventions byte-identical to `startup.sh`, e2e family byte-identical, zero `DB_URL` in any new recipe, doc + agent-def sweep, tech-debt strike-throughs), architecture §3 US015 touch row (full table), architecture §11 D-013 (US015 charter) + D-014 (US011 absorbed, Option A union), architecture §10.1 (live-e2e + 3-clean-run flake check required).
@@ -178,3 +178,46 @@ This is a mandatory DoD gate and CANNOT be waived — the task file's DoD takes 
 - Podman is NOW running (`podman machine start` executed successfully in the main session). Re-attempt the task with the e2e stack live. Run `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` THREE consecutive times and paste all three verbatim Robot Framework `N tests, N passed, 0 failed` summary lines into `## Notes` (IT-002), then flip back to `in_review`.
 
 **Tech-debt:** none filed this pass.
+
+### Review pass 2 — 2026-06-07 — verdict: approved
+
+Pass 1's sole blocker was the absent IT-002 live-e2e evidence (DoD line 90 / architecture §10.1). This pass confirms that evidence is now present and re-verifies all structural checks.
+
+**IT-002 live e2e (the pass-1 blocker — now satisfied):** the task `## Notes` (IT-002) now contains three verbatim back-to-back run summaries:
+- Run 1: `5 tests, 5 passed, 0 failed`
+- Run 2: `5 tests, 5 passed, 0 failed`
+- Run 3: `5 tests, 5 passed, 0 failed`
+
+All three runs clean, no flake. The exact `make e2e-up` path has two pre-existing, separately-documented bugs (circular health-check + SSE curl hang, recorded in `docs/tech_debt.md` and commit `9001ddd`). Per the human-accepted workaround, the stack was brought up via `podman-compose up -d` + `make e2e-seed`, exercised with `make e2e-run` ×3, then torn down with `make e2e-down`. The `make e2e-*` recipe *bodies* are byte-identical (IT-001 below), so the workaround exercises the same Robot suite the DoD targets; the substitution is only in the orchestration wrapper that has the documented bug. Workaround accepted by the human; per orchestrator briefing I did not re-run e2e myself.
+
+**Structural checks re-verified by tech-lead (not trusted from Notes):**
+- UT-001 / UT-002: `git ls-files startup.sh shutdown.sh` → empty. Both scripts deleted. PASS.
+- UT-003: `git grep -nE 'startup\.sh|shutdown\.sh'` → zero hits outside REQ006/REQ005 docs. Sweep complete. PASS.
+- UT-004: `Makefile:18 PG_CONN ?= postgres://agent_board:agent_board@localhost:15432/agent_board?sslmode=disable` — `:=`→`?=` flip, default URL byte-identical (port 15432). PASS.
+- UT-005: `Makefile:19 DEV_PG_CONN ?= postgres://agent_board:agent_board@localhost:5432/agent_board?sslmode=disable` — port 5432. PASS.
+- UT-006: `git grep -c 'DB_URL' Makefile` → 0. No `DB_URL`; dev recipes use `DATABASE_URL=$(DEV_PG_CONN)` (Makefile:97, :103) per US010 alignment. PASS.
+- UT-007..010: `dev-up:` (L91), `dev-down:` (L122), `dev-migrate:` (L147), `dev-seed:` (L155) all present. PASS.
+- IT-001: `git diff HEAD~3..HEAD -- Makefile | grep -E '^[-+]' | grep -iE 'e2e-'` → zero e2e-* recipe-line changes across the US015 commit chain. e2e family byte-identical. PASS.
+
+**Doc/sweep re-verification:**
+- `README.md` → zero `startup.sh`/`shutdown.sh` refs. PASS.
+- `tests/e2e/README.md` → zero refs. PASS.
+- `docs/tech_debt.md:86` strike-through applied with the exact §3 wording: `~~...~~ → fixed in REQ006/US015 (absorbed from former US011 for line 86; PG_CONN now ?= and env-overridable)`. PASS.
+
+**Cross review gate (re-run by tech-lead, verbatim):**
+```
+== Cross-cutting · repo ==
+  PASS  semgrep (owasp/golang/typescript)
+  PASS  gitleaks (no secrets)
+
+REVIEW GATE: PASS
+```
+(No BE-track or FE-track gate applies — no Go and no TS/TSX production code touched.)
+
+**Coverage gate:** N/A — this task touches no `.go`/`.ts`/`.tsx` production files (Makefile + bash + docs only). No file appears in `## Files touched` that is subject to the ≥80% line-coverage rule. Coverage check correctly inapplicable.
+
+**TDG:** US015 commit chain uses tdg-conformant prefixes with `(US015)` traceability tags (`red:` 13b4537 → `green:`/`refactor:` Makefile commits → `refactor: chore:` handoff). This story has no in-Go/in-React unit tests (spec explicitly states no `*_test.go`), so the per-test red→green cycle reduces to a single behavioural-assertion cycle, which is honored.
+
+**Verdict: approved.** Pass-1 blocker cleared; all structural checks, the cross gate, and the e2e flake check (3×`5 tests, 5 passed, 0 failed`) satisfied.
+
+**Tech-debt:** none filed this pass. (The two `make e2e-up` bugs and the semgrep `.semgrepignore`/`--baseline-commit` follow-up are already tracked in `docs/tech_debt.md` from prior work — nothing new surfaced by this review.)

@@ -4,7 +4,7 @@
 **Story:** US014
 **Track:** BE
 **Service:** services/agent-board   (nominal — this task touches NO Go code; meta/docs-only — see Notes)
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a7f3
 **Implements:** REQ006/US014 AC (all scenarios — architecture.md contains an explicit ADR section, decision stated, four read-only endpoints enumerated, five MCP tool families enumerated, rationale documented, alternatives considered, conditions-for-revisiting documented, tech-debt strike-through applied, no executable tests required), architecture §3 US014 touch row, architecture §9 (ADR-001 text — INLINE per D-008), architecture §10.3 (no TDG, no live e2e, no react-doctor; grep + manual read verification).
@@ -97,3 +97,38 @@ Plus a manual scenario-by-scenario walkthrough of the US014 AC against §9.
 **Live e2e:** NOT required (architecture §10.3 explicit).
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: approved
+
+**Track:** BE (docs-only / meta-verification — NO Go code, NO web/, NO tests, NO e2e per architecture §10.3). Standard BE/FE/coverage/live-e2e/react-doctor DoD gates do not apply; only the cross review gate + manual ADR-vs-AC walkthrough apply.
+
+**Architecture §9 vs US014 AC walkthrough (all 7 verifiable scenarios + strike-through):**
+- Scenario 1 (explicit ADR section): PASS — `## 9. ADR-001 — MCP-only-writes is the permanent write API` at architecture.md:746.
+- Scenario 2 (Decision verbatim): PASS — §9.3 (architecture.md:768) contains the required "api-server is intentionally read-only … REST POST/PUT/DELETE will NOT be added unless a future requirement explicitly overrides this ADR" verbatim.
+- Scenario 3 (four read-only GET endpoints): PASS — §9.4 (architecture.md:774–777) enumerates all four `/api/v1/` GET endpoints.
+- Scenario 4 (MCP tool families): PASS — §9.5 (architecture.md:785–789) enumerates all five families (Project/Document/UserStory/Task + RegisterAuditTools).
+- Scenario 5 (Rationale ≥3 bullets): PASS — §9.6 (architecture.md:793–798) has 4 bullets covering all 3 required.
+- Scenario 6 (Alternatives ≥3 bullets): PASS — §9.7 (architecture.md:800–805) has 4 entries covering all 3 required.
+- Scenario 7 (Conditions ≥3 + disclaimer): PASS — §9.8 (architecture.md:807–815) has 3 conditions plus the verbatim "This decision is NOT revisited just because adding a REST endpoint would be technically easy" disclaimer at architecture.md:815.
+- Scenario 8 (tech-debt strike-throughs): PASS — `docs/tech_debt.md:98` (primary "add REST POST/PUT/DELETE endpoints" finding) struck through with `→ won't-fix per REQ006/US014 ADR-001 (MCP-only-writes is permanent)`; sibling `docs/tech_debt.md:91` ("...adds the missing REST endpoints...") also struck through with the same pointer. No other "add REST writes" line remains unstruck (verified by grep sweep).
+
+**Three §10.3 grep assertions:** all PASS (grep1 §9 heading, grep2 §9.3 Decision, grep3 "Conditions for revisiting").
+
+**Scope / boundary checks:**
+- architecture.md NOT modified by the dev (system-architect owns it) — confirmed: US014 dev commit `9e43840` touched ONLY the task file + `docs/tech_debt.md` (2 lines). VERIFIED.
+- No Go code, no `*_test.go`, no `web/`, no `*.tsx`, no `tests/`/`.robot` changes. VERIFIED.
+- TDG: not applicable — pure docs-verification task, no red/green/refactor cycles (architecture §10.3 waives tests). Dev commits carry `(US014)` traceability tags.
+
+**Review gate (mandatory):**
+```
+== Cross-cutting · repo ==
+  PASS  semgrep (owasp/golang/typescript)
+  PASS  gitleaks (no secrets)
+
+REVIEW GATE: PASS
+```
+(`scripts/review/run-gate.sh cross` exit 0. No BE/FE-track gate applies — no code touched. No coverage gate — no production source files. No robot --dryrun — no e2e suite for US014 by design. No live-e2e — architecture §10.3 explicit.)
+
+**Tech-debt:** none filed this pass — the only findings (lines 91, 98) were the won't-fix strike-throughs that ARE the deliverable of this task.
+
+**Verdict:** approved. Status → completed.

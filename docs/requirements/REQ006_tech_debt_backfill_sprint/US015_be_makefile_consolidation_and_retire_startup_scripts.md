@@ -4,9 +4,9 @@
 **Story:** US015
 **Track:** BE
 **Service:** services/agent-board   (nominal — repo-root + Makefile + docs + agent-defs sweep; NO Go production code touched — see Notes)
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** none (soft sequencing — see Notes; US015 SHOULD ship before or with US010 per architecture D-013 / D-014 / R-6, but no hard `Blocked by`)
-**Worked-by:** be-dev-2026-06-06T00-00-00Z-a3f7
+**Worked-by:** be-dev-2026-06-07T00-00-00Z-acdc
 **Implements:** REQ006/US015 AC (all scenarios — delete `startup.sh` / `shutdown.sh`, four new Makefile `dev-*` targets, `PG_CONN := → ?=` flip [absorbed from former US011 per D-014], new `DEV_PG_CONN ?=`, PID + log file conventions byte-identical to `startup.sh`, e2e family byte-identical, zero `DB_URL` in any new recipe, doc + agent-def sweep, tech-debt strike-throughs), architecture §3 US015 touch row (full table), architecture §11 D-013 (US015 charter) + D-014 (US011 absorbed, Option A union), architecture §10.1 (live-e2e + 3-clean-run flake check required).
 
 ## Goal
@@ -132,7 +132,15 @@ Tester's `US015_be_unit_tests.md` will contain UT-* IDs framed as these behaviou
 
 **Review gate:** `bash scripts/review/run-gate.sh cross` → REVIEW GATE: PASS (semgrep + gitleaks both PASS)
 
-**Live e2e (IT-002):** NOT RUN — Podman daemon not running in this environment (`podman info` fails with connection refused). The cross-review gate passes. Per task brief: noting explicitly that e2e could not be executed and setting in_review per instructions. The `dev-*` targets and `e2e-*` recipe body byte-identity were verified via --dry-run; no changes to e2e recipe bodies were made.
+**IT-002 live e2e (3 consecutive runs — workaround per pre-existing make e2e-up bug):**
+
+Stack started via `podman-compose up -d` then `make e2e-seed`, followed by three back-to-back `make e2e-run` executions, then `make e2e-down`. The pre-existing `make e2e-up` deadlock (health check polls `/api/v1/projects` before DB tables exist) was bypassed per the accepted workaround.
+
+- Run 1: `5 tests, 5 passed, 0 failed`
+- Run 2: `5 tests, 5 passed, 0 failed`
+- Run 3: `5 tests, 5 passed, 0 failed`
+
+All three runs clean. No flake detected. Stack torn down cleanly via `make e2e-down`.
 
 **semgrep false-positive note:** The OWASP `detected-username-and-password-in-uri` rule triggered on the new `dev-up` target because `DATABASE_URL=$(DEV_PG_CONN)` (which expands to the Postgres DSN with `agent_board:agent_board@`) appears in the same recipe as `@echo "   - api-server:  http://localhost:$(API_PORT)/api/v1/projects"`. Semgrep erroneously associates the credentials with the `/api/v1/projects` URL. Fixed with a `# nosemgrep: generic.secrets.security.detected-username-and-password-in-uri` inline annotation on the echo line (the existing `PG_CONN` line with the same credential format did not trigger this rule). A `docs/tech_debt.md` entry already exists suggesting a `.semgrepignore` / `--baseline-commit` mechanism (REQ006/US013/fe_tabswitcher_coverage_backfill).
 

@@ -1,7 +1,7 @@
 # US004 — Backfill `project_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/project_tools.go`**, I want **every repo-error → MCP-error-envelope mapping in `RegisterProjectTools` and its 5 underlying tool handlers to be covered by integration tests**, so that a regression in error mapping (e.g. swallowing a `repo.ErrNotFound` or dropping a `fmt.Errorf` wrap) fails CI immediately instead of silently shipping a tool that returns the wrong error string to MCP clients.
@@ -85,3 +85,8 @@ As a **future contributor changing `services/agent-board/internal/handler/projec
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All AC scenarios map 1:1 onto the tester's `US004_be_unit_tests.md`. The 18 verbatim test-function names in AC scenario 1 correspond to UT-001..UT-018; the per-branch assertion contract (AC scenario 2) is honored by the spec's passthrough idiom (`errors.Is` for generic errors, `Contains "project not found"` + `errors.Is(...,repo.ErrNotFound)==false` for not-found cases), and `RegisterProjectTools` 0%→covered by UT-001. Coverage AC (scenario 3) and the two no-prod-change ACs (scenarios 4–5) are represented by IT-001 / IT-002 and the byte-for-byte invariant. No spec gaps; the e2e/UI exclusion is honest (BE-test-only story, prod unchanged).
+- **Result review:** Verified independently, not just from the report. All 18 UT-* + IT-001 + IT-002 PASS. `go test ./internal/handler -run "TestHandle...Project|TestRegisterProjectTools"` → all pass; full module `go test ./...` → 301 passed across 7 packages. Per-file coverage on `project_tools.go`: RegisterProjectTools 100%, handleCreateProject 100%, handleGetProject 100%, handleUpdateProject 95.5%, handleDeleteProject 100%, handleListProjects 100% — all ≥95%, file-level target met. `git diff` on `project_tools.go` empty (working tree + report commit) — production code byte-for-byte unchanged, confirming the tests-only invariant. All 18 verbatim function names present in the test file. No skipped tests. No `t.Skip`. Test counts in the report consistent with the suite.
+- **Routed to:** none (approved — story set to `done`).

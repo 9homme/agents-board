@@ -1,7 +1,7 @@
 # US012 — Go toolchain bump to clear transitive `crypto/x509` govulncheck finding
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **security-conscious operator running `govulncheck` on every push**, I want **the Go toolchain in `services/agent-board/go.mod` bumped to the next minor version that contains the fix for the transitive `crypto/x509` finding**, so that `cd services/agent-board && govulncheck ./...` returns clean and the BE quality gate does not silently soft-warn on a known stdlib vulnerability.
@@ -82,3 +82,28 @@ As a **security-conscious operator running `govulncheck` on every push**, I want
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+
+**Spec review (US012_be_unit_tests.md — no e2e spec file; existing suite reused per architecture §1.2):**
+- Every AC scenario maps to at least one UT-*/IT-* case:
+  - "go.mod bumped" → UT-001 (with `toolchain go1.26.4` sub-assertion **waived** — `go 1.26.4` alone is the correct, idiomatic Go 1.21+ module form when language version == desired toolchain; manually re-adding the directive breaks `go build`. Confirmed by tech-lead Review pass 1, documented in tech_debt.md. Spec-text nuance, not a code defect — does not affect verdict).
+  - "Dockerfile builder image" → UT-002.
+  - "govulncheck clean, GO-2026-5037 (`crypto/x509`) + GO-2026-5039 (`net/textproto`) no longer reachable" → IT-001.
+  - "all tests pass under new toolchain" → IT-002.
+  - "go build both binaries" → IT-003.
+  - "golangci-lint clean" → IT-004.
+  - "Dockerfile/e2e regression, 3-clean-run flake bar" → IT-005.
+  - "closes tech-debt line 28" → struck through with `→ fixed in REQ006/US012`.
+  - "documented in architecture" → architecture §6 cited throughout the task.
+- No edge case or error path implied by the AC is skipped. Pyramid is honest — a toolchain touch is genuinely an integration/e2e-level regression concern, not a unit one.
+
+**Result review (US012_test_report.md, commit `6fa0726`):**
+- 7 test IDs (UT-001, UT-002, IT-001–IT-005) — all PASS. Counts match the spec; no silent dropping.
+- `go test ./...` — 301 tests, 0 failures, 7 packages.
+- govulncheck — EXIT 0; both target stdlib CVEs confirmed no longer reachable from project code.
+- E2E — 3 consecutive runs, 23/23/23 passed, 0 failed each; no flakes. Compose images rebuilt from `golang:1.26-alpine`.
+- **Skipped tests: none.** No `t.Skip`, no `[Tags] skip`.
+- **IT-005 workaround accepted.** The literal `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` sequence could not run because `make e2e-up` has two pre-existing infrastructure bugs (api-server health-check circular dependency on migrations; mcp-server SSE curl hang with no `--max-time`), both predating US012 (REQ005/US008 commit `1ba4793`) and documented in tech_debt.md. The equivalent flow (`podman-compose up -d` + `make e2e-seed` + `make e2e-run` ×3 + `make e2e-down`) met the architecture §10.1 three-clean-run flake bar; only the orchestration entrypoint differed. Per human direction, accepted as equivalent IT-005 evidence — an accepted deviation, not a waived mandatory gate.
+
+**Routed to:** none — story approved, `Status: done`.

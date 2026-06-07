@@ -4,7 +4,7 @@
 **Story:** US009
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a9f3
 **Implements:** REQ006/US009 AC (all scenarios — 15 verbatim test function names covering `NewToolRegistry`, `ToolRegistry.RegisterTool` / `GetTool` / `ListTools` / concurrent register-and-get, `Session.QueueMessage` / `ReceiveMessage`, `SessionManager.RemoveSession`, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US009 touch row + §4.4 cluster-3 bare-struct test pattern + §4.5 exemption mechanism + §4.6 local verification command (US009 row).
@@ -107,3 +107,63 @@ Tester's `US009_be_unit_tests.md` UT-* IDs map 1:1 onto these names.
 `server.go` is byte-for-byte unchanged (no production code modified).
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: approved
+
+**Verdict: APPROVED.** All DoD criteria met.
+
+**Test contract (15/15 verbatim names present + 2 IT-*):**
+- All 15 UT-* function names from `US009_be_unit_tests.md` present in `server_test.go` with verbatim AC names. Confirmed `grep -cE "^func Test" server_test.go` = 15 (16th test `TestSessionCreationAndMessageQueuing` is the pre-existing `session_test.go` test, left intact).
+- IT-001 (≥95% coverage) and IT-002 (full suite + race) both satisfied.
+
+**`go test -race ./internal/mcp/... -v`:** all 16 tests `--- PASS`, no `DATA RACE`. Summary: `ok  agent-board/internal/mcp  1.334s`.
+
+**Flake check — 3 consecutive `go test -count=1 -race ./internal/mcp/...`:**
+- RUN 1: `ok  agent-board/internal/mcp  1.407s`
+- RUN 2: `ok  agent-board/internal/mcp  1.315s`
+- RUN 3: `ok  agent-board/internal/mcp  1.295s`
+- 3/3 clean, zero data races. (Live e2e N/A per task DoD — tests-only; 3-clean-run race check is the substitute gate.)
+
+**Full suite — `go test ./...`:** all 7 packages `ok` (api-server, mcp-server, config, domain, handler, mcp, repo).
+
+**Per-file coverage — `go tool cover -func=/tmp/cov009.out`:**
+- `server.go` — **100.0%** of statements (every one of the 10 functions: QueueMessage, ReceiveMessage, NewSessionManager, CreateSession, GetSession, RemoveSession, NewToolRegistry, RegisterTool, GetTool, ListTools all at 100.0%). Package total 100.0%. Requirement ≥95% — exceeded. No `## Coverage exemption` needed.
+
+**Review gate:**
+```
+== BE gate · services/agent-board ==
+  PASS  gofmt -s (no diff)
+  PASS  go vet ./...
+  PASS  golangci-lint run ./...
+  PASS  go test ./...
+WARN  gosec (skipped — not installed; coverage via golangci-lint gosec linter)
+WARN  govulncheck (skipped — not installed)
+REVIEW GATE: PASS
+```
+```
+== Cross-cutting · repo ==
+  PASS  semgrep (owasp/golang/typescript)
+  PASS  gitleaks (no secrets)
+REVIEW GATE: PASS
+```
+Both gates emitted `REVIEW GATE: PASS` (exit 0). The gosec/govulncheck WARN-skips are gate-internal non-fatal fallbacks (gosec coverage retained via golangci-lint's gosec linter) — the gate itself emitted PASS, so this is a clean gate result, not a `blocked_review_gate` tooling condition.
+
+**OQ-4 (ListTools doc-comment vs code mismatch) — correctly handled, NOT silently fixed:**
+- `server.go:115` doc-comment claims "lexicographic order" but `ListTools` iterates a map (unordered). Production code byte-for-byte unchanged (confirmed `git diff HEAD -- server.go` empty).
+- `TestToolRegistry_ListTools_ReturnsAllRegisteredNames` (UT-006) uses `assert.ElementsMatch` (unordered membership), NOT a sorted `assert.Equal` — correct per spec.
+- OQ-4 flagged in task `## Notes` AND in the `server_test.go` file header comment (lines 4-8). Tech-debt line filed below.
+
+**Spec exhaustiveness (anti-REQ005 branch check):** every SUT branch maps to a spec case:
+- `QueueMessage` (2 branches: send-success / queue-full) → UT-009, UT-010.
+- `ReceiveMessage` (2 branches: ctx.Done / msg) → UT-012, UT-011.
+- `RemoveSession` (present-ID / unknown-ID noop / concurrent) → UT-013, UT-014, UT-015.
+- `GetTool` (found / not-found / concurrent) → UT-005, UT-004, UT-008.
+- `RegisterTool` (add / overwrite / concurrent) → UT-002, UT-003, UT-008.
+- `ListTools` (populated / empty / concurrent) → UT-006, UT-007, UT-008.
+- Constructors → UT-001. No uncovered branch — no SPEC_GAP_FOUND.
+
+**TDG conformance:** test file committed in `1db8836` `red: test spec for all 15 ToolRegistry+Session+SessionManager tests (US009)` — `red:` prefix + `(US009)` tag, conformant. Tests-only task against an already-existing, already-correct SUT: a single `red:` commit (tests that pass green against unchanged production code) is the correct shape; no production code to write, so no separate `green:` cycle is expected.
+
+**Production code:** `server.go` byte-for-byte unchanged (`git diff HEAD` empty). Scope respected — only `server_test.go` (NEW) added.
+
+**Tech-debt:** one non-blocking finding filed to `docs/tech_debt.md` (OQ-4 doc-comment/code mismatch carry-forward).

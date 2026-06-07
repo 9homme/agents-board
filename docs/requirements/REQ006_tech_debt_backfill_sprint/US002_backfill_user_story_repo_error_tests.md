@@ -1,7 +1,7 @@
 # US002 — Backfill `user_story_repo.go` error-branch tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/repo/user_story_repo.go`**, I want **every error branch in `CreateUserStory`, `GetUserStory`, `UpdateUserStory`, `UpdateUserStoryStatus`, and `ListUserStories` to be covered by `sqlmock`-driven tests**, so that a regression in error handling (e.g. dropping the `sql.ErrNoRows → ErrNotFound` mapping or breaking the transactional `UpdateUserStoryStatus` audit-write) fails CI immediately instead of silently shipping.
@@ -76,3 +76,8 @@ As a **future contributor changing `services/agent-board/internal/repo/user_stor
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All five AC scenarios map to spec cases in `US002_be_unit_tests.md`. The 12 verbatim required test-function names from AC scenario 1 are all present (UT-001, UT-002, UT-004..UT-013); UT-003 `TestUserStoryRepo_GetUserStory_NotFound` is a legitimate extra case the AC explicitly permits ("names authoritative; tester may add more") and is mandated by the exhaustiveness note for the `sql.ErrNoRows → ErrNotFound` mapping in `GetUserStory`. AC scenario 2 (branch-specific sqlmock idiom + `errors.Is(err, repo.ErrNotFound)` true/false split + `mock.ExpectationsWereMet()`) is encoded in each UT-* Given/When/Then. AC scenario 3 (≥95% per-file coverage) is IT-001 with the exact coverage command and the `user_story_repo.go:68` deferred-rollback `log.Printf` exemption honestly justified as unreachable via sqlmock (OQ-4 / architecture §4.5). AC scenario 4 (existing suite + lint) is IT-002. AC scenario 5 (no production-code change) is verifiable via git diff. No spec gaps; the e2e exclusion is correct for a tests-only BE backfill.
+- **Result review:** `US002_test_report.md` (commit `6fa07260`, 2026-06-07) shows all 15 test IDs (UT-001..UT-013, IT-001, IT-002) PASS, 0 FAIL. Skipped Tests: None — no `t.Skip`, no skip tags. Full module suite 301 passed / 0 failed across 7 packages. Coverage: `UpdateUserStoryStatus` 95.2%, all other `user_story_repo.go` functions 100%; the single uncovered statement is the enumerated `:68` exemption — ≥95% per-file threshold met. Production code byte-for-byte unchanged (confirmed via `git diff` in both tech-lead review passes). Test counts match the spec (13 UT + 2 IT = 15). Tech-lead reached task `completed` on review pass 2 after the unrelated Dockerfile cross-gate fix landed.
+- **Routed to:** none — story set to `done`.

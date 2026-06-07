@@ -1,7 +1,7 @@
 # US013 — Backfill `TabSwitcher.tsx` coverage
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **user navigating the project detail page**, I want the **tab switcher (Documents / User Stories) to work correctly when I click a tab, when I use the arrow keys / Home / End to move between tabs, and when the page receives a different `activeTab` prop** (e.g. from a URL change), so that I can reach either tab pane reliably via mouse OR keyboard, with the WAI-ARIA `tablist` pattern's accessibility guarantees intact (correct `aria-selected`, roving `tabIndex`, focus management).
@@ -157,3 +157,8 @@ This story does not change UI/UX behaviour — it adds test coverage for behavio
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 13 AC scenarios are covered. FCT-US013-001…012 map 1:1 onto the behaviour scenarios (click + controlled-component invariant; ArrowRight/ArrowLeft with both wrap edges; Enter; Space; aria-selected; roving tabIndex; prop-driven override with no-callback assertion; tablist semantics incl. `aria-controls`/`id`; unrelated-key no-op). The coverage, no-prod-change, and tech-debt-closure scenarios are proven by the report and the task review log. `Home`/`End` correctly excluded (not in source; explicitly out of scope). E2E legitimately waived per architecture §10.2 — pure component-level behaviour, no API contract. No inappropriate promotion to e2e; pyramid is honest.
+- **Result review:** All 12 FCT-* report PASS, 0 FAIL, 0 skipped. Counts match the spec (12 FCT IDs ↔ 12 tested). Full Jest suite 142/142 green, no regressions. Per-file coverage on `TabSwitcher.tsx` = 100% stmts / 100% branches / 100% lines / 100% functions, well above the ≥80% target. `TabSwitcher.tsx` byte-for-byte unchanged (`git diff` empty). `docs/tech_debt.md` line 75 struck through with `→ fixed in REQ006/US013`. The cross-gate semgrep Dockerfile finding is pre-existing and out of scope (verified identical on `main`, filed as tech-debt) — not a US013 defect.
+- **Routed to:** none (story done).

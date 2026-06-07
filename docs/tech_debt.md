@@ -33,42 +33,42 @@ These were uncovered by the orchestrator's project-wide test-coverage audit run 
 
 **`internal/repo/` sub-threshold functions (target ≥95% per US005's DoD baseline):**
 
-- 2026-06-03 — services/agent-board/internal/repo/task_repo.go:70 UpdateTask — 62.5% coverage; missing error-branch tests (Query/Scan/rows.Err/NotFound vs GenericError splits) — backfill UT-* per US005 pattern — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/task_repo.go:91 UpdateTaskStatus — 71.4% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/task_repo.go:36 CreateTask — 80.0% coverage; GenericError path missing — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/task_repo.go:51 GetTask — 87.5% coverage; one error path uncovered — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/task_repo.go:140 ListTasks — 81.2% coverage; Scan/rows.Err paths uncovered — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:97 UpdateUserStory — 57.1% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:60 UpdateUserStoryStatus — 76.2% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:117 ListUserStories — 76.5% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:35 CreateUserStory — 80.0% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:45 GetUserStory — 87.5% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
-- 2026-06-03 — services/agent-board/internal/repo/audit_repo.go:31 getAuditTrail — 78.6% coverage; query/scan error paths uncovered — backfill UT-* — REQ001-004/tech-debt/repo-error-branches
+- ~~2026-06-03 — services/agent-board/internal/repo/task_repo.go:70 UpdateTask — 62.5% coverage; missing error-branch tests (Query/Scan/rows.Err/NotFound vs GenericError splits) — backfill UT-* per US005 pattern — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US001 (all functions ≥95%)
+- ~~2026-06-03 — services/agent-board/internal/repo/task_repo.go:91 UpdateTaskStatus — 71.4% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US001
+- ~~2026-06-03 — services/agent-board/internal/repo/task_repo.go:36 CreateTask — 80.0% coverage; GenericError path missing — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US001
+- ~~2026-06-03 — services/agent-board/internal/repo/task_repo.go:51 GetTask — 87.5% coverage; one error path uncovered — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US001
+- ~~2026-06-03 — services/agent-board/internal/repo/task_repo.go:140 ListTasks — 81.2% coverage; Scan/rows.Err paths uncovered — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US001
+- ~~2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:97 UpdateUserStory — 57.1% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US002
+- ~~2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:60 UpdateUserStoryStatus — 76.2% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US002
+- ~~2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:117 ListUserStories — 76.5% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US002
+- ~~2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:35 CreateUserStory — 80.0% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US002
+- ~~2026-06-03 — services/agent-board/internal/repo/user_story_repo.go:45 GetUserStory — 87.5% coverage; same pattern — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US002
+- ~~2026-06-03 — services/agent-board/internal/repo/audit_repo.go:31 getAuditTrail — 78.6% coverage; query/scan error paths uncovered — backfill UT-* — REQ001-004/tech-debt/repo-error-branches~~ → fixed in REQ006/US003 (100% coverage)
 
 **`internal/handler/*_tools.go` sub-threshold (MCP tool handlers — happy-path bias on JSON marshalling + repo-error mapping):**
 
-- 2026-06-03 — services/agent-board/internal/handler/project_tools.go:52 handleGetProject — 58.3% coverage; missing error-mapping tests (repo error → MCP error envelope) — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/project_tools.go:76 handleUpdateProject — 68.2% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/project_tools.go:118 handleDeleteProject — 70.0% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/project_tools.go:139 handleListProjects — 71.4% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/project_tools.go:23 handleCreateProject — 75.0% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/project_tools.go:15 RegisterProjectTools — 0.0% coverage; registration path entirely untested — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/document_tools.go:37 RegisterDocumentTools — 69.2% coverage; registration partial — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/task_tools.go:39 RegisterTaskTools — 67.4% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/user_story_tools.go:39 RegisterUserStoryTools — 63.5% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/message.go:14 HandleMessage — 70.4% coverage; error-routing paths uncovered — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/message.go:74 sendError — 0.0% coverage; error helper never exercised — backfill IT-* — REQ001-004/tech-debt/handler-tools
-- 2026-06-03 — services/agent-board/internal/handler/message.go:95 sendToolResultError — 0.0% coverage; error helper never exercised — backfill IT-* — REQ001-004/tech-debt/handler-tools
+- ~~2026-06-03 — services/agent-board/internal/handler/project_tools.go:52 handleGetProject — 58.3% coverage; missing error-mapping tests (repo error → MCP error envelope) — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US004 (avg 99.25%)
+- ~~2026-06-03 — services/agent-board/internal/handler/project_tools.go:76 handleUpdateProject — 68.2% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US004
+- ~~2026-06-03 — services/agent-board/internal/handler/project_tools.go:118 handleDeleteProject — 70.0% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US004
+- ~~2026-06-03 — services/agent-board/internal/handler/project_tools.go:139 handleListProjects — 71.4% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US004
+- ~~2026-06-03 — services/agent-board/internal/handler/project_tools.go:23 handleCreateProject — 75.0% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US004
+- ~~2026-06-03 — services/agent-board/internal/handler/project_tools.go:15 RegisterProjectTools — 0.0% coverage; registration path entirely untested — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US004
+- ~~2026-06-03 — services/agent-board/internal/handler/document_tools.go:37 RegisterDocumentTools — 69.2% coverage; registration partial — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US005 (100%)
+- ~~2026-06-03 — services/agent-board/internal/handler/task_tools.go:39 RegisterTaskTools — 67.4% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US006 (95.3%)
+- ~~2026-06-03 — services/agent-board/internal/handler/user_story_tools.go:39 RegisterUserStoryTools — 63.5% coverage; same — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US007 (97.7%)
+- ~~2026-06-03 — services/agent-board/internal/handler/message.go:14 HandleMessage — 70.4% coverage; error-routing paths uncovered — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US008 (96.3%)
+- ~~2026-06-03 — services/agent-board/internal/handler/message.go:74 sendError — 0.0% coverage; error helper never exercised — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US008
+- ~~2026-06-03 — services/agent-board/internal/handler/message.go:95 sendToolResultError — 0.0% coverage; error helper never exercised — backfill IT-* — REQ001-004/tech-debt/handler-tools~~ → fixed in REQ006/US008
 
 **`internal/mcp/server.go` ToolRegistry — entire family untested:**
 
-- 2026-06-03 — services/agent-board/internal/mcp/server.go:75 RemoveSession — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry
-- 2026-06-03 — services/agent-board/internal/mcp/server.go:92 NewToolRegistry — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry
-- 2026-06-03 — services/agent-board/internal/mcp/server.go:99 RegisterTool — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry
-- 2026-06-03 — services/agent-board/internal/mcp/server.go:107 GetTool — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry
+- ~~2026-06-03 — services/agent-board/internal/mcp/server.go:75 RemoveSession — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry~~ → fixed in REQ006/US009 (server.go 100% coverage)
+- ~~2026-06-03 — services/agent-board/internal/mcp/server.go:92 NewToolRegistry — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry~~ → fixed in REQ006/US009
+- ~~2026-06-03 — services/agent-board/internal/mcp/server.go:99 RegisterTool — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry~~ → fixed in REQ006/US009
+- ~~2026-06-03 — services/agent-board/internal/mcp/server.go:107 GetTool — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry~~ → fixed in REQ006/US009
 - ~~2026-06-03 — services/agent-board/internal/mcp/server.go:116 ListTools — 0.0% coverage — backfill UT-* — REQ001-004/tech-debt/mcp-server-toolregistry~~ → fixed in REQ006/US009 (server.go now 100.0% per-file coverage; ListTools covered by UT-006/UT-007/UT-008)
-- 2026-06-03 — services/agent-board/internal/mcp/server.go:19 QueueMessage — 66.7% coverage — backfill UT-* for the uncovered branch — REQ001-004/tech-debt/mcp-server-toolregistry
-- 2026-06-03 — services/agent-board/internal/mcp/server.go:29 ReceiveMessage — 66.7% coverage — same — REQ001-004/tech-debt/mcp-server-toolregistry
+- ~~2026-06-03 — services/agent-board/internal/mcp/server.go:19 QueueMessage — 66.7% coverage — backfill UT-* for the uncovered branch — REQ001-004/tech-debt/mcp-server-toolregistry~~ → fixed in REQ006/US009
+- ~~2026-06-03 — services/agent-board/internal/mcp/server.go:29 ReceiveMessage — 66.7% coverage — same — REQ001-004/tech-debt/mcp-server-toolregistry~~ → fixed in REQ006/US009
 
 **Frontend (`TabSwitcher.tsx`) — pre-existing REQ004 gap, not in REQ005 scope:**
 
@@ -100,8 +100,8 @@ After the verdict was first issued, human pushed: "make all tests pass." The sug
 
 ### 2026-06-05 — REQ006 review-gate observations (surfaced during tech-lead review of US001/US002/US013)
 
-- 2026-06-05 — services/agent-board/Dockerfile:31 — distroless runtime stage lacks an explicit `USER` directive; semgrep `dockerfile.security.missing-user.missing-user` flags as blocking and the cross review gate FAILs on every REQ006 task because of it. Distroless static images run as root by default. Add `USER nonroot:nonroot` (distroless static image ships with `nonroot` UID 65532) before the final `CMD ["./api-server"]`. Pre-existing since REQ005/US008 commit 7b836c5; recurring cross-gate blocker across REQ006/US001, US002, US013 — REQ006/cross-gate/dockerfile-missing-user
-- 2026-06-05 — web/Dockerfile:48 — same as above for the FE image. Add `USER node` (the official `node:` images ship with the `node` user) before `CMD ["npm", "start"]`. Pair with the agent-board Dockerfile fix in a single PR — REQ006/cross-gate/dockerfile-missing-user
+- ~~2026-06-05 — services/agent-board/Dockerfile:31 — distroless runtime stage lacks an explicit `USER` directive; semgrep `dockerfile.security.missing-user.missing-user` flags as blocking and the cross review gate FAILs on every REQ006 task because of it. Distroless static images run as root by default. Add `USER nonroot:nonroot` (distroless static image ships with `nonroot` UID 65532) before the final `CMD ["./api-server"]`. Pre-existing since REQ005/US008 commit 7b836c5; recurring cross-gate blocker across REQ006/US001, US002, US013 — REQ006/cross-gate/dockerfile-missing-user~~ → fixed in REQ006 (USER nonroot:nonroot added, cross-gate unblocked)
+- ~~2026-06-05 — web/Dockerfile:48 — same as above for the FE image. Add `USER node` (the official `node:` images ship with the `node` user) before `CMD ["npm", "start"]`. Pair with the agent-board Dockerfile fix in a single PR — REQ006/cross-gate/dockerfile-missing-user~~ → fixed in REQ006 (USER node added alongside agent-board fix)
 - 2026-06-05 — services/agent-board/internal/repo/task_repo_test.go (commits b1dcdc4, a3fe1a8) — be-dev TDG commit prefixes use `refactor: chore:` for what is more accurately housekeeping/handoff work (linter cleanup + status flip), rather than true `refactor:` cycles. The `(US001)` traceability tag and red→green→refactor ordering are honored, but the prefix vocabulary drifts. Re-evaluate whether the TDG skill should add a dedicated `chore:` prefix for non-test-code-change commits, or whether the be-dev agent prompt should map "test-pass verification + status flip" onto a distinct prefix — REQ006/US001/be_task_repo_error_tests
 - 2026-06-05 — scripts/review/run-gate.sh — no baseline/ignore mechanism for known pre-existing semgrep findings; once any blocking finding lands on `main`, every subsequent task's cross-gate is FAIL until the underlying code is fixed, forcing reviewers to approve-around the gate (which is exactly the anti-pattern the gate's `NO SUBSTITUTIONS` rule was meant to prevent); consider a `.semgrepignore` or `--baseline-commit` plumb-through — REQ006/US013/fe_tabswitcher_coverage_backfill
 - 2026-06-06 — services/agent-board/internal/handler/project_tools_test.go (commits de73594, cc11974) — same `refactor: chore:` prefix drift as the US001 entry above recurs on US004 (gofmt-apply + review hand-off commits tagged `refactor:`). red→green→refactor ordering and `(US004)` tag are honored; tolerable for now but reinforces that the TDG skill / be-dev prompt needs a real `chore:`/housekeeping prefix. Cross-reference the REQ006/US001 entry — REQ006/US004/be_project_tools_error_mapping_tests

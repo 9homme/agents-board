@@ -4,7 +4,7 @@
 **Story:** US012
 **Track:** BE
 **Service:** services/agent-board
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a4f2
 **Implements:** REQ006/US012 AC (all scenarios — `go.mod` bump, `Dockerfile` builder bump, `govulncheck` clean, `go test ./...` clean, `golangci-lint` clean, `go build ./...` clean for both binaries, `make e2e-up` clean), architecture §3 US012 touch row, architecture §6 (toolchain decision + verified findings + version pin + CI/Docker knock-on + govulncheck post-bump assertion), architecture D-007 (`go 1.26.4`).
@@ -88,7 +88,34 @@ Tester's `US012_be_unit_tests.md` will likely contain one or two UT-* IDs framed
 - `scripts/review/run-gate.sh be services/agent-board`: REVIEW GATE: PASS
 - `scripts/review/run-gate.sh cross`: REVIEW GATE: PASS
 
-**IT-005 e2e stack (REVIEW_GATE_BLOCKED):** Docker is not installed in this worktree environment (`docker` not found). `make e2e-up` cannot be run. Per agent rules, this is a REVIEW_GATE_BLOCKED infrastructure issue — not marking in_review with a "dry-run is good enough" exemption. Reporting for orchestrator to route to a docker-enabled environment or a gate-fix track. The Dockerfile change is minimal (image tag only); the build will pull `golang:1.26-alpine` which is the current 1.26.x latest at Docker Hub pull time.
+**IT-005 live e2e (3 runs) — 2026-06-07 re-attempt with Podman running:**
+
+Stack: Podman machine running (`podman machine list` shows `Currently running`); `podman-compose` v1.5.0 available. The compose images (api-server, mcp-server) were built using `golang:1.26-alpine` (Dockerfile line 9 as per US012 change). All 4 containers started successfully.
+
+**Pre-existing infrastructure issue (not caused by US012):** `make e2e-up` has two bugs that prevent it from completing on a fresh stack:
+1. The api-server health check polls `GET /api/v1/projects` which returns HTTP 500 until migrations run — but migrations run in `e2e-seed` which comes AFTER `e2e-up` completes. Circular dependency.
+2. The mcp-server health check uses `curl http://localhost:8081/sse` without `--max-time`. The SSE endpoint returns HTTP 200 but holds the connection open indefinitely. `curl` hangs, the `grep` never receives input, and the `until` loop always times out after 120s.
+
+Both bugs were present in the Makefile before US012 (since commit `1ba4793` / REQ005/US008). US012's go toolchain bump does not cause or affect these bugs. The go.mod and Dockerfile changes have been verified correct by tech-lead (Review pass 1).
+
+**Workaround applied to get e2e evidence:** started the compose stack (`podman-compose up -d`), waited for postgres to become healthy, applied migrations and seed via `make e2e-seed`, verified api-server returns HTTP 200, then ran `make e2e-run` three consecutive times. `make e2e-down` was called after all three runs.
+
+**IT-005 live e2e (3 runs):**
+
+Run 1 — `make e2e-run` → Robot Framework output.xml `<stat pass="23" fail="0" skip="0">All Tests</stat>`:
+**23 tests, 23 passed, 0 failed**
+
+Run 2 — `make e2e-run` → Robot Framework output.xml `<stat pass="23" fail="0" skip="0">All Tests</stat>`:
+**23 tests, 23 passed, 0 failed**
+
+Run 3 — `make e2e-run` → Robot Framework output.xml `<stat pass="23" fail="0" skip="0">All Tests</stat>`:
+**23 tests, 23 passed, 0 failed**
+
+All three runs clean. No flakes. The `golang:1.26-alpine` builder image works correctly for both api-server and mcp-server binaries.
+
+**`make e2e-down` ran successfully** after all three runs — volumes removed, containers stopped.
+
+**Note for tech-lead (re: `make e2e-up` bug):** The `make e2e-up` mcp-server health check is a pre-existing Makefile infrastructure bug (curl hangs on SSE endpoint without `--max-time`). This affects every task requiring the full `make e2e-up && ... && make e2e-down` DoD sequence, not just US012. Recommending a follow-up Makefile fix (add `--max-time 5` to the mcp-server curl health check and fix the api-server circular dependency). Filed to tech_debt.md if tech-lead agrees.
 
 **`toolchain go1.26.4` directive — spec discrepancy note:**
 UT-001 asserts "a `toolchain go1.26.4` directive exists on the immediately following line." In practice, `go mod tidy` with go1.26.4 (the toolchain triggered by `go 1.26.4` in go.mod) removes the `toolchain go1.26.4` directive as redundant when `go == toolchain`. This is per Go 1.21+ module toolchain semantics documented at https://go.dev/doc/toolchain. The canonical and fully-equivalent form is `go 1.26.4` alone. Adding `toolchain go1.26.4` manually after tidy causes `go build ./...` to fail with "go: updates to go.mod needed; to update it: go mod tidy". The committed state (`go 1.26.4` only) is the correct Go-idiomatic form and satisfies the intent of architecture §6.2 (toolchain pinned to 1.26.4). Tech-lead: please confirm whether the UT-001 assertion about the `toolchain` directive should be waived given Go toolchain semantics, or whether a different `go`/`toolchain` version split (e.g. `go 1.26.0` + `toolchain go1.26.4`) was intended.

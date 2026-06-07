@@ -4,7 +4,7 @@
 **Story:** US008
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a6a4
 **Implements:** REQ006/US008 AC (all scenarios — 13 verbatim test function names for `HandleMessage` / `sendError` / `sendToolResultError`, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US008 touch row + §4.3 cluster-2 patterns (where applicable) + §8 message.go test harness shape (D-010) + §4.5 exemption mechanism + §4.6 local verification command (US008 row).
@@ -128,3 +128,36 @@ Not required per DoD (tests-only story). Race-checked 3 clean runs substituted p
 `message.go` is byte-for-byte unchanged. No new production symbols introduced.
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: approved
+
+**Test contract (all 13 verbatim AC names + 1 optional, all PASS):**
+- UT-001 `TestHandleMessage_MissingSessionID` · UT-002 `TestHandleMessage_InvalidSessionID` · UT-003 `TestHandleMessage_InvalidJSONPayload` · UT-004 `TestHandleMessage_NonToolsCallMethod` · UT-005 `TestHandleMessage_WrongJSONRPCVersion` · UT-006 `TestHandleMessage_ToolNotFound` · UT-007 `TestHandleMessage_ToolExecutionError` · UT-008 `TestHandleMessage_HappyPath` · UT-009 `TestHandleMessage_QueueMessageFails` · UT-010 `TestSendError_QueuesAndReturnsEchoError` · UT-011 `TestSendToolResultError_QueuesAndReturnsEchoError` · UT-012 `TestSendError_QueueFailure_LogsButReturnsEchoError` · UT-013 `TestSendToolResultError_QueueFailure_LogsButReturnsEchoError` — plus optional `TestHandleMessage_NonMarshalableToolResult`. `go test ./internal/handler -v` → `ok agent-board/internal/handler`, 14 PASS / 0 FAIL.
+
+**Architecture conformance (§8 / D-010):**
+- Harness is httptest+Echo for `HandleMessage`, direct-call via `handler_internal_test.go` re-exports for `sendError`/`sendToolResultError` — exactly the §8.3 path-(a) carve-out. No `SessionManager` interface introduced (real `mcp.NewSessionManager()` / `mcp.NewToolRegistry()`); D-010 / §8.1 honored.
+- `message.go` byte-for-byte unchanged: `git diff HEAD -- services/agent-board/internal/handler/message.go` empty (exit 0). No new production symbols.
+
+**Spec-exhaustiveness (anti-REQ005):** 13 reachable error/state branches in `message.go` (missing/invalid sessionId, bind error, wrong version/method→sendError, tool-not-found→sendToolResultError, tool-exec-error, queue-fail in HandleMessage, happy path, sendError queue-success+queue-full, sendToolResultError queue-success+queue-full) — each maps 1:1 to a UT-* case. The only uncovered branches are the three `json.Marshal` fallbacks (message.go:46, :64, :84-86, :110-113) — all named exempt in spec §coverage-exemptions and architecture §4.5/§8.5. No spec gap.
+
+**Coverage (`go tool cover -func` on message.go):**
+```
+agent-board/internal/handler/message.go:14:  HandleMessage         96.3%
+agent-board/internal/handler/message.go:74:  sendError             75.0%
+agent-board/internal/handler/message.go:95:  sendToolResultError   75.0%
+```
+Raw block profile confirms the ONLY uncovered blocks are `message.go:84.16,87.3` and `message.go:110.16,113.3` (the json.Marshal fallbacks — exempt §4.5/§8.5). The `log.Printf` queue-full paths (`message.go:88.56,90.3` and `:114.56,116.3`) are count=1 (COVERED by UT-012/UT-013 — not faked). sendError/sendToolResultError below 95% is fully accounted for by the named exemptions; HandleMessage 96.3% ≥ 95%.
+
+**TDG conformance:** US008 commits follow red→green→refactor with `(US008)` tags — `58943fe red: test spec for all 13 ... (US008)`, `47f137d green: all 14 message handler tests pass — production code unchanged (US008)`, `089ffc9 refactor: ... (US008)`, `e911619 refactor: chore: hand off US008 ... (US008)`. All tdg-prefixed, correct ordering.
+
+**Race (DoD substitute for live-e2e; tests-only story):** `go test -count=3 ./internal/handler -race` → `ok agent-board/internal/handler`, race clean across 3 runs.
+
+**Gates:**
+- `scripts/review/run-gate.sh be services/agent-board` → exit 0, `REVIEW GATE: PASS` (gofmt/vet/golangci-lint/go-test PASS; gosec+govulncheck WARN-skipped — gosec coverage retained via golangci-lint gosec linter).
+- `scripts/review/run-gate.sh cross` → exit 0, `REVIEW GATE: PASS` (semgrep PASS, gitleaks PASS).
+- Full module: `go test ./...` → all 7 packages `ok`.
+- No Robot e2e suites exist for REQ006 (`tests/e2e/REQ006*` absent) — dryrun/live-e2e N/A; tests-only story per DoD.
+
+**Tech-debt:** none filed this pass.
+
+**Verdict: approved → Status: completed.**

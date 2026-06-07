@@ -4,7 +4,7 @@
 **Story:** US007
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-ac9e
 **Implements:** REQ006/US007 AC (all scenarios — 27 verbatim test function names lifting `RegisterUserStoryTools` from 63.5%, including the passthrough error semantics, ≥95% per-file coverage modulo §4.5 exemptions, no production-code change). Architecture §3 US007 touch row + §4.3 cluster-2 mock-repo pattern + §4.5 exemption mechanism + §4.6 local verification command (US007 row).
@@ -82,3 +82,53 @@ Tester's `US007_be_unit_tests.md` IT-* IDs map 1:1.
 - `user_story_tools.go` byte-for-byte unchanged (verified: only the test file was committed).
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: approved
+
+**Verbatim test-function names (27/27 present):** all UT-001..UT-027 from `US007_be_unit_tests.md` confirmed present verbatim in `user_story_tools_test.go` (grep match count 27/27). Plus 1 supplemental `TestGetUserStoryTool_HappyPath` to cover the `get_user_story` success return (line 94).
+
+**Tests-only / production unchanged:** `git diff HEAD -- services/agent-board/internal/handler/user_story_tools.go` is empty — `user_story_tools.go` byte-for-byte unchanged. Only the test file carries the additions. Confirms scope `In` (test file) / `Out` (no prod change).
+
+**errors.Is passthrough conformance (architecture §4.3 "assertion nuance"):**
+- Passthrough generic-error cases (UT-006, UT-010, UT-014, UT-016, UT-017, UT-020, UT-023, UT-026) all assert `assert.True(t, errors.Is(returnedErr, mockErr))` — correct passthrough idiom, no `fmt.Errorf` wrap-prefix substring assertions.
+- `_NotFound` cases (UT-009 get, UT-013 update-initial-get) assert `err.Error()` contains `"user story not found"` AND `assert.False(t, errors.Is(err, repo.ErrNotFound))` — matches the fresh sentinel-less `fmt.Errorf("user story not found")` in source (lines 90, 114). Correct.
+- Validation strings asserted verbatim against source: `"invalid arguments"`, `"missing required fields"`, `"invalid initial status:"`, `"missing id"`, `"missing projectId"`, `"invalid transition from draft to done"`. All match `user_story_tools.go` literally.
+
+**Spec-exhaustiveness (anti-REQ005 branch audit):** Every `return err` site / state branch in `user_story_tools.go` has a matching UT-* case:
+- create_user_story: 6 branches → UT-002/003/005/004/006 + `TestUserStoryTools_CreateUserStory` (happy). OK.
+- get_user_story: 5 branches → UT-007/008/009/010 + supplemental happy. OK.
+- update_user_story: 11 branches → UT-011/012/013/014/015/016/017/018/019/020 + `TestUserStoryTools_UpdateUserStory` (no-status-change happy). OK.
+- delete_user_story: 4 branches → UT-021/022/023 + `TestUserStoryTools_DeleteUserStory` (happy). OK.
+- list_user_stories: 5 branches → UT-024/025/026/027 + `TestUserStoryTools_ListUserStories` (non-empty). OK.
+No uncovered error branch. No SPEC_GAP_FOUND.
+
+**TDG conformance:** worktree-branch commit history (found via `git log --all --grep=US007`) shows the correct cycle: `red: test spec for all 27 user_story_tools error-mapping tests (US007)` → `green: all 28 user_story_tools tests passing at 95.3% coverage (US007)` → `refactor: chore: hand off US007 ... for review (US007)`. All prefixed red/green/refactor, all tagged `(US007)`, red-before-green ordering correct. OK.
+
+**Test run:** `go test ./internal/handler/... -run UserStory -v` — all UT-001..UT-027 + supplemental PASS (`ok agent-board/internal/handler`). Full suite `go vet ./...` clean; `go test ./...` = 301 passed across 7 packages, no regressions.
+
+**Coverage (per-file, IT-001):** `go tool cover -func=/tmp/cov007.out | grep user_story_tools` →
+```
+agent-board/internal/handler/user_story_tools.go:26: toUserStoryResponse     100.0%
+agent-board/internal/handler/user_story_tools.go:39: RegisterUserStoryTools   97.6%
+```
+File-level statement coverage computed from the profile: **84/86 = 97.7%** — clears the ≥95% threshold. No coverage exemption needed (the 2 uncovered statements are within ≥95% tolerance; dev correctly filed "none" under OQ-4).
+
+**Race (DoD substitute for e2e — tests-only task):** `go test -count=3 ./internal/handler -race` = 531 passed, 0 failures. Three clean runs.
+
+**Review gate (verbatim):**
+- `scripts/review/run-gate.sh be services/agent-board`:
+  ```
+  REVIEW GATE: PASS
+  ```
+  (gofmt -s, go vet, golangci-lint, go test all PASS; gosec + govulncheck WARN-skipped by the gate as not-installed — gate still emits PASS, exit 0)
+- `scripts/review/run-gate.sh cross`:
+  ```
+  REVIEW GATE: PASS
+  ```
+  (semgrep PASS, gitleaks PASS, exit 0)
+
+**Robot dryrun / live e2e:** N/A — REQ006/US007 is a tests-only BE backfill with no `tests/e2e/REQ006_*` suite; task DoD explicitly substitutes the 3× `-race` runs (satisfied above) for live e2e.
+
+**Tech-debt:** none filed this pass. The two below-100% statements are unreachable-in-practice register-closure edges already within the ≥95% file-level threshold and require no exemption or follow-up.
+
+**Verdict: approved → Status: completed.**

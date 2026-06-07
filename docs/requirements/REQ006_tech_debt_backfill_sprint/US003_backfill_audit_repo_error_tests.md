@@ -1,7 +1,7 @@
 # US003 — Backfill `audit_repo.go` error-branch tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/repo/audit_repo.go`**, I want **every error branch in `getAuditTrail` (and its two public callers `GetTaskAuditTrail` / `GetUserStoryAuditTrail`) to be covered by `sqlmock`-driven tests**, so that a regression in the audit-trail read path (e.g. dropping a `fmt.Errorf` wrap or removing a `rows.Err()` check) fails CI immediately instead of silently shipping.
@@ -77,3 +77,8 @@ As a **future contributor changing `services/agent-board/internal/repo/audit_rep
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 5 AC scenarios map to test cases in `US003_be_unit_tests.md`. The 6 verbatim test-function names (AC scenario 1) map 1:1 onto UT-001..UT-006. The branch-specific assertions (AC scenario 2 — non-nil error, exact `fmt.Errorf` wrap text per branch, nil result, `ExpectationsWereMet`, and the `WithArgs("task"|"user_story", id)` entity-type passthrough) are present in each UT-* case. Coverage ≥95% (AC scenario 3) is IT-001; full-suite regression + lint (AC scenarios 4 & 5) is IT-002. The three error branches (Query/Scan/RowsErr) × both public callers = 6 cases, which exhaustively covers `getAuditTrail` and both wrappers — pyramid is honest (all unit/integration; correctly no e2e for a tests-only backfill).
+- **Result review:** `US003_test_report.md` reports 8 test IDs, 8 PASS, 0 FAIL, 0 skipped. Independently verified: `go test ./internal/repo -run TestAuditRepo` → 9 passed; `go tool cover` shows `audit_repo.go` at 100% on all four functions (`NewAuditRepo`, `getAuditTrail`, `GetTaskAuditTrail`, `GetUserStoryAuditTrail`) — exceeds the ≥95% target (baseline 78.6%). Production code unchanged confirmed independently: `git diff` of `internal/repo/audit_repo.go` against the story baseline is empty (tests-only). The 7-col vs 6-col `auditCols` note was correctly resolved by the dev to match the real 6-column production SELECT and validated at code review — descriptive spec context, not a contract gap, so no tester revision required.
+- **Routed to:** none (approved).

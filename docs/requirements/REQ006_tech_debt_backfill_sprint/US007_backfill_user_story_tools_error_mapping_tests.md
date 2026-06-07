@@ -1,7 +1,7 @@
 # US007 — Backfill `user_story_tools.go` error-mapping tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/handler/user_story_tools.go`**, I want **every repo-error → MCP-error-envelope mapping AND every status-transition guard in `RegisterUserStoryTools` and its 5 underlying tool closures to be covered by integration tests**, so that a regression (e.g. swallowing `repo.ErrNotFound`, dropping the `IsValidTransition` check, or breaking the post-status-change field update) fails CI immediately.
@@ -93,3 +93,14 @@ As a **future contributor changing `services/agent-board/internal/handler/user_s
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All 27 AC test scenarios (UT-001..UT-027) map 1:1 to the BE unit-test spec coverage matrix, plus IT-001 (≥95% per-file coverage) and IT-002 (full-suite regression). Every Given/When/Then in the story — invalid-args, missing-field validation, ErrNotFound→`"user story not found"` (sentinel-less), generic-error passthrough via `errors.Is`, invalid-status-transition, both `UpdateUserStoryTool` status-change happy paths (no-extra-fields + with-extra-fields), post-status field-update error, and the empty-slice→`{"userStories":[]}` non-nil case — is covered. Passthrough error semantics (no `fmt.Errorf` wrap) correctly asserted via `errors.Is`, distinct from `task_tools.go`. No e2e justification needed (tests-only BE backfill, no UI). Spec is honest and exhaustive.
+- **Result review:** Verified independently, not on report trust:
+  - 27 verbatim AC test names present in `internal/handler/user_story_tools_test.go` (grep 27/27) + supplemental `TestGetUserStoryTool_HappyPath`.
+  - `go test ./internal/handler -run "TestRegisterUserStoryTools|Test(Create|Get|Update|Delete|List)UserStor(y|ies)Tool"` = 28 passed.
+  - Per-file coverage: `RegisterUserStoryTools` 95.3%, `toUserStoryResponse` 100.0% — clears ≥95% (baseline 63.5% per tech_debt.md:58).
+  - Full module `go test ./...` = 301 passed, 7 packages, 0 fail, 0 skip (no `t.Skip`/`SkipNow` in the test file).
+  - Production `user_story_tools.go`: `git diff main` empty, `git status` clean — byte-for-byte unchanged. No production code changed.
+  - Report's 29-ID table (27 UT + 2 IT) matches the spec; no silent dropping. Skipped-tests section: None. OQ-4 exemptions: None.
+- **Routed to:** none.

@@ -4,7 +4,7 @@
 **Story:** US010
 **Track:** BE
 **Service:** services/agent-board
-**Status:** blocked_review_gate
+**Status:** completed
 **Blocked by:** none (soft sequencing — see Notes below; US015 SHOULD ship before or with this task per architecture D-013 / D-014 / R-6, but no hard `Blocked by` link)
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-aa93
 **Implements:** REQ006/US010 AC (all scenarios per architecture §5.8 reconciliation — see Notes), architecture §3 US010 touch row, architecture §5 (decision + helper API + main.go call sites + locked error wording + docker-compose change + four-case unit tests + startup-log integration test + migration impact), architecture D-006, architecture D-012 (`internal/config` is the only NEW production file across REQ006).
@@ -189,3 +189,39 @@ TDG discipline (verified on branch commits): clean red → green → refactor cy
 **Action required (orchestrator → gate-fix / infra track, NOT the dev):** start a container runtime on the review host (`podman machine start` or install Docker + a compose provider), then run `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` THREE consecutive times and confirm all three are 100% green (`N tests, N passed, 0 failed`). Paste the three summary lines, then re-review for `approved`. No code change is needed for the verdict to flip — the implementation is already correct.
 
 Tech-debt: none filed this pass. The implementation is clean — no style nits, no scope creep, no sibling-pattern divergence, no dead code, no unowned TODOs in the US010 diff.
+
+### Review pass 2 — 2026-06-07 — verdict: approved
+
+**Context:** pass 1 blocked solely on the unavailable container runtime (no Docker/Podman on the review host) preventing the mandatory live-e2e + 3-clean-run flake check (architecture §10.1, DoD line 99). Podman machine is now running (`DOCKER_HOST=unix:///.../podman-machine-default-api.sock`, `podman info` → UP). The code was already verified correct in pass 1; this pass re-confirms the code-level gates AND completes the previously-impossible live-e2e gate.
+
+**Implementation re-verification (D-003 / D-005 / D-006):**
+- `internal/config/dburl.go`: `ResolveDBURL() (string, error)` present, four-branch switch, no `log.Fatal`/no log emission inside helper, all three error strings byte-identical to locked §5.4 wording (D-003).
+- `cmd/api-server/main.go` lines 45–50: calls `config.ResolveDBURL()`, `log.Fatal(err)` on error (fails loud), happy-path log line `"db config: using DATABASE_URL"` from main, not the helper (D-005).
+- `cmd/mcp-server/main.go` lines 31–36: identical call site, fails loud on missing env (D-006).
+- Neither binary reads `DB_URL` directly — `git grep -nE 'DB_URL' services/ docker-compose.yml tests/e2e/` returns only error-string literals, test code, and the helper's own legacy-detection `os.Getenv("DB_URL")`. Zero live env-var consumption outside the helper. `docker-compose.yml` mcp-server uses `DATABASE_URL` only.
+
+**Tests + gates (re-run on review host):**
+- `cd services/agent-board && go test ./...` → `Go test: 301 passed in 7 packages` (UT-001..UT-004, IT-001/IT-002/IT-003 all green; full module clean). `go vet` clean.
+- `scripts/review/run-gate.sh be services/agent-board` → final line `REVIEW GATE: PASS` (gofmt -s, go vet, golangci-lint, go test all PASS; gosec/govulncheck WARN-skipped by the gate itself — coverage via golangci-lint gosec linter, the gate's designed fallback).
+- `scripts/review/run-gate.sh cross` → final line `REVIEW GATE: PASS` (semgrep owasp/golang/typescript PASS, gitleaks no secrets).
+
+**Per-file coverage (`go tool cover -func`):**
+- `internal/config/dburl.go`: `ResolveDBURL` 100.0% — clears ≥80%.
+- `cmd/api-server/main.go`: `main` 0.0%, `run` 52.6%, `pingDB` 100.0% (file ~50%). Accepted main-wiring exemption — the uncovered lines are the pre-existing `e.Start`/server-bootstrap path that is inherently e2e-only (not unit-testable) and predates this task; the lines US010 added (the `ResolveDBURL()` call + happy-path log line) ARE exercised by IT-001 and validated live by the e2e runs below.
+- `cmd/mcp-server/main.go`: `main` 0.0%, `run` 34.2%, `pingDB` 100.0% (file ~33%). Same accepted main-wiring exemption; US010's added lines exercised by IT-002 + IT-003 + the live e2e runs.
+
+**Robot e2e dryrun:** N/A — no `tests/e2e/REQ006_*` suite exists for this REQ. The existing REQ001–005 suites exercise the live api-server + mcp-server stack this task wired.
+
+**Live e2e + 3-clean-run flake verification (architecture §10.1 — THE pass-1 blocker, now satisfied):**
+Container runtime: Podman 5.8.2 via `podman-compose` (`make COMPOSE="podman-compose" ...`, `DOCKER_HOST` exported to the podman machine API socket). Images rebuilt from current source with `podman build` (fresh `go build` of both binaries — confirmed compiling the new `config` package + wired main.go files; the initially-running stale containers from a prior session were crash-looping on the OLD `"DB_URL environment variable is required"` code and were fully torn down with `down -v` before the rebuild). Stack brought up fresh from a clean postgres volume, then migrated + seeded (`make e2e-seed`: migrations 000001/000002 applied + REQ000_baseline seed inserted). In the live stack the **mcp-server (the binary this task wired) starts healthy and serves `/sse` 200** — direct proof `DATABASE_URL` resolution works end-to-end, where the pre-fix container had been crash-looping.
+
+Three consecutive `make e2e-run` invocations against the running stack — Robot Framework summary lines verbatim:
+- Run 1: `23 tests, 23 passed, 0 failed`
+- Run 2: `23 tests, 23 passed, 0 failed`
+- Run 3: `23 tests, 23 passed, 0 failed`
+
+All three runs 100% green — no failures, no flakes. Stack torn down with `make e2e-down` (volume removed) after run 3.
+
+**Verdict:** approved. Status → completed. Every DoD line is now satisfied including the previously-impossible live-e2e gate. No code change was required between pass 1 and pass 2 — the implementation was correct; only the infra was missing.
+
+Tech-debt: none filed this pass. (Note for the next REQ retrospective, NOT a code finding: the migrations `000001`/`000002` `.up.sql` are not idempotent under `e2e-seed`'s `ON_ERROR_STOP=1` when run against a non-empty volume — `relation already exists`. This is pre-existing infra ergonomics outside US010's scope and is already implicitly tracked by the `make e2e-down -v` clean-volume workflow; not filing a new tech_debt line for it as it is not introduced by this task.)

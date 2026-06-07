@@ -4,7 +4,7 @@
 **Story:** US015
 **Track:** BE
 **Service:** services/agent-board   (nominal — repo-root + Makefile + docs + agent-defs sweep; NO Go production code touched — see Notes)
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** none (soft sequencing — see Notes; US015 SHOULD ship before or with US010 per architecture D-013 / D-014 / R-6, but no hard `Blocked by`)
 **Worked-by:** be-dev-2026-06-06T00-00-00Z-a3f7
 **Implements:** REQ006/US015 AC (all scenarios — delete `startup.sh` / `shutdown.sh`, four new Makefile `dev-*` targets, `PG_CONN := → ?=` flip [absorbed from former US011 per D-014], new `DEV_PG_CONN ?=`, PID + log file conventions byte-identical to `startup.sh`, e2e family byte-identical, zero `DB_URL` in any new recipe, doc + agent-def sweep, tech-debt strike-throughs), architecture §3 US015 touch row (full table), architecture §11 D-013 (US015 charter) + D-014 (US011 absorbed, Option A union), architecture §10.1 (live-e2e + 3-clean-run flake check required).
@@ -137,3 +137,36 @@ Tester's `US015_be_unit_tests.md` will contain UT-* IDs framed as these behaviou
 **semgrep false-positive note:** The OWASP `detected-username-and-password-in-uri` rule triggered on the new `dev-up` target because `DATABASE_URL=$(DEV_PG_CONN)` (which expands to the Postgres DSN with `agent_board:agent_board@`) appears in the same recipe as `@echo "   - api-server:  http://localhost:$(API_PORT)/api/v1/projects"`. Semgrep erroneously associates the credentials with the `/api/v1/projects` URL. Fixed with a `# nosemgrep: generic.secrets.security.detected-username-and-password-in-uri` inline annotation on the echo line (the existing `PG_CONN` line with the same credential format did not trigger this rule). A `docs/tech_debt.md` entry already exists suggesting a `.semgrepignore` / `--baseline-commit` mechanism (REQ006/US013/fe_tabswitcher_coverage_backfill).
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: changes_requested
+
+**What passed (verified by tech-lead, not just trusted):**
+- UT-001 / UT-002: `git ls-files startup.sh shutdown.sh` → empty. Both scripts deleted. PASS.
+- UT-003: `git grep -nE 'startup\.sh|shutdown\.sh'` → zero hits outside REQ006/REQ005 docs. Sweep complete. PASS.
+- UT-004: `Makefile:18 PG_CONN ?= postgres://agent_board:agent_board@localhost:15432/agent_board?sslmode=disable` — `:=`→`?=` flip applied, default URL byte-identical (port 15432). PASS.
+- UT-005: `Makefile:19 DEV_PG_CONN ?= postgres://agent_board:agent_board@localhost:5432/agent_board?sslmode=disable` — new dev var, port 5432. PASS.
+- UT-006: `grep -c 'DB_URL' Makefile` → 0. No `DB_URL` anywhere; `DATABASE_URL=$(DEV_PG_CONN)` used in dev recipes per US010 alignment. PASS.
+- UT-007..010: `dev-up:` (L91), `dev-down:` (L122), `dev-migrate:` (L147), `dev-seed:` (L155) all present. PASS.
+- IT-001: `e2e-up:` recipe `git show HEAD:Makefile` vs current → "Files are identical". e2e family recipe bodies byte-unchanged. PASS.
+- IT-003 / IT-004: dry-run env-override checks for `PG_CONN`/`DEV_PG_CONN` confirmed in dev `## Notes`. Accepted.
+- Cross review gate: `bash scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep + gitleaks both PASS). Re-run by tech-lead, verbatim:
+  ```
+  == Cross-cutting · repo ==
+    PASS  semgrep (owasp/golang/typescript)
+    PASS  gitleaks (no secrets)
+
+  REVIEW GATE: PASS
+  ```
+
+**Non-blocking observation (not a required change):**
+- The `# nosemgrep: generic.secrets.security.detected-username-and-password-in-uri` inline annotation on the `dev-up` echo line is an acceptable approach for the documented OWASP false-positive (semgrep mis-associating `DEV_PG_CONN` credentials with the adjacent `/api/v1/projects` echo URL). No change required. A durable `.semgrepignore`/`--baseline-commit` follow-up is already tracked under REQ006/US013.
+
+**BLOCKER — Live e2e evidence absent (DoD line 90 / IT-002 / architecture §10.1):**
+The task DoD mandates the live-e2e + 3-clean-run flake check because this story changes `make` behaviour: `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` clean **THREE consecutive times** with verbatim Robot Framework `N tests, N passed, 0 failed` summaries pasted into `## Notes`. The dev's `## Notes` (IT-002) states verbatim: "NOT RUN — Podman daemon not running in this environment." Zero of the three required run summaries are present.
+
+This is a mandatory DoD gate and CANNOT be waived — the task file's DoD takes precedence over any spawn-prompt instruction to "note it and proceed." This is `changes_requested` (not `blocked_review_gate`): the gate/tooling itself is fine; the required evidence simply was not produced.
+
+**Required change for re-attempt:**
+- Podman is NOW running (`podman machine start` executed successfully in the main session). Re-attempt the task with the e2e stack live. Run `make e2e-up && make e2e-seed && make e2e-run && make e2e-down` THREE consecutive times and paste all three verbatim Robot Framework `N tests, N passed, 0 failed` summary lines into `## Notes` (IT-002), then flip back to `in_review`.
+
+**Tech-debt:** none filed this pass.

@@ -1,7 +1,7 @@
 # US001 — Backfill `task_repo.go` error-branch tests
 
 **Requirement:** REQ006 — tech debt backfill sprint
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a **future contributor changing `services/agent-board/internal/repo/task_repo.go`**, I want **every error branch in `CreateTask`, `GetTask`, `UpdateTask`, `UpdateTaskStatus`, and `ListTasks` to be covered by `sqlmock`-driven tests**, so that a regression in error handling (e.g. dropping a `fmt.Errorf` wrap, removing a `rows.Err()` check, or breaking the `sql.ErrNoRows → ErrNotFound` mapping) fails CI immediately instead of silently shipping.
@@ -85,3 +85,8 @@ As a **future contributor changing `services/agent-board/internal/repo/task_repo
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-07 — verdict: approved
+- **Spec review:** All five AC scenarios are covered. The 12 verbatim test-function names in the AC map 1:1 onto UT-001..UT-013 in `US001_be_unit_tests.md` (UT-003 `TestTaskRepo_GetTask_NotFound` is the exhaustiveness addition explicitly permitted by the AC note "tester may add additional cases"). Each error branch in `CreateTask`, `GetTask`, `UpdateTask`, `UpdateTaskStatus` (all 5 transactional exits), and `ListTasks` (query / scan / rows.Err) is exercised with the sqlmock idiom and the assertion set the AC demands (non-nil error; `errors.Is(err, repo.ErrNotFound)` true only for `_NotFound` cases; wrap-prefix substring for begin/audit/commit; `mock.ExpectationsWereMet()` nil). Coverage AC (IT-001) and regression AC (IT-002) are spec'd. The one coverage exemption (`task_repo.go:99` rollback `log.Printf`) is honestly documented under OQ-4 / §4.5 — genuinely sqlmock-unreachable, not a skipped requirement. Pyramid is honest: all unit-level, no e2e padding (BE-test-only story).
+- **Result review:** Test report shows 15/15 test IDs PASS, 0 FAIL, no skipped tests. Independently re-verified: `go test ./internal/repo -run TestTaskRepo` → 20 passed; full module `go test ./...` → 301 passed in 7 packages; all 13 verbatim function names present in `task_repo_test.go`; no `t.Skip`/`SkipNow` anywhere in the file. Per-file coverage on `task_repo.go` re-measured: six of seven functions at 100%, `UpdateTaskStatus` at 95.2% — well above the ≥95% AC threshold, with the sole uncovered line being the exempted `:99` rollback log. Production code unchanged confirmed: `git diff main -- services/agent-board/internal/repo/task_repo.go` is empty (tests-only backfill, as required by the "no production-code changes" AC).
+- **Routed to:** none — approved. Story set to `done`.

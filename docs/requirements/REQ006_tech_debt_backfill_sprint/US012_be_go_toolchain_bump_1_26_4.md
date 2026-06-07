@@ -4,7 +4,7 @@
 **Story:** US012
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** none
 **Worked-by:** be-dev-2026-06-06T00:00:00Z-a4f2
 **Implements:** REQ006/US012 AC (all scenarios — `go.mod` bump, `Dockerfile` builder bump, `govulncheck` clean, `go test ./...` clean, `golangci-lint` clean, `go build ./...` clean for both binaries, `make e2e-up` clean), architecture §3 US012 touch row, architecture §6 (toolchain decision + verified findings + version pin + CI/Docker knock-on + govulncheck post-bump assertion), architecture D-007 (`go 1.26.4`).
@@ -94,3 +94,41 @@ Tester's `US012_be_unit_tests.md` will likely contain one or two UT-* IDs framed
 UT-001 asserts "a `toolchain go1.26.4` directive exists on the immediately following line." In practice, `go mod tidy` with go1.26.4 (the toolchain triggered by `go 1.26.4` in go.mod) removes the `toolchain go1.26.4` directive as redundant when `go == toolchain`. This is per Go 1.21+ module toolchain semantics documented at https://go.dev/doc/toolchain. The canonical and fully-equivalent form is `go 1.26.4` alone. Adding `toolchain go1.26.4` manually after tidy causes `go build ./...` to fail with "go: updates to go.mod needed; to update it: go mod tidy". The committed state (`go 1.26.4` only) is the correct Go-idiomatic form and satisfies the intent of architecture §6.2 (toolchain pinned to 1.26.4). Tech-lead: please confirm whether the UT-001 assertion about the `toolchain` directive should be waived given Go toolchain semantics, or whether a different `go`/`toolchain` version split (e.g. `go 1.26.0` + `toolchain go1.26.4`) was intended.
 
 ## Review log
+
+### Review pass 1 — 2026-06-07 — verdict: changes_requested
+
+**What passed (verified on review host):**
+- `go.mod:3` — `go 1.26.4` ✓ (architecture §6.2 / D-007). See `toolchain` note below.
+- `Dockerfile:9` — `FROM golang:1.26-alpine AS build` ✓ (UT-002); no other `golang:1.25-alpine` references remain ✓.
+- `docs/tech_debt.md:28` — struck through with `→ fixed in REQ006/US012` ✓.
+- IT-002 `go test ./...` — `301 passed in 7 packages`, exit 0 ✓.
+- IT-003 `go build ./...` — `Go build: Success`, exit 0; both `cmd/api-server` and `cmd/mcp-server` compile ✓.
+- IT-004 `golangci-lint run ./...` — PASS (via `run-gate.sh be`) ✓.
+- `scripts/review/run-gate.sh be services/agent-board` — `REVIEW GATE: PASS` ✓
+  (gosec + govulncheck WARN-skipped on review host — not installed; gate treats as WARN not FAIL, so gate is not blocked).
+- `scripts/review/run-gate.sh cross` — `REVIEW GATE: PASS` ✓ (semgrep + gitleaks clean).
+- IT-001 `govulncheck ./...` — NOT re-runnable on review host (`govulncheck not found`). Dev captured EXIT 0 / "0 vulnerabilities" / GO-2026-5037 + GO-2026-5039 no longer reachable in `## Notes`. Accepted as dev evidence; the orchestrator's Phase 3c test report should re-capture pre/post govulncheck diff on a govulncheck-enabled host per architecture §6.5.
+- TDG conformance — commit subjects `green: ... (US012)` + `refactor: ... (US012)` follow tdg prefix + traceability convention ✓.
+
+**BLOCKER — IT-005 (live e2e) evidence absent.**
+The task DoD (line 67) and `US012_be_unit_tests.md` IT-005 require:
+`make e2e-up && make e2e-seed && make e2e-run && make e2e-down` clean THREE consecutive times,
+with the verbatim Robot Framework summary (`N tests, N passed, 0 failed`) for each run captured in `## Notes`
+(architecture §10.1 — toolchain touches everything that ships, so the live-e2e + 3-clean-run flake bar applies).
+The dev's `## Notes` (IT-005) states Docker was not found and NO e2e run was performed — zero of the three required runs,
+and no Robot summary lines are present. This is a mandatory DoD gate and CANNOT be waived even though every other
+check passed. Per the project anti-pattern rule, a missing mandatory DoD step is `changes_requested`, not a pass-with-note.
+**Podman is now running on the review host**, so the e2e stack is available. Re-attempt: run the four-target e2e flow
+THREE consecutive times and paste all three verbatim `N tests, N passed, 0 failed` summary lines into `## Notes`.
+
+**`toolchain go1.26.4` directive question — RESOLVED, UT-001 assertion partially waived.**
+The dev correctly identified that `go mod tidy` under go1.26.4 strips a redundant `toolchain go1.26.4` directive when
+`go == toolchain`, and that manually re-adding it breaks `go build` with "updates to go.mod needed". Confirmed: **`go 1.26.4`
+alone is the correct, idiomatic Go 1.21+ module form when the language version equals the desired toolchain** — it pins the
+build to 1.26.4 exactly as architecture §6.2 intends. The committed `go.mod` (`go 1.26.4`, no `toolchain` line) is accepted.
+The UT-001 sub-assertion "a `toolchain go1.26.4` directive exists on the immediately following line" is **waived** as
+incompatible with Go toolchain semantics. This is a spec-text nuance, not a code defect, and does NOT contribute to the
+changes_requested verdict — it is recorded here so the next pass is not re-flagged on it. (Filed to tech_debt for the
+tester to reconcile the spec wording on next touch.)
+
+**Tech-debt filed this pass:** 1 line appended to `docs/tech_debt.md` (UT-001 spec-wording reconciliation).

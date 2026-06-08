@@ -9,6 +9,7 @@ import (
 
 	"agent-board/internal/domain"
 	"agent-board/internal/mcp"
+	"agent-board/internal/repo"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -311,6 +312,10 @@ func (m *auditTestUserStoryRepo) ListUserStories(ctx context.Context, projectID 
 	if m.listFunc != nil {
 		return m.listFunc(ctx, projectID)
 	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *auditTestUserStoryRepo) ListUserStoriesWithTaskCount(ctx context.Context, projectID string) ([]*repo.UserStoryWithCount, error) {
 	return nil, errors.New("not implemented")
 }
 

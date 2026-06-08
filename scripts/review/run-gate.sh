@@ -114,17 +114,10 @@ gate_fe() {
 
   require_tool npm "https://nodejs.org/"
 
-  (
-    cd web
-    run_check "npm run typecheck"                       npm run typecheck --silent
-    run_check "npm run lint (--max-warnings=0)"         bash -c 'npm run lint --silent -- --max-warnings=0'
-    run_check "npm test (--watchAll=false)"             bash -c 'npm test --silent -- --watchAll=false --forceExit'
-    # Use || true to make it non-fatal, but it will still be printed if run_check handles it.
-    # Actually, run_check uses the exit code of the command.
-    # We want to see the output but NOT increment FAILED.
-    # I'll create a new helper for non-fatal checks.
-    run_check_warn "npm audit (omit=dev, high+)"         bash -c 'npm audit --omit=dev --audit-level=high'
-  )
+  ( cd web && npm run typecheck --silent ) || fail "npm run typecheck"
+  ( cd web && npm run lint --silent -- --max-warnings=0 ) || fail "npm run lint (--max-warnings=0)"
+  ( cd web && npm test --silent -- --watchAll=false --forceExit ) || fail "npm test (--watchAll=false)"
+  ( cd web && npm audit --omit=dev --audit-level=high ) || printf "  ${YELLOW}WARN${RESET}  npm audit (omit=dev, high+)\n"
 
   # Project anti-patterns (CSR-only is non-negotiable per CLAUDE.md).
   section "FE anti-pattern scan · web/"

@@ -46,7 +46,7 @@ e2e-up: _check-compose         ## Start postgres + api-server + web (compose, he
 	  if [ $$i -ge 60 ]; then echo "ERROR: web failed to become healthy" >&2; exit 1; fi; \
 	  sleep 2; \
 	done
-	@i=0; until curl -sf http://localhost:8081/sse >/dev/null 2>&1 || curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/sse 2>&1 | grep -qE "^(200|405|404)$$"; do \
+	@i=0; until curl -sf --max-time 5 http://localhost:8081/sse >/dev/null 2>&1 || curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:8081/sse 2>&1 | grep -qE "^(200|405|404)$$"; do \
 	  i=$$((i+1)); \
 	  if [ $$i -ge 60 ]; then echo "ERROR: mcp-server failed to become healthy" >&2; exit 1; fi; \
 	  sleep 2; \
@@ -56,11 +56,7 @@ e2e-up: _check-compose         ## Start postgres + api-server + web (compose, he
 e2e-down: _check-compose       ## Stop and remove containers + volumes.
 	$(COMPOSE) down -v
 
-e2e-seed:                      ## Apply migrations then seed fixtures (idempotent).
-	@for f in $$(ls $(MIGRATIONS_DIR)/*.up.sql | sort); do \
-	  echo "-> applying migration $$f"; \
-	  psql "$(PG_CONN)" -v ON_ERROR_STOP=1 -f $$f; \
-	done
+e2e-seed:                      ## Seed test-data fixtures only (migrations run at api-server startup — US001).
 	@for f in $$(ls $(SEEDS_DIR)/*.sql 2>/dev/null | sort); do \
 	  echo "-> applying seed $$f"; \
 	  psql "$(PG_CONN)" -v ON_ERROR_STOP=1 -f $$f; \

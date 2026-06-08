@@ -16,10 +16,10 @@ interface UserStoryDrawerProps {
  * and its tasks. Issues two parallel fetches: story detail + task list.
  *
  * Accessibility:
- * - role=dialog, aria-modal=true
- * - Close button with accessible name
- * - Escape key listener on document
- * - Focus moves to the close button on mount; caller restores focus on unmount
+ * - Uses native `<dialog open>` element (implicit role=dialog, aria-modal).
+ * - Close button with accessible label.
+ * - Escape key listener on document (supplements native dialog behaviour).
+ * - Focus moves to the close button on mount; caller restores focus on close.
  */
 export const UserStoryDrawer: React.FC<UserStoryDrawerProps> = ({
   storyId,
@@ -30,15 +30,16 @@ export const UserStoryDrawer: React.FC<UserStoryDrawerProps> = ({
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Focus the close button when the drawer mounts
+  // Move focus to the close button when the drawer mounts
   useEffect(() => {
     closeButtonRef.current?.focus();
   }, []);
 
-  // Escape key listener
+  // Escape key listener — ensures Escape closes the drawer in all environments
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         onClose();
       }
     };
@@ -51,11 +52,13 @@ export const UserStoryDrawer: React.FC<UserStoryDrawerProps> = ({
   const isLoading = storyLoading || tasksLoading;
 
   return (
-    <div
-      role="dialog"
+    // `open` keeps the drawer visible; parent unmounts it on close.
+    // aria-modal supplements the native dialog implicit role for screen readers.
+    <dialog
+      open
       aria-modal="true"
       aria-label={story?.title ?? 'User story detail'}
-      className="fixed inset-y-0 right-0 w-96 bg-white shadow-xl border-l border-gray-200 flex flex-col z-50"
+      className="fixed inset-y-0 right-0 m-0 w-96 h-full max-h-none bg-white shadow-xl border-l border-gray-200 flex flex-col z-50 p-0"
     >
       {/* Header with close button — always rendered */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -89,6 +92,8 @@ export const UserStoryDrawer: React.FC<UserStoryDrawerProps> = ({
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-4">
         {isLoading && (
+          // role="status" is the correct ARIA live region role for spinners —
+          // no HTML element maps to this implicit role, so the attribute is intentional.
           <div
             role="status"
             aria-label="Loading user story"
@@ -153,6 +158,6 @@ export const UserStoryDrawer: React.FC<UserStoryDrawerProps> = ({
           </>
         )}
       </div>
-    </div>
+    </dialog>
   );
 };

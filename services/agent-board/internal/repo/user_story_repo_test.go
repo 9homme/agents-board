@@ -553,7 +553,25 @@ func TestUserStoryRepo_ListUserStoriesWithTaskCount_Empty(t *testing.T) {
 }
 
 // US004-UT-003: ListUserStoriesWithTaskCount returns error on query execution failure.
-// [SKIP - will be implemented after UT-002 loop]
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	queryErr := errors.New("connection refused")
+
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnError(queryErr)
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	assert.Nil(t, stories)
+	assert.ErrorIs(t, err, queryErr)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
 // US004-UT-004: ListUserStoriesWithTaskCount returns error on row scan failure.
 // [SKIP - will be implemented after UT-003 loop]

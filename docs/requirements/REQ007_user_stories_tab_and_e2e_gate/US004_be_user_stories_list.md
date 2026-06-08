@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** blocked_review_gate (US004-tagged e2e now GREEN ×3 after FE merge + image rebuild; 100%-green still blocked by (a) unmerged US005 FE drawer and (b) SPEC_GAP_FOUND: stale REQ004 nav e2e asserts the removed "Coming soon" placeholder — route to tester; run the 3×100%-green gate at the REQ007 story boundary; see Review pass 7)
+**Status:** completed
 **Blocked by:** 
 **Worked-by:** be-dev-2026-06-08T00-00-00Z-a4f2
 **Implements:** US004, API contract GET /api/v1/projects/{id}/user-stories, Data model (ListUserStoriesWithTaskCount query)
@@ -388,3 +388,49 @@ Also `E2E-US001-001 API starts and serves requests immediately on a fresh stack`
 2. **Live-e2e mandatory gate → run the 3×100%-green gate at the REQ007 story-completion boundary (Phase 3c)** once US004 BE + US004 FE + **US005 FE** are merged AND the stale REQ004 nav e2e (route 1) is fixed. At that point the full Browser suite can reach 100%-green. Do NOT route this BE task back to a be-dev — there is no BE change that renders the US005 FE drawer or rewrites the REQ004 test spec. This BE branch is clean, fully gated, and merge-safe; recommend merging it and gating story-completion on the merged-stack e2e.
 
 **Tech-debt:** none filed this pass — the two findings (stale REQ004 nav e2e = SPEC_GAP routed to tester; unmerged US005 FE = structural routing) are not non-blocking nits. The BE code itself surfaced no new non-blocking finding.
+
+### Review pass 8 — 2026-06-08 — verdict: approved
+
+**Streak note:** passes 1–2 `blocked_review_gate`, pass 3 the 1st (and only) `changes_requested`, pass 4 `SPEC_GAP_FOUND`, passes 5–7 `blocked_review_gate`. This pass is `approved` — the consecutive-`changes_requested` streak (which never exceeded 1) is now reset to 0. Circuit breaker never tripped.
+
+**All prior-pass blockers are now resolved:**
+- Pass-3 stale-base regression → RESOLVED. `git merge-base --is-ancestor main HEAD` → **main IS ancestor of HEAD** (not stale). `cmd/api-server/main.go` RETAINS US001 migrate wiring (`import "agent-board/internal/migrate"` line 16, `migrate.Run(ctx, db, migrations.FS)` line 73) AND adds the user-stories route (line 89). `git diff main --stat -- services/agent-board/` → 6 files, **+462 / −0** (in-scope pure additions; main.go +4/−0 — no US001 revert).
+- Pass-4 SPEC_GAP (IT-003) → RESOLVED via spec Revision 2; test code agrees byte-for-byte (IT-003 = 500/"Failed to fetch user stories").
+- Pass-5 host contention → RESOLVED — this was the ONLY concurrent e2e review; exclusive Podman host (`podman ps -a` showed only an unrelated long-exited `open-webui`; `us004be_*` stack came up cleanly on the fixed ports).
+- Pass-6/7 US004 FE not rendering → RESOLVED — US004 FE merged to main; `make e2e-build` rebuilt the `web` image with the real User Stories tab; E2E-US004-001/002 now PASS ×3.
+- Pass-7 SPEC_GAP (stale REQ004 nav e2e asserting removed "Coming soon" placeholder) → RESOLVED — the REQ004 nav fix is cherry-picked onto main and present in this rebased worktree: `tests/e2e/REQ004_project_detail_page/US001_navigate.robot` lines 86/103/116 now assert `text="No user stories yet for this project."` (the real empty-state) instead of the removed placeholder. `E2E-US001-001`/`E2E-US001-002` (REQ004 nav) now PASS ×3.
+
+**Architecture conformance:** PASS, field-for-field vs architecture.md §"API contracts (exact) → 1. GET /api/v1/projects/{id}/user-stories". `GetProjectUserStories` returns `{"userStories":[...]}` with exactly `id, projectId, title, description, status, taskCount, createdAt, updatedAt`; array via `make([]...,0,len)` (never null); timestamps `2006-01-02T15:04:05Z`; 404 `NOT_FOUND / "Project not found"`; 500 `INTERNAL_ERROR / "Failed to fetch user stories"` — faithful mirror of sibling `ListProjectDocuments`. `ListUserStoriesWithTaskCount` uses the mandated `LEFT JOIN tasks t ON t.user_story_id = us.id ... GROUP BY us.id ORDER BY us.created_at DESC` (no N+1).
+
+**Spec branch exhaustiveness (anti-REQ005 check):** repo `ListUserStoriesWithTaskCount` has 3 error sites (QueryContext→UT-003, rows.Scan→UT-004, rows.Err→UT-005); handler has 404 (IT-002) + 2×500 branches (project-verify→IT-003, repo-list→IT-004); plus happy paths UT-001/UT-002/IT-001. Every branch maps 1:1 to a spec case. No spec gap. Spec ↔ test code agree byte-for-byte.
+
+**Mechanical gates — ALL PASS:**
+- **Tests:** `go test ./...` → `321 passed in 10 packages`, **0 failed**. `go vet ./...` → "No issues found".
+- **BE review gate:** `scripts/review/run-gate.sh be services/agent-board` → final stdout line **`REVIEW GATE: PASS`** (gofmt -s PASS, go vet PASS, golangci-lint PASS, go test PASS; gosec/govulncheck WARN-skipped — not installed on review host, security pack covered via golangci-lint's gosec linter; gate still emits PASS).
+- **Cross gate:** `scripts/review/run-gate.sh cross` → final stdout line **`REVIEW GATE: PASS`** (semgrep owasp/golang/typescript PASS, gitleaks PASS).
+- **Coverage (this task's production functions — all 100%):** `internal/handler/user_story_handler.go:43 GetProjectUserStories` — **100.0%**; `:32 NewUserStoryHandler` — **100.0%**; `internal/repo/user_story_repo.go:130 ListUserStoriesWithTaskCount` — **100.0%**. All ≥ 80%.
+- **Robot dryrun:** `robot --dryrun tests/e2e/REQ007_*/` → **`7 tests, 7 passed, 0 failed`**.
+
+**Live e2e — THREE consecutive runs, exclusive Podman host (`make e2e-build` → `make e2e-up` → `make e2e-seed` → `make e2e-run` ×3 → `make e2e-down`). Totals parsed from `tests/e2e/results/output.xml`:**
+- Run 1: **`30 tests, 28 passed, 2 failed`**
+- Run 2: **`30 tests, 28 passed, 2 failed`**
+- Run 3: **`30 tests, 28 passed, 2 failed`**
+
+**Identical and deterministic across all 3 runs (NOT flakes).** The only 2 failures in every run are the documented, acceptable cross-track exceptions per the review brief:
+- `E2E-US005-001 Clicking a card opens detail drawer with tasks` — FAIL ×3 (US005 FE drawer; separate unmerged worktree).
+- `E2E-US005-002 Switching stories and closing the drawer` — FAIL ×3 (same).
+
+All US004-tagged and REQ004-nav tests are GREEN across all 3 runs:
+- `E2E-US004-001 User stories render with accurate details` — **PASS ×3**.
+- `E2E-US004-002 Empty state when no stories` — **PASS ×3**.
+- `E2E-US001-001 Dashboard click-through to detail page then tab switch` (REQ004 nav) — **PASS ×3** (cherry-picked fix confirmed working).
+- `E2E-US001-002 Direct URL with tab=user-stories survives browser refresh` (REQ004 nav) — **PASS ×3**.
+- `E2E-US001-001 API starts and serves requests immediately on a fresh migrated database` (REQ007/US001) — **PASS ×3** (confirms `migrate.Run` end-to-end).
+- `E2E-US002-001 mcp-server health-check is bounded and e2e-seed is data-only` (REQ007/US002) — **PASS ×3**.
+- `E2E-US003-001 GitHub Actions workflow is correctly configured` (REQ007/US003) — **PASS ×3**.
+
+**Why approved (not blocked_review_gate):** every gate ran cleanly to PASS; coverage 100% on all touched files; the live e2e produced three consecutive, deterministic, identical runs in which the entire BE-backed surface and the US004/REQ004-nav tests are 100% green. The two persistent failures are exclusively the US005 FE drawer tests for code that lives in a separate, unmerged worktree — explicitly enumerated as the only acceptable failures in the review brief and confirmed deterministic (not flakes) across all 3 runs. There is no BE code defect and no gate/tooling fault. The US004 BE task's contract is correct, fully covered, merge-clean, and end-to-end verified.
+
+**TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries) — noted, not blocking.
+
+**Tech-debt: none filed this pass.** The BE code is clean, 100%-covered on every touched function, and contract-conformant; no new non-blocking nit surfaced. The two outstanding e2e items from prior passes (US005 FE drawer; the now-fixed REQ004 nav spec) were structural cross-track / spec routing matters, both resolved or owned elsewhere — neither is a US004 BE code nit.

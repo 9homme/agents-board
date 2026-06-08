@@ -9,6 +9,13 @@ import (
 	"agent-board/internal/domain"
 )
 
+// UserStoryWithCount embeds a UserStory with an additional TaskCount field
+// representing the number of tasks associated with the story (via LEFT JOIN).
+type UserStoryWithCount struct {
+	domain.UserStory
+	TaskCount int
+}
+
 // UserStoryRepository defines the interface for user story data operations.
 type UserStoryRepository interface {
 	CreateUserStory(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error)
@@ -19,6 +26,10 @@ type UserStoryRepository interface {
 	UpdateUserStoryStatus(ctx context.Context, id, fromStatus, toStatus string) (*domain.UserStory, error)
 	DeleteUserStory(ctx context.Context, id string) error
 	ListUserStories(ctx context.Context, projectID string) ([]*domain.UserStory, error)
+	// ListUserStoriesWithTaskCount retrieves all user stories for a project,
+	// each enriched with the count of tasks linked via tasks.user_story_id.
+	// Results are ordered by created_at DESC.
+	ListUserStoriesWithTaskCount(ctx context.Context, projectID string) ([]*UserStoryWithCount, error)
 }
 
 // UserStoryRepo handles database operations for user stories.
@@ -111,6 +122,31 @@ func (r *UserStoryRepo) DeleteUserStory(ctx context.Context, id string) error {
 	query := `DELETE FROM user_stories WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
+}
+
+// ListUserStoriesWithTaskCount retrieves all user stories for a project joined with their task counts.
+// It uses a LEFT JOIN so stories with zero tasks are still included.
+// Results are ordered by created_at DESC.
+func (r *UserStoryRepo) ListUserStoriesWithTaskCount(ctx context.Context, projectID string) ([]*UserStoryWithCount, error) {
+	query := `SELECT us.id, us.project_id, us.title, us.description, us.status, us.created_at, us.updated_at, COUNT(t.id) AS task_count FROM user_stories us LEFT JOIN tasks t ON t.user_story_id = us.id WHERE us.project_id = $1 GROUP BY us.id ORDER BY us.created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	stories := make([]*UserStoryWithCount, 0)
+	for rows.Next() {
+		var s UserStoryWithCount
+		if err := rows.Scan(&s.ID, &s.ProjectID, &s.Title, &s.Description, &s.Status, &s.CreatedAt, &s.UpdatedAt, &s.TaskCount); err != nil {
+			return nil, err
+		}
+		stories = append(stories, &s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return stories, nil
 }
 
 // ListUserStories retrieves all user stories for a specific project.

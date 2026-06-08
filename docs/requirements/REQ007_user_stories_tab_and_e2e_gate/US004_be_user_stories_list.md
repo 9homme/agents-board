@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** in_review (held — SPEC_GAP_FOUND routed to tester; see Review pass 4)
 **Blocked by:** 
 **Worked-by:** be-dev-2026-06-08T00-00-00Z-a4f2
 **Implements:** US004, API contract GET /api/v1/projects/{id}/user-stories, Data model (ListUserStoriesWithTaskCount query)
@@ -219,3 +219,42 @@ Re-review on a host with **Podman** (no Docker). Stack brought up via `make e2e-
 - `E2E-US002-001 mcp-server health-check is bounded and e2e-seed is data-only` → **PASS**.
 - Persistent failures (all 3 runs, deterministic, not flakes): `E2E-US003-001` (GitHub Actions workflow file absent — US003 BE, separate unmerged worktree), `E2E-US004-001/002` (FE User Stories tab — US004 FE, separate unmerged worktree), `E2E-US005-001/002` (FE drawer — US005 FE, separate unmerged worktree). None of these is a BE contract defect.
 - `make e2e-down` completed.
+
+### Review pass 4 — 2026-06-08 — verdict: SPEC_GAP_FOUND (routed to tester) — NOT approved, NOT changes_requested
+
+**Streak note:** passes 1–2 were `blocked_review_gate`, pass 3 was the 1st `changes_requested`. SPEC_GAP_FOUND does NOT advance the consecutive-`changes_requested` streak (it is not a `changes_requested` verdict). Streak remains 1. Circuit breaker does NOT trip.
+
+**Rebase fix from pass 3 is CONFIRMED resolved.** `git merge-base --is-ancestor main HEAD` → **main IS an ancestor of HEAD** (branch is up to date with `main`, no longer stale). `cmd/api-server/main.go` retains US001's migrate wiring (`import "agent-board/internal/migrate"` line 16, `import "agent-board/migrations"`, `migrate.Run(ctx, db, migrations.FS)` line 73) AND adds the user-stories route (line 89). Merging this branch no longer reverts US001. The pass-3 finding is fully addressed.
+
+**All four mechanical gates now PASS on the rebased base:**
+- **Tests:** `go test ./...` → `316 passed in 9 packages`, 0 failed (the pre-existing `internal/migrate/TestRun_UT001_CreateTableFails` is now green post-rebase). `go vet ./...` → "No issues found".
+- **BE review gate:** `scripts/review/run-gate.sh be services/agent-board` → **`REVIEW GATE: PASS`** (gofmt -s PASS, go vet PASS, golangci-lint PASS, go test PASS). gosec/govulncheck WARN-skipped — not installed on review host; golangci-lint's gosec linter covers the security pack and the gate still emits PASS, so this is a non-fatal tooling-environment note, not a block.
+- **Cross gate:** `scripts/review/run-gate.sh cross` → **`REVIEW GATE: PASS`** (semgrep owasp/golang/typescript PASS, gitleaks PASS).
+- **Coverage (this task's production files):** `internal/handler/user_story_handler.go:43 GetProjectUserStories` — **100.0%**; `internal/handler/user_story_handler.go:32 NewUserStoryHandler` — **100.0%**; `internal/repo/user_story_repo.go:130 ListUserStoriesWithTaskCount` — **100.0%**. All ≥ 80%.
+- **Robot dryrun:** `robot --dryrun tests/e2e/REQ007_*/` → `7 tests, 7 passed, 0 failed`.
+
+**Architecture conformance (handler + repo):** PASS. `GetProjectUserStories` returns `{"userStories":[...]}` with exactly `id, projectId, title, description, status, taskCount, createdAt, updatedAt`; timestamps formatted `2006-01-02T15:04:05Z`; array `make(...,0,...)` so never null; 404 `NOT_FOUND / "Project not found"` for non-existent project; 500 `INTERNAL_ERROR / "Failed to fetch user stories"` for generic failure. `ListUserStoriesWithTaskCount` uses the mandated `LEFT JOIN tasks ... GROUP BY us.id ORDER BY us.created_at DESC` (no N+1). Field-for-field correct vs architecture §"API contracts (exact) → 1. GET /api/v1/projects/{id}/user-stories".
+
+**DECISIVE FINDING — SPEC_GAP_FOUND: the test code and the authoritative spec disagree on IT-003, and the spec was never revised.**
+
+- The review brief asserts "IT-003/IT-004 already updated by tester (Revision 2)". **This is false on disk.** `US004_be_unit_tests.md` is clean/committed (`git status --short` empty) on BOTH this worktree's HEAD and `main`, and its `## Spec change log` stops at **Revision 1**, which explicitly reads: *"committed IT-003 to 404 specifically per architecture contract."* There is no Revision 2 anywhere.
+- **Spec IT-003** (authoritative, `US004_be_unit_tests.md` line 10 matrix + lines 70–74): *"Returns 404 for invalid project ID format"* → `404 { "code": "NOT_FOUND", "message": "Project not found" }`.
+- **Test code IT-003** (`internal/handler/user_story_handler_test.go:150` `TestUserStoryHandler_GetProjectUserStories_500_InvalidUUID`, lines 169/174): asserts `http.StatusInternalServerError` (500) and `message == "Failed to fetch user stories"`.
+- The test code therefore **diverges from the test contract** the dev was supposed to implement. A dev diverging from / weakening the spec is normally `changes_requested` — BUT here the divergence is the *architecturally correct* behavior, not a defect:
+  - Architecture line 171 scopes 404 to *"project does **not exist**"* — NOT to a malformed-UUID path param. Line 175 scopes 500 to *"unexpected failure"*. The handler is a faithful mirror of the architect-mandated sibling `ListProjectDocuments` (architecture line 151: "404 if not — mirrors `ListProjectDocuments`"), which against real Postgres returns 500 on `invalid input syntax for type uuid` (the error is NOT `sql.ErrNoRows` → not `repo.ErrNotFound` → falls to the 500 branch). Live verification in review passes 1–2 confirmed `/projects/not-a-uuid/user-stories` → 500 against the running Podman stack.
+  - Forcing IT-003 back to 404 would require the handler to add un-mandated UUID pre-validation — an architecture deviation the dev is correctly NOT making.
+- **Conclusion:** the *spec* is the wrong/stale artifact, not the code. Per `## Rules`, a wrong spec routes to **tester (revision mode)** — not `changes_requested` to a be-dev (application code is not at fault), and not `approved` (I cannot bless test code that contradicts the live, authoritative spec). This is the same SPEC_GAP_FOUND raised in review pass 2 that was **never actually published into the spec** — the dev edited the test + handler message in anticipation of a tester revision that did not land.
+
+**Required tester action (revision mode) — publish `US004_be_unit_tests.md` Revision 2:**
+1. Line 10 (coverage matrix) — change IT-003 row from *"Returns 404 for invalid project ID format"* to *"Returns 500 for malformed project ID (real-DB invalid-UUID syntax error)"*.
+2. Lines 70–74 (IT-003 body) — change Expect from `404 NOT_FOUND / "Project not found"` to `500 INTERNAL_ERROR / "Failed to fetch user stories"`, and update the rationale to: malformed UUID raises Postgres `invalid input syntax for type uuid`, which is not `ErrNotFound`, so it falls to the generic 500 branch — consistent with the architect-mandated `ListProjectDocuments` sibling. Architecture confirms 404 is reserved for "project does not exist" only.
+3. IT-004 is already aligned (`500 INTERNAL_ERROR / "Failed to fetch user stories"`) — no change needed; the matrix/body already match the code.
+4. Append a `### Revision 2` entry to the `## Spec change log`.
+
+Once tester publishes Revision 2, re-spawn tech-lead review pass 5 — at that point all gates already PASS and the only blocker (spec ↔ code disagreement) will be resolved, so pass 5 is expected to be a fast `approved`.
+
+**Live e2e x3 NOT run this pass — intentionally.** The verdict is decided by the spec gap, which no number of e2e runs changes; and the US004-tagged e2e tests (`E2E-US004-001/002`) are Browser/Playwright tests requiring the unmerged US004 FE worktree, so they deterministically fail here regardless (documented across passes 1–3, including the dev's own 3-run hand-off in the Notes: `30 tests, 25 passed, 5 failed` ×3, all 5 failures structural cross-track). The mandatory 3-green-run live-e2e gate for the US004 e2e must run at the **story-completion boundary (Phase 3c)** after BE + FE merge — there is no BE code change that makes Browser FE render. This is an orchestrator routing note, not a pass/fail of this task's BE code.
+
+**TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags on every commit. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries) — noted, not blocking.
+
+**Tech-debt:** none newly filed this pass. The sole finding (IT-003 spec staleness) is the SPEC_GAP_FOUND routed to tester, not a non-blocking nit. The 3 items filed in passes 1–2 (handler 500 message — now resolved by the dev; IT-003/IT-004 spec gap — this is the SPEC_GAP route) remain in docs/tech_debt.md.

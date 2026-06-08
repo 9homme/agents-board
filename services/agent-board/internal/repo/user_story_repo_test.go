@@ -531,7 +531,26 @@ func TestUserStoryRepo_ListUserStoriesWithTaskCount_Success(t *testing.T) {
 }
 
 // US004-UT-002: ListUserStoriesWithTaskCount returns empty slice when no stories exist.
-// [SKIP - will be implemented after UT-001 red→green→refactor]
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_Empty(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at", "task_count"}
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows(cols))
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	require.NoError(t, err)
+	assert.NotNil(t, stories)
+	assert.Len(t, stories, 0)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
 // US004-UT-003: ListUserStoriesWithTaskCount returns error on query execution failure.
 // [SKIP - will be implemented after UT-002 loop]

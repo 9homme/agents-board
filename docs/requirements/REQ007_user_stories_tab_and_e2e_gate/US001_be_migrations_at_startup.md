@@ -4,7 +4,7 @@
 **Story:** US001
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** blocked_review_gate
 **Blocked by:** 
 **Worked-by:** be-dev-20240723-a1b2
 **Implements:** D-001, D-002, D-003, Migrations data model, A. Migration at startup flow, US001
@@ -71,6 +71,39 @@ Command: `robot --include US001 tests/e2e/REQ007_user_stories_tab_and_e2e_gate/`
 **Robot dry-run (REQ007):** 7 tests, 7 passed, 0 failed
 
 ## Review log
+
+### Review pass 2 — 2026-06-08 — verdict: blocked_review_gate
+
+**TDG conformance (the pass-1 blocker) — RESOLVED.** `git log --pretty=format:'%s' main..HEAD` now shows a proper red→green cycle, one cycle per UT case, every subject ending `(US001)`:
+- `red: add migrate package stub (US001)`
+- `red: UT-001 CreateTableFails (US001)` → `green: UT-001 return wrapped error on create table failure (US001)`
+- `red: UT-002 QueryAppliedVersionsFails (US001)` → `green: UT-002 return wrapped error on query applied versions failure (US001)`
+- `red: UT-003 BeginTxFails (US001)` → `green: UT-003 return error on BeginTx failure (US001)`
+- `red: UT-004 MigrationSQLExecFails (US001)` → `green: UT-004 execute migration SQL within transaction (US001)`
+- `red: UT-005 InsertSchemaVersionFails (US001)` → `green: UT-005 insert migration version within transaction (US001)`
+- `red: UT-006 CommitFails (US001)` → `green: UT-006 commit error propagates via existing tx.Commit path (US001)`
+- `refactor: migrate package clean (gofmt -s and go vet pass) (US001)`, `green: wire migrate.Run at boot (US001)`, `refactor: chore: set US001 in_review after TDG rework (US001)`
+- All 16 commits start with `red:`/`green:`/`refactor:` and end `(US001)`; red precedes green in every cycle. The squashed `feat:` commit is gone. **TDG check PASSES.** (Minor cosmetic note filed to tech-debt: the final commit has a doubled `refactor: chore:` prefix — valid TDG prefix, not a blocker.)
+
+**Why this verdict is blocked_review_gate and NOT approved:** the mandatory live-e2e 3-run flake verification (agent definition §3, added 2026-06-03 per REQ005/US008) **could not be executed on this review host** — `docker` is not installed (`command not found` with the sandbox disabled), so `make e2e-up && make e2e-seed && make e2e-run` cannot bring the stack up. The agent definition is explicit: "If the e2e stack itself is unavailable on the review host, that's `blocked_review_gate` — NOT `approved`." The live-e2e evidence is a mandatory `approved`-path artifact and it does not exist. This is a tooling/environment fault, not a code fault, so `changes_requested` is also wrong. Per the strict precedence in §6, `blocked_review_gate` wins.
+
+**Everything else that CAN run on this host is green** (recorded so re-review on a docker-capable host only needs the 3 live runs):
+- `go vet ./...`: `No issues found`.
+- `go test ./...` (full module): **307 passed, 0 failed** (9 packages).
+- `go test ./internal/migrate/... -v`: **6 passed** (UT-001..UT-006).
+- Coverage: `agent-board/internal/migrate/migrate.go:13: Run  81.0%` (threshold 80% — PASS); module total 91.1%.
+- BE gate: `REVIEW GATE: PASS` (exit 0). `gofmt -s` / `go vet` / `golangci-lint` / `go test` all PASS; gosec + govulncheck WARN (not installed, non-fatal, exit 0).
+- Cross gate: `REVIEW GATE: PASS` (exit 0). semgrep PASS, gitleaks no secrets.
+- Robot dryrun (REQ007): `7 tests, 7 passed, 0 failed`.
+
+**Code review (manual checklist) — clean, no defects found:**
+- Architecture conformance: `migrate.Run` (migrate.go:13-90) implements the D-001 algorithm exactly — create `schema_migrations` → query applied set → lexical `sort.Strings` → per-file transaction (`BEGIN` → file SQL → `INSERT version` → `COMMIT`), error returned on any failure. Errors wrapped with `%w`. Doc comment on `Run`; `migrations.FS` (embed.go) doc-commented and embeds `*.up.sql` only (excludes `.down.sql` — D-002/D-003 satisfied).
+- Wiring: `cmd/api-server/main.go:73` calls `migrate.Run(ctx, db, migrations.FS)` after the DB ping (line 68) and before route registration (line 82), wrapping the error so `run()` exits non-zero and never listens (D-001). Confirmed.
+- Test-spec exhaustiveness (anti-REQ005 check): `Run` has 7 `return err` sites — create-table, query-applied, `rows.Scan`, `ReadDir`, `ReadFile`, and the tx closure (BeginTx / exec file / insert / commit). The spec names 6 UT cases (UT-001..UT-006) mapping to create-table, query, BeginTx, exec, insert, commit. **Two source `return err` sites have no spec case:** `rows.Scan` (migrate.go:35-36) and `fs.ReadDir`/`fs.ReadFile` (migrate.go:42-44, 61-63). These are uncovered by the test contract. This is a **spec gap, not a dev gap** — flagged below as SPEC_GAP_FOUND for the orchestrator to route to tester, and recorded as the reason `migrate.go` sits at 81% (the unscanned error branches). It does not change this pass's verdict (which is gate-blocked on a higher-precedence ground), but the orchestrator should route it to tester revision in parallel with the gate-fix.
+- Coverage exemption for IT-001/IT-002 (testcontainers) present and justified — acceptable.
+- Scope, quality, regressions: in-bounds; no commented-out code, no TODOs, no log spam; full module suite green.
+
+**Tech-debt filed this pass:** see `docs/tech_debt.md` (doubled commit-prefix cosmetic; unscanned-error-branch spec gap reference).
 
 ### Review pass 2 (rework) — 2026-06-08 — TDG cycle corrected
 

@@ -19,7 +19,7 @@ Library          Browser
 Library          RequestsLibrary
 Library          String
 Resource         resources/req005_keywords.resource
-Resource         ../../REQ004_project_detail_page/resources/project_detail_keywords.resource
+Resource         ../REQ004_project_detail_page/resources/project_detail_keywords.resource
 
 Suite Setup      Setup US006 Suite
 Suite Teardown   Teardown US006 Suite

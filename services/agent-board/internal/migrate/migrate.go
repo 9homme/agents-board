@@ -74,6 +74,10 @@ func Run(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 				return fmt.Errorf("failed to execute migration %s: %w", file, err)
 			}
 
+			if _, err := tx.ExecContext(ctx, "INSERT INTO schema_migrations (version) VALUES ($1)", file); err != nil {
+				return fmt.Errorf("failed to record migration %s: %w", file, err)
+			}
+
 			return tx.Commit()
 		}()
 

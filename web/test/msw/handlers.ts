@@ -175,4 +175,44 @@ export const handlers = [
       { status: 404 }
     )
   }),
+
+  // ---------------------------------------------------------------------------
+  // GET /api/v1/projects/:id/user-stories — list user stories (US004)
+  // Architecture: 200 with userStories array; 404 when project not found; 500
+  // ---------------------------------------------------------------------------
+
+  // broken-project — 500
+  http.get('*/api/v1/projects/broken-project/user-stories', () => {
+    return HttpResponse.json(
+      { code: 'INTERNAL_ERROR', message: 'Failed to fetch user stories' },
+      { status: 500 }
+    )
+  }),
+
+  // ghost-project — 404 (project not found)
+  http.get('*/api/v1/projects/ghost-project/user-stories', () => {
+    return HttpResponse.json(
+      { code: 'NOT_FOUND', message: 'Project not found' },
+      { status: 404 }
+    )
+  }),
+
+  // Wildcard happy path — returns one story for any other project id
+  http.get('*/api/v1/projects/:id/user-stories', ({ params }) => {
+    const id = typeof params.id === 'string' ? params.id : String(params.id);
+    return HttpResponse.json({
+      userStories: [
+        {
+          id: 'us1',
+          projectId: id,
+          title: 'Add item to basket',
+          description: 'As a shopper I want to add an item to my basket.',
+          status: 'in_development',
+          taskCount: 3,
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-02T09:30:00Z',
+        },
+      ],
+    })
+  }),
 ]

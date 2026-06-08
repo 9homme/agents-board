@@ -21,5 +21,12 @@ func Run(ctx context.Context, db *sql.DB, _ fs.FS) error {
 		return fmt.Errorf("failed to create schema_migrations table: %w", err)
 	}
 
+	// 2. Get already applied migrations
+	rows, err := db.QueryContext(ctx, "SELECT version FROM schema_migrations")
+	if err != nil {
+		return fmt.Errorf("failed to query applied migrations: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
 	return nil
 }

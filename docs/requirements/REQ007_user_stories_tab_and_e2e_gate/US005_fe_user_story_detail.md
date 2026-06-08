@@ -147,6 +147,36 @@ The mandatory live-e2e gate (`make e2e-up && make e2e-seed && make e2e-run` x3) 
 
 Tech-debt: none filed this pass.
 
+### Review pass 3 — 2026-06-08 — verdict: blocked_review_gate
+
+Resubmit after the orchestrator merged `main` (carrying US001 migrate-at-startup) into `agent/us005fe`. The infrastructure dependency from pass 2 IS resolved — but the merge itself was committed with **unresolved git conflict markers**, which now break the gate. This is an integration/merge-resolution fault from the merge step, NOT an FE code fault, so the verdict is `blocked_review_gate` (highest precedence). No dev rework is warranted; the fix is to re-resolve the merge.
+
+**Infrastructure dependency — RESOLVED:**
+- `grep -n migrate services/agent-board/cmd/api-server/main.go` → matches at line 16 (`import "agent-board/internal/migrate"`) and line 73 (`migrate.Run(ctx, db, migrations.FS)`). US001 wiring is now present.
+- `git merge-base --is-ancestor main HEAD` → true. `main` is fully merged into the branch (merge commit `74bb4d4 chore: merge main into agent/us005fe (include US001 migrate wiring...)`).
+- `git diff main --diff-filter=D --name-only -- web/` → empty. No US004 test files deleted (pass-1 finding 2 stays fixed).
+
+**Blocking issue — unresolved merge conflict markers (merge fault, not FE code):**
+- `web/lib/api/types.ts` contains git conflict markers at lines 42, 44, 45, 50, 59, 67, 72, 78, 79, 84, 92, 99, 104, 112, 119 (`<<<<<<< HEAD` / `=======` / `>>>>>>> main`).
+- `git grep` for conflict markers across all non-`.md` tracked files → confined to `web/lib/api/types.ts` only. No other source file affected.
+- Introduced by merge commit `74bb4d4` (the orchestrator's `main`→branch infra merge), NOT by any fe-dev `red:`/`green:`/`refactor:` commit. The fe-dev's pass-2 hand-off had a clean, passing suite (174/174) and `REVIEW GATE: PASS`.
+- Both conflict sides are **semantically identical** — same interface names (`UserStoryListItem`, `UserStory`, `Task`), same field names and types. HEAD additionally carries explanatory doc-comments (e.g. "taskCount is intentionally absent — derive from tasks.length on the FE"). Correct resolution = keep HEAD's doc-commented versions (`-X ours` on the FE branch side, or hand-resolve to HEAD), which preserves both the docs and the contract-asymmetry intent.
+
+**Gate evidence (verbatim):**
+- `npm run typecheck` → FAIL: `lib/api/types.ts(42,1): error TS1185: Merge conflict marker encountered.` (15 such errors across the file).
+- `npm run lint -- --max-warnings=0` → FAIL: `ESLint: 1 errors, 0 warnings in 1 files` (`lib/api/types.ts`).
+- `scripts/review/run-gate.sh fe` → final stdout line: `REVIEW GATE: FAIL (2 check(s))` — failed checks: `npm run typecheck`, `npm run lint (--max-warnings=0)`. CSR-only / no-`pages/api` / no-raw-`fetch` all PASS; npm-audit advisories are pre-existing Next.js CVEs, not introduced here.
+- `scripts/review/run-gate.sh cross`, coverage, `robot --dryrun`, and live e2e NOT run — the conflict-marker FAIL determines the verdict and a downstream green cannot turn `blocked_review_gate` into `approved`.
+
+**Why blocked_review_gate (not changes_requested, not approved):**
+- NOT `approved`: the gate emits `REVIEW GATE: FAIL`; no live-e2e evidence exists.
+- NOT `changes_requested`: the FE code is not at fault. The conflict markers were authored by the orchestrator's merge commit `74bb4d4`, not by a dev TDG commit. Routing to a fe-dev would be wrong — there is no defect in the dev's authored code, and the remediation is a merge re-resolution, not a code change.
+- All pass-1 code findings remain fixed; all pass-2 verifications hold; only the merge artifact blocks.
+
+**Routing:** Orchestrator should re-perform the `main`→`agent/us005fe` merge and resolve `web/lib/api/types.ts` to the HEAD (doc-commented) interfaces — they are field-for-field identical to `main`, so this is a clean keep-ours-with-docs resolution. Then re-spawn tech-lead review to run the full gate + coverage + robot dryrun + 3× live e2e and finalize. No fe-dev rework required.
+
+Tech-debt: none filed this pass.
+
 ## Notes
 
 ### Files created / modified

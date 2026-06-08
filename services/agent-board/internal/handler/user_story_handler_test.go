@@ -146,14 +146,15 @@ func TestUserStoryHandler_GetProjectUserStories_404_MissingProject(t *testing.T)
 	assert.Equal(t, "Project not found", res["message"])
 }
 
-// IT-003 — GET /api/v1/projects/{id}/user-stories: 404 for invalid project ID format
-func TestUserStoryHandler_GetProjectUserStories_404_InvalidUUID(t *testing.T) {
+// IT-003 — GET /api/v1/projects/{id}/user-stories: 500 for malformed (non-UUID) project ID
+func TestUserStoryHandler_GetProjectUserStories_500_InvalidUUID(t *testing.T) {
 	e := echo.New()
 
-	// projectRepo returns ErrNotFound for any ID that's not a valid uuid (mimicking DB behaviour)
+	// projectRepo returns a generic (non-ErrNotFound) error, mimicking Postgres rejecting
+	// a non-UUID string with "invalid input syntax for type uuid".
 	projectRepo := &mockProjectRepoForUSHandler{
 		GetProjectFunc: func(ctx context.Context, id string) (*domain.Project, error) {
-			return nil, repo.ErrNotFound
+			return nil, errors.New("invalid input syntax for type uuid: \"invalid-uuid\"")
 		},
 	}
 	usRepo := &mockUserStoryListRepo{}
@@ -165,12 +166,12 @@ func TestUserStoryHandler_GetProjectUserStories_404_InvalidUUID(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusNotFound, rec.Code)
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 
 	var res map[string]string
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
-	assert.Equal(t, "NOT_FOUND", res["code"])
-	assert.Equal(t, "Project not found", res["message"])
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+	assert.Equal(t, "Failed to fetch user stories", res["message"])
 }
 
 // IT-004 — GET /api/v1/projects/{id}/user-stories: 500 on repository failure

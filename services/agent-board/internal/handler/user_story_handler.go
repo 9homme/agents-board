@@ -55,7 +55,7 @@ func (h *UserStoryHandler) GetProjectUserStories(c echo.Context) error {
 		log.Printf("Failed to verify project: %v", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{
 			"code":    "INTERNAL_ERROR",
-			"message": "Internal server error",
+			"message": "Failed to fetch user stories",
 		})
 	}
 

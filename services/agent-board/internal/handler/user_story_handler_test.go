@@ -119,7 +119,31 @@ func TestUserStoryHandler_GetProjectUserStories_200(t *testing.T) {
 }
 
 // IT-002 — GET /api/v1/projects/{id}/user-stories: 404 for missing project
-// [SKIP - will be implemented after IT-001 red→green→refactor]
+func TestUserStoryHandler_GetProjectUserStories_404_MissingProject(t *testing.T) {
+	e := echo.New()
+	missingID := "00000000-0000-0000-0000-000000000000"
+
+	projectRepo := &mockProjectRepoForUSHandler{
+		GetProjectFunc: func(ctx context.Context, id string) (*domain.Project, error) {
+			return nil, repo.ErrNotFound
+		},
+	}
+	usRepo := &mockUserStoryListRepo{}
+
+	h := handler.NewUserStoryHandler(usRepo, projectRepo)
+	e.GET("/api/v1/projects/:id/user-stories", h.GetProjectUserStories)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects/"+missingID+"/user-stories", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "NOT_FOUND", res["code"])
+	assert.Equal(t, "Project not found", res["message"])
+}
 
 // IT-003 — GET /api/v1/projects/{id}/user-stories: 404 for invalid project ID format
 // [SKIP - will be implemented after IT-002 loop]

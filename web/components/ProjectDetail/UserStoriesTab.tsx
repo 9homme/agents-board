@@ -1,10 +1,4 @@
 import React from 'react';
-
-/**
- * UserStoriesTab component.
- * Renders a verbatim placeholder copy for the User Stories tab.
- * No network calls — this is a static placeholder for a future release.
- */
 import { UserStoryCardList } from './UserStoryCardList';
 
 interface UserStoriesTabProps {
@@ -24,7 +18,7 @@ export const UserStoriesTab: React.FC<UserStoriesTabProps> = ({ projectId }) => 
       className="p-4"
     >
       {/* onSelect is a no-op stub; the detail drawer will be wired in US005 */}
-      <UserStoryCardList projectId={projectId} onSelect={(_id) => {}} />
+      <UserStoryCardList projectId={projectId} onSelect={() => {}} />
     </div>
   );
 };

@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US004
 **Track:** FE
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** 
 **Worked-by:** fe-dev-20250101-abcd
 **Implements:** US004, D-005, Frontend surface (UserStoriesTab, UserStoryCardList, UserStoryCard)
@@ -174,3 +174,20 @@ This is the **2nd consecutive `changes_requested`** verdict (pass 1 was the 1st;
 **GATE DEFECT NOTED FOR ORCHESTRATOR (route to gate-fix track, separate from this dev rework):** `scripts/review/run-gate.sh fe` runs `npm run typecheck`, `npm run lint`, and `npm test` inside a subshell (`scripts/review/run-gate.sh:117` — `( cd web ... )`). `fail()` increments the `FAILED` counter, but because those checks run in a subshell the increment never propagates to the parent shell, so a FE typecheck/lint/test FAILURE is silently dropped and the gate still prints `REVIEW GATE: PASS` (exit 0). Only the anti-pattern scans (parent shell) affect the real verdict. The FE gate's PASS line therefore cannot currently be trusted for typecheck/lint/test. This is a gate/tooling defect (`blocked_review_gate` class) — but the code ALSO legitimately fails lint (finding #1), so this task is `changes_requested` to the dev regardless. Filed to docs/tech_debt.md and surfaced to the orchestrator so the gate-fix track repairs the subshell.
 
 (No tech-debt filed for the code this pass — verdict is changes_requested; the gate-defect line is filed to docs/tech_debt.md.)
+
+### Review pass 3 (lint fix) — 2026-06-08 — fe-dev rework
+
+**Changes made to address review pass 3 (pass 2) findings:**
+
+1. **Lint error — resolved.** `onSelect={(_id) => {}}` changed to `onSelect={() => {}}` in `web/components/ProjectDetail/UserStoriesTab.tsx`. Unused parameter `_id` removed entirely. `npm run lint --max-warnings=0` → `ESLint: No issues found` (exit 0). `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`.
+
+2. **TDG commit prefix — resolved.** Soft-reset to `67923be`, re-committed the task-file hand-off with `refactor: set US004 FE in_review after TDG rework (US004)` (no double prefix, no disallowed `chore:` suffix). The tech-lead review commit (`d0e2f73`) was cherry-picked back on top. All 9 commits now use valid TDG prefixes.
+
+3. **Stale doc comment — resolved.** Removed the stale block comment (lines 3–7) that read "Renders a verbatim placeholder copy... No network calls — this is a static placeholder". The single accurate doc comment at lines 8–11 ("Renders the list of user stories for a project") is retained.
+
+**Verification:**
+- `npm run lint --max-warnings=0` → `ESLint: No issues found` (exit 0)
+- `npm test -- --watchAll=false --forceExit` → `Test Suites: 20 passed, 20 total; Tests: 157 passed, 157 total`
+- `npm run typecheck` → clean (exit 0)
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`

@@ -573,8 +573,28 @@ func TestUserStoryRepo_ListUserStoriesWithTaskCount_QueryError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// US004-UT-004: ListUserStoriesWithTaskCount returns error on row scan failure.
-// [SKIP - will be implemented after UT-003 loop]
+// US004-UT-004: ListUserStoriesWithTaskCount returns error on row scan failure (type mismatch).
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	// task_count column has wrong type (string instead of int) to force scan failure.
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at", "task_count"}
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows(cols).
+			AddRow("us-id-1", projectID, "Title", "Desc", "draft", "not-a-time", "not-a-time", "not-an-int"))
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	assert.Nil(t, stories)
+	assert.Error(t, err)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
 // US004-UT-005: ListUserStoriesWithTaskCount returns error on rows iteration failure.
 // [SKIP - will be implemented after UT-004 loop]

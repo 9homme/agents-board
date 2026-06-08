@@ -4,7 +4,8 @@ import { UserStoryCard } from './UserStoryCard';
 
 interface UserStoryCardListProps {
   projectId: string;
-  onSelect: (storyId: string) => void;
+  /** Called with the story id and the card button element (for focus management). */
+  onSelect: (storyId: string, cardEl?: HTMLButtonElement) => void;
 }
 
 /**

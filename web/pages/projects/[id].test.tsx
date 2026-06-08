@@ -116,11 +116,8 @@ describe('ProjectDetailPage', () => {
         'true'
       );
 
-      expect(
-        screen.getByText(
-          'Coming soon — user stories will appear here in a future release.'
-        )
-      ).toBeInTheDocument();
+      // UserStoriesTab now renders the real card list (placeholder replaced in US005)
+      expect(screen.getByRole('tabpanel', { name: /user stories/i })).toBeInTheDocument();
     });
   });
 

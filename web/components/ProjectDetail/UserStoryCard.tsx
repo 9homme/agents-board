@@ -3,19 +3,23 @@ import { UserStoryListItem } from '../../lib/api/types';
 
 interface UserStoryCardProps {
   story: UserStoryListItem;
-  onSelect: (id: string) => void;
+  /** Called with the story id and the button element (for focus management). */
+  onSelect: (id: string, cardEl: HTMLButtonElement) => void;
 }
 
 /**
  * A card representing a user story in a list.
  * Keyboard-accessible: uses a semantic <button> element so Enter/Space are
  * handled natively; tabIndex and keyboard events are therefore implicit.
+ *
+ * Passes its own DOM node to onSelect so the parent can return focus when
+ * the drawer closes (architecture D-005 focus management requirement).
  */
 export const UserStoryCard: React.FC<UserStoryCardProps> = ({ story, onSelect }) => {
   return (
     <button
       type="button"
-      onClick={() => onSelect(story.id)}
+      onClick={(e) => onSelect(story.id, e.currentTarget)}
       className="w-full text-left p-4 border rounded shadow-sm hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
       aria-label={`User story: ${story.title}`}
     >

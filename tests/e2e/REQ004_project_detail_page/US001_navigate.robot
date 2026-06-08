@@ -81,9 +81,9 @@ E2E-US001-001 Dashboard click-through to detail page then tab switch
     ${url_after}=    Get Url
     Should Contain    ${url_after}    tab=user-stories
 
-    # Step 8: verbatim placeholder text
+    # Step 8: User Stories tab panel active and shows empty state (no stories seeded)
     Wait For Elements State
-    ...    text="Coming soon — user stories will appear here in a future release."
+    ...    text="No user stories yet for this project."
     ...    visible    timeout=10s
 
     # Step 9: switch back to Documents tab
@@ -100,7 +100,7 @@ E2E-US001-002 Direct URL with tab=user-stories survives browser refresh
     # Navigate directly with tab=user-stories
     New Page    ${WEB_BASE_URL}/projects/${PROJECT_ID}?tab=user-stories
     Wait For Elements State
-    ...    text="Coming soon — user stories will appear here in a future release."
+    ...    text="No user stories yet for this project."
     ...    visible    timeout=15s
 
     # Confirm User Stories tab is active
@@ -111,9 +111,9 @@ E2E-US001-002 Direct URL with tab=user-stories survives browser refresh
     # Reload the page
     Reload
 
-    # After reload: User Stories tab still active
+    # After reload: User Stories tab still active, empty state still shown
     Wait For Elements State
-    ...    text="Coming soon — user stories will appear here in a future release."
+    ...    text="No user stories yet for this project."
     ...    visible    timeout=15s
     ${us_tab_after}=    Get Element    role=tab >> text="User Stories"
     ${aria_after}=    Get Attribute    ${us_tab_after}    aria-selected

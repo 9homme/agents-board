@@ -79,10 +79,14 @@ func run() error {
 
 	documentHandler := handler.NewDocumentHandler(repo.NewDocumentRepo(db), projectRepo)
 
+	userStoryRepo := repo.NewUserStoryRepo(db)
+	userStoryHandler := handler.NewUserStoryHandler(userStoryRepo, projectRepo)
+
 	e.GET("/api/v1/projects", projectHandler.GetProjects)
 	e.GET("/api/v1/projects/:id", projectHandler.GetProject)
 	e.GET("/api/v1/projects/:id/documents", documentHandler.ListProjectDocuments)
 	e.GET("/api/v1/documents/:id", documentHandler.GetDocument)
+	e.GET("/api/v1/projects/:id/user-stories", userStoryHandler.GetProjectUserStories)
 
 	// Start server
 	port := os.Getenv("PORT")

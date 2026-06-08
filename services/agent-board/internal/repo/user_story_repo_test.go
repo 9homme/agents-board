@@ -500,6 +500,127 @@ func TestUserStoryRepo_ListUserStories_EmptyResult(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// US004-UT-001: ListUserStoriesWithTaskCount returns stories with correct taskCount aggregate.
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_Success(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	now := time.Now()
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	id1 := "11111111-e89b-12d3-a456-426614174000"
+	id2 := "22222222-e89b-12d3-a456-426614174000"
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at", "task_count"}
+	mock.ExpectQuery(`SELECT us.id, us.project_id, us.title, us.description, us.status, us.created_at, us.updated_at, COUNT\(t.id\) AS task_count FROM user_stories us LEFT JOIN tasks t ON t.user_story_id = us.id WHERE us.project_id = \$1 GROUP BY us.id ORDER BY us.created_at DESC`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows(cols).
+			AddRow(id1, projectID, "US One", "Desc one", "draft", now, now, 2).
+			AddRow(id2, projectID, "US Two", "Desc two", "in_progress", now, now, 0))
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	require.NoError(t, err)
+	require.Len(t, stories, 2)
+	assert.Equal(t, id1, stories[0].ID)
+	assert.Equal(t, 2, stories[0].TaskCount)
+	assert.Equal(t, id2, stories[1].ID)
+	assert.Equal(t, 0, stories[1].TaskCount)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// US004-UT-002: ListUserStoriesWithTaskCount returns empty slice when no stories exist.
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_Empty(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at", "task_count"}
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows(cols))
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	require.NoError(t, err)
+	assert.NotNil(t, stories)
+	assert.Len(t, stories, 0)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// US004-UT-003: ListUserStoriesWithTaskCount returns error on query execution failure.
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_QueryError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	queryErr := errors.New("connection refused")
+
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnError(queryErr)
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	assert.Nil(t, stories)
+	assert.ErrorIs(t, err, queryErr)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// US004-UT-004: ListUserStoriesWithTaskCount returns error on row scan failure (type mismatch).
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	// task_count column has wrong type (string instead of int) to force scan failure.
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at", "task_count"}
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows(cols).
+			AddRow("us-id-1", projectID, "Title", "Desc", "draft", "not-a-time", "not-a-time", "not-an-int"))
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	assert.Nil(t, stories)
+	assert.Error(t, err)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// US004-UT-005: ListUserStoriesWithTaskCount returns error on rows iteration failure (rows.Err()).
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	now := time.Now()
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at", "task_count"}
+	iterErr := errors.New("rows iteration failed")
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows(cols).
+			AddRow("us-id-1", projectID, "Title", "Desc", "draft", now, now, 1).
+			RowError(0, iterErr))
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	assert.Nil(t, stories)
+	assert.Error(t, err)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // UT-019: List user stories by Project
 func TestUserStoryRepo_ListUserStories(t *testing.T) {
 	db, mock, err := sqlmock.New()

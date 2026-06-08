@@ -7,7 +7,7 @@
 |---|---|---|---|---|
 | Get project user stories returns 200 with list + task count | integration | IT-001 | services/agent-board / internal/handler | `GET /api/v1/projects/{id}/user-stories` |
 | Returns 404 for missing project | integration | IT-002 | services/agent-board / internal/handler | `GET /api/v1/projects/{id}/user-stories` |
-| Returns 404 for invalid project ID format | integration | IT-003 | services/agent-board / internal/handler | `GET /api/v1/projects/{id}/user-stories` |
+| Returns 500 for malformed (non-UUID) project ID | integration | IT-003 | services/agent-board / internal/handler | `GET /api/v1/projects/{id}/user-stories` |
 | Returns 500 on repository failure | integration | IT-004 | services/agent-board / internal/handler | `GET /api/v1/projects/{id}/user-stories` |
 | Repo list user stories with task count | unit | UT-001 | services/agent-board / internal/repo | `ListUserStoriesWithTaskCount` |
 | Repo returns empty list when no stories exist | unit | UT-002 | services/agent-board / internal/repo | `ListUserStoriesWithTaskCount` |
@@ -67,21 +67,27 @@
 - **Endpoint exercised:** `GET /api/v1/projects/{missing-id}/user-stories`
 - **Expect:** Status `404`. Body is `{ "code": "NOT_FOUND", "message": "Project not found" }`.
 
-### IT-003 — Returns 404 for invalid project ID format
+### IT-003 — Returns 500 for malformed (non-UUID) project ID
 - **Service:** `services/agent-board`
-- **Boundary:** handler ↔ repo
+- **Boundary:** handler ↔ repo ↔ DB
+- **Setup:** A real test DB (testcontainers or a shared test instance). Pass the literal string `"invalid-uuid"` as the path parameter.
 - **Endpoint exercised:** `GET /api/v1/projects/invalid-uuid/user-stories`
-- **Expect:** Status `404`. Body is `{ "code": "NOT_FOUND", "message": "Project not found" }`.
+- **Rationale:** Postgres rejects a non-UUID string passed to a `uuid`-typed column with "invalid input syntax for type uuid". This is not `sql.ErrNoRows`, so `GetProject` wraps it as a generic error (not `ErrNotFound`). The handler falls through to the 500 branch — identical to the sibling `ListProjectDocuments` handler. There is no UUID validation gate before the repo call; adding one would be a handler code change outside this story's scope. This behavior is consistent with the existing codebase pattern.
+- **Expect:** Status `500`. Body is `{ "code": "INTERNAL_ERROR", "message": "Failed to fetch user stories" }`.
 
 ### IT-004 — Returns 500 on repository failure
 - **Service:** `services/agent-board`
 - **Boundary:** handler ↔ repo
-- **Setup:** Mock or intercept repo to force an error.
-- **Endpoint exercised:** `GET /api/v1/projects/{id}/user-stories`
-- **Expect:** Status `500`. Body is `{ "code": "INTERNAL_ERROR", "message": "Internal server error" }`.
+- **Setup:** Inject a mock `ProjectRepository` whose `GetProject` returns a non-`ErrNotFound` error (e.g. `errors.New("db connection lost")`), wired into the handler under test via `httptest`.
+- **Endpoint exercised:** `GET /api/v1/projects/{valid-uuid}/user-stories`
+- **Expect:** Status `500`. Body is `{ "code": "INTERNAL_ERROR", "message": "Failed to fetch user stories" }`.
 
 ## Spec change log
 ### Revision 1 — 2024-03-XX — driver: po-ba sign-off pass
 - committed IT-003 to 404 specifically per architecture contract.
 - added IT-004 to cover 500 Internal Error from repository failure.
 - expanded UT-001 into distinct UT-001, UT-003, UT-004, UT-005 for query, scan, and rows iteration errors.
+
+### Revision 2 — 2026-06-08 — driver: tech-lead review gap finding
+- changed IT-003 — changed expected status from 404 to 500 and updated description name from "Returns 404 for invalid project ID format" to "Returns 500 for malformed (non-UUID) project ID". Rationale: live Postgres testing confirmed that an invalid UUID causes "invalid input syntax for type uuid" — a DB-level type error that is NOT `sql.ErrNoRows`. `GetProject` wraps it as a generic error (not `ErrNotFound`); the handler falls to the 500 branch. This is consistent with the sibling `ListProjectDocuments` handler. The architecture's 404 contract says "project does not exist" — a malformed input is semantically distinct and there is no UUID validation gate in the production code. Aligning the spec to real behavior is correct; adding a validation gate would require an out-of-scope handler code change and would leave the sibling handler inconsistent.
+- changed IT-004 — corrected the expected response body `message` from `"Internal server error"` to `"Failed to fetch user stories"` to match the architecture contract and the handler's actual error string. Also tightened the setup description to use a mock `ProjectRepository` via `httptest` rather than vague "intercept repo".

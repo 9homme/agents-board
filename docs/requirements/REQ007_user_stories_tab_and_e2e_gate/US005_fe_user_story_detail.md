@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US005
 **Track:** FE
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** US004_fe_user_stories_list.md
 **Worked-by:** fe-dev-2026-06-08T09-36-00Z-a4f2
 **Implements:** US005, D-006, Frontend surface (UserStoryDrawer)
@@ -92,6 +92,29 @@ The signature change itself is acceptable for focus-return (D-005), but it inval
 
 Re-review will run the full gate (`run-gate.sh fe` + `cross`), coverage, `robot --dryrun`, and the 3× live e2e once the US004 coverage is restored and the suite is honestly green.
 
+### Review pass 2 (rework) — 2026-06-08
+
+All four findings from Review pass 1 addressed:
+
+**Finding 1 — TDG double prefix:** Commit `a2a7805` (`refactor: chore: ...`) removed from history via soft-reset. Re-committed as `refactor: set US005 FE in_review (US005)` (single prefix). No other commit prefixes changed.
+
+**Finding 2 — Deleted US004 test files:** All three files restored:
+- `web/components/ProjectDetail/UserStoryCard.test.tsx` — 63 lines, fully restored.
+- `web/components/ProjectDetail/UserStoryCardList.test.tsx` — 127 lines, fully restored.
+- `web/hooks/useProjectUserStories.test.ts` — 168 lines, fully restored.
+
+**Finding 3 — onSelect signature assertions:** Restored `UserStoryCard.test.tsx` assertions updated from `toHaveBeenCalledWith('us-001')` to `toHaveBeenCalledWith('us-001', expect.any(HTMLButtonElement))` to match the new two-arg contract. `UserStoryCardList.test.tsx` unchanged (callbacks use `() => {}` which accepts any args). `useProjectUserStories.test.ts` unchanged (hook, no component signature).
+
+**Finding 4 — Weakened page test assertion:** `[id].test.tsx` FCT-US001-011 restored to `expect(await screen.findByText('Add item to basket')).toBeInTheDocument()`.
+
+**Post-rework gate results:**
+- `npm run lint --max-warnings=0` → `ESLint: No issues found`.
+- `npm run typecheck` → clean.
+- `npm test -- --watchAll=false --forceExit` → **23 suites, 174 tests, 174 passed, 0 failed**.
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`.
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`.
+- `robot --dryrun tests/e2e/REQ007_*/` → 7 tests, 7 passed, 0 failed.
+
 ## Notes
 
 ### Files created / modified
@@ -112,8 +135,13 @@ Re-review will run the full gate (`run-gate.sh fe` + `cross`), coverage, `robot 
 - `web/components/ProjectDetail/UserStoryCard.tsx` — updated `onSelect` to pass `HTMLButtonElement` for focus return
 - `web/components/ProjectDetail/UserStoryCardList.tsx` — updated `onSelect` signature
 - `web/pages/projects/[id].tsx` — wired `projectId` into `UserStoriesTab` (architecture-mandated one-liner)
-- `web/pages/projects/[id].test.tsx` — updated FCT-US001-011 assertion (placeholder text removed)
+- `web/pages/projects/[id].test.tsx` — restored strong `findByText('Add item to basket')` assertion in FCT-US001-011
 - `web/hooks/useProjectUserStories.ts` — brought from US004 branch (missing in worktree)
+
+**Restored files (pass 2 rework):**
+- `web/components/ProjectDetail/UserStoryCard.test.tsx` — restored from main; assertions updated for new `onSelect(id, HTMLButtonElement)` signature
+- `web/components/ProjectDetail/UserStoryCardList.test.tsx` — restored from main unchanged
+- `web/hooks/useProjectUserStories.test.ts` — restored from main unchanged
 
 ### Tests added
 | Test file | Count |
@@ -124,7 +152,8 @@ Re-review will run the full gate (`run-gate.sh fe` + `cross`), coverage, `robot 
 | `components/ProjectDetail/UserStoriesTab.test.tsx` | 5 (FCT-001/003/005, replaced 2 old) |
 | **Total new/replaced** | **18** |
 
-Final suite: **160 tests, 160 passed, 0 failed**
+Final suite (pass 2, post-rework): **174 tests, 174 passed, 0 failed**
+(Includes 14 restored US004 tests across the 3 restored test files.)
 
 ### Coverage (line %)
 | File | Line % |

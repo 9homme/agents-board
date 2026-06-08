@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US004
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Blocked by:** 
 **Worked-by:** fe-dev-20250101-abcd
 **Implements:** US004, D-005, Frontend surface (UserStoriesTab, UserStoryCardList, UserStoryCard)
@@ -191,3 +191,35 @@ This is the **2nd consecutive `changes_requested`** verdict (pass 1 was the 1st;
 - `npm run typecheck` → clean (exit 0)
 - `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`
 - `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`
+
+### Review pass 4 — 2026-06-08 — tech-lead — verdict: approved
+
+This is the 3rd tech-lead verdict on this task (pass 1 = changes_requested #1; the entry mislabeled "Review pass 3 — tech-lead" was changes_requested #2; this is the 3rd). All findings from both prior verdicts are genuinely resolved, the previously-untrustworthy FE gate has been repaired and is now trustworthy, and every mandatory piece of review evidence is present. **The circuit breaker does NOT trip — a streak resets on approval and there is no warranted code defect remaining.** Verdict: APPROVED.
+
+**Prior findings — all verified resolved:**
+1. (pass 1 #1 / pass 2 #2) TDG double-prefix `refactor: chore:` — GONE. All 10 dev commits use valid single TDG prefixes (`red:`/`green:`/`refactor:`) ending `(US004)`, in red→green→refactor order. The `tech-lead:` review commit and the `fix: ...(US004)` gate-fix commit (scripts-only, gate-fix track) are correctly exempt from the dev TDG contract.
+2. (pass 2 #1) Lint error `'_id' is defined but never used` on `UserStoriesTab.tsx` — FIXED. `onSelect={() => {}}` (no unused param). `npm run lint -- --max-warnings=0` → `ESLint: No issues found` (exit 0).
+3. (pass 2 #3) Stale "verbatim placeholder / No network calls" doc comment — REMOVED. `UserStoriesTab.tsx` now carries a single accurate doc comment ("Renders the list of user stories for a project").
+
+**Gate trustworthiness restored (was the pass-2 blocker for trusting PASS):** commit `f380ce0` rewrote `gate_fe()` so FE checks run as `( cd web && ... ) || fail "..."`, where `fail` executes in the **parent** shell (previously it ran inside a subshell and the `$FAILED` increment was lost, masking real failures). Verified: a genuine lint/type/test failure would now flip the verdict to FAIL. The gate's `REVIEW GATE: PASS` is now trustworthy. Tech-debt line for the defect struck through as RESOLVED.
+
+**Mandatory evidence (verbatim):**
+- `npm run lint -- --max-warnings=0` → `ESLint: No issues found` (exit 0).
+- `npm run typecheck` → clean (exit 0).
+- `npm test -- --watchAll=false --forceExit` → `Test Suites: 20 passed, 20 total; Tests: 157 passed, 157 total`. FCT-001 through FCT-006 all present and passing.
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS` (exit 0). FE anti-pattern scan PASS (no SSR/SSG exports, no `web/pages/api/`, no raw `fetch()` outside `lib/api/`). npm-audit advisories are pre-existing Next.js CVEs → WARN, not counted (not introduced here).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (exit 0). semgrep PASS, gitleaks PASS.
+- `robot --dryrun tests/e2e/REQ007_*/` → `7 tests, 7 passed, 0 failed` (parse/keyword-resolution check).
+- Per-file coverage (US004 touched, production): `UserStoriesTab.tsx` 100% lines · `UserStoryCard.tsx` 100% lines · `UserStoryCardList.tsx` 100% lines · `useProjectUserStories.ts` 91.17% lines (75-78 = defensive non-Error/non-ApiError catch fallback) · `pages/projects/[id].tsx` 100% lines · `userStories.ts` 42.85% lines — below 80% but covered by the written `## Coverage exemption` (lines 20-36 are `fetchUserStory`/`fetchUserStoryTasks`, US005 scope; `fetchProjectUserStories` is 100% covered). Exemption legitimate.
+
+**Live e2e (E2E-US004) — NOT counted against this FE task (confirmed backend dependency).** The BE task `US004_be_user_stories_list` is `Status: pending` — the `GET /api/v1/projects/{id}/user-stories` route does not exist yet, so the live Robot run cannot be green for a reason exclusively external to this FE code. Per the agent contract this is a backend-dependency blocker, not a FE fault. The 3-consecutive-live-run requirement will be satisfied at the story-level test-report step (Phase 3c) once the BE endpoint merges. FE correctness is fully proven here via component/hook tests against MSW handlers that mirror the exact JSON contract.
+
+**Architecture / contract conformance — PASS:** `types.ts` matches the contract field-for-field including the `taskCount`-on-list-item / no-`taskCount`-on-detail asymmetry (contract freeze note honored); `useProjectUserStories` mirrors the `useProjectDocuments` AbortController + stale-id-ref race-safe pattern (D-005); all backend calls go through `web/lib/api/userStories.ts` (no raw fetch in components/hooks/pages); MSW handlers mirror the exact JSON (200 wrapped list, 404 `NOT_FOUND`, 500 `INTERNAL_ERROR`); CSR-only respected (semantic `<button>`, no SSR/SSG, no API routes); `UserStoryCard` is an accessible semantic button with `aria-label` including the title (FCT-005).
+
+**Test-spec exhaustiveness (anti-REQ005):** `UserStoryCardList` state branches loading/error/empty/success → FCT-003/FCT-004/FCT-002/FCT-001 (4 branches, 4 cases — OK); `UserStoryCard` click/Enter/Space/accessible-name → FCT-005 (OK); `useProjectUserStories` success + 500-error + abort-on-unmount/id-change → FCT-006 + supporting tests (OK). No uncovered branch lacking a spec ID. No spec gap.
+
+**react-doctor evidence:** present in `## Notes` — `react-doctor --diff score: 100 / 100 — No issues found`; initial `prefer-tag-over-role` warning fixed by the semantic-button refactor (no regression, no new errors/warnings). Verified the line is present; not re-run (author-side check).
+
+**Tech-debt filed this pass:**
+- Struck through (RESOLVED) the FE-gate subshell defect (now fixed by `f380ce0`).
+- Filed: Jest suite-wide worker-leak masked by `--forceExit` (pre-existing, suite-wide, not introduced by US004) — `docs/tech_debt.md`.

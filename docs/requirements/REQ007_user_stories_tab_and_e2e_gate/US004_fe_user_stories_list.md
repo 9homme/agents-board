@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US004
 **Track:** FE
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** 
 **Worked-by:** fe-dev-20250101-abcd
 **Implements:** US004, D-005, Frontend surface (UserStoriesTab, UserStoryCardList, UserStoryCard)
@@ -143,3 +143,34 @@ Tests, typecheck, gates, and coverage all pass. Two blocking issues — one proc
 2. **`console.log` in production code — resolved.** `UserStoriesTab.tsx` `onSelect` stub changed from `(id) => console.log('Selected:', id)` to `(_id) => {}` with a comment noting US005 will wire the drawer. `UserStoriesTab.test.tsx` updated accordingly (third test now verifies no-op fires silently without asserting on console).
 
 **Additional improvement:** `UserStoryCard.tsx` refactored from `div+role="button"` to a semantic `<button>` element after react-doctor flagged `prefer-tag-over-role`. This resolved the warning and brought the score to 100/100. All FCT-005 assertions still pass (RTL `getByRole('button')` works on semantic buttons). The keyboard Enter/Space handling is now implicit via the native button element.
+
+### Review pass 3 — 2026-06-08 — tech-lead — verdict: changes_requested
+
+This is the **2nd consecutive `changes_requested`** verdict (pass 1 was the 1st; the circuit breaker trips on the 3rd). Pass 1's two findings ARE resolved (TDG history reworked into red→green→refactor cycles; `console.log` removed). However the fix for the `console.log` finding introduced a **new blocking lint error**, and the TDG history reintroduced one malformed prefix. Both must be fixed before approval.
+
+**Evidence captured:**
+- `npm test -- --watchAll=false --forceExit` → `Test Suites: 20 passed, 20 total; Tests: 157 passed, 157 total`. FCT-001 through FCT-006 all present and passing.
+- `npm run typecheck` → clean (exit 0).
+- `scripts/review/run-gate.sh fe` → prints `REVIEW GATE: PASS` (exit 0) **BUT this PASS is unreliable** — see finding #2/gate-defect note. The gate's own constituent check `npm run lint (--max-warnings=0)` printed `FAIL` inside the run, yet the final verdict still said PASS.
+- `npm run lint --max-warnings=0` run directly (outside the gate) → **exit 1, ESLint Error** (see finding #1).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (exit 0) — semgrep PASS, gitleaks PASS. Legitimate.
+- Live e2e (E2E-US004) remains blocked on the pending BE task `US004_be_user_stories_list` (GET /api/v1/projects/{id}/user-stories not yet implemented). NOT counted against this FE task — it is a backend dependency, confirmed.
+
+**Required changes:**
+
+1. **Blocking lint error — `web/components/ProjectDetail/UserStoriesTab.tsx:27`.** `onSelect={(_id) => {}}` declares an unused parameter `_id`, which `@typescript-eslint/no-unused-vars` reports as an **Error** (the project's ESLint config does not honor the `_`-prefix ignore convention). `npm run lint --max-warnings=0` exits 1:
+   ```
+   ./components/ProjectDetail/UserStoriesTab.tsx
+   27:59  Error: '_id' is defined but never used.  @typescript-eslint/no-unused-vars
+   ```
+   This is a gating check in the FE DoD. Fix the stub so it passes lint — e.g. `onSelect={() => {}}` (drop the unused parameter entirely; the no-op needs no argument), keeping the comment noting US005 will wire the drawer. Re-run `npm run lint --max-warnings=0` and confirm exit 0.
+
+2. **TDG commit discipline — malformed prefix reintroduced — commit `b8427ef`.** Subject: `refactor: chore: set US004 FE in_review after TDG rework (US004)`. This is a malformed double prefix and `chore:` is an explicitly disallowed non-tdg prefix — the identical class of violation flagged in pass 1 finding #1. The other 8 commits are correct red→green→refactor with `(US004)` tags; this final status-flip commit is the sole offender. Reword to a single valid tdg prefix — since it only touches the task markdown (status + notes), `refactor: hand off US004 FE for review after TDG rework (US004)` is acceptable. (Interactive rebase is unavailable here; use `git commit --amend` if it is HEAD, or recommit the task-file change under a compliant subject.)
+
+3. **(Non-blocking, fold into the rework) stale doc comments — `web/components/ProjectDetail/UserStoriesTab.tsx:3-7`.** The leading block comment still reads "Renders a verbatim placeholder copy... No network calls — this is a static placeholder", which contradicts the new implementation (it now renders `UserStoryCardList`, which fetches). There are now two doc-comment blocks on this file (lines 3-7 and 14-17). Remove the stale lines 3-7; keep the accurate block at 14-17. Not independently blocking, but fix it in the same pass since the file is being touched.
+
+**Architecture / contract conformance — PASS** (unchanged from pass 1): `types.ts` matches the contract field-for-field incl. the `taskCount` asymmetry; the hook mirrors the `useProjectDocuments` AbortController + stale-id-ref pattern (D-005); all backend calls go through `web/lib/api/userStories.ts`; MSW handlers mirror the exact JSON (200 wrapped list, 404 `NOT_FOUND`, 500 `INTERNAL_ERROR`); CSR-only respected; `UserStoryCard` is a semantic accessible `<button>` with `aria-label` including the title (FCT-005).
+
+**GATE DEFECT NOTED FOR ORCHESTRATOR (route to gate-fix track, separate from this dev rework):** `scripts/review/run-gate.sh fe` runs `npm run typecheck`, `npm run lint`, and `npm test` inside a subshell (`scripts/review/run-gate.sh:117` — `( cd web ... )`). `fail()` increments the `FAILED` counter, but because those checks run in a subshell the increment never propagates to the parent shell, so a FE typecheck/lint/test FAILURE is silently dropped and the gate still prints `REVIEW GATE: PASS` (exit 0). Only the anti-pattern scans (parent shell) affect the real verdict. The FE gate's PASS line therefore cannot currently be trusted for typecheck/lint/test. This is a gate/tooling defect (`blocked_review_gate` class) — but the code ALSO legitimately fails lint (finding #1), so this task is `changes_requested` to the dev regardless. Filed to docs/tech_debt.md and surfaced to the orchestrator so the gate-fix track repairs the subshell.
+
+(No tech-debt filed for the code this pass — verdict is changes_requested; the gate-defect line is filed to docs/tech_debt.md.)

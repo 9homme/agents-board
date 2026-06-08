@@ -4,7 +4,7 @@
 **Story:** US003
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US002_be_makefile_healthcheck.md
 **Worked-by:** be-dev-2026-06-08T10:00:00Z-b4e2
 **Implements:** US003, D-003, D-004
@@ -103,3 +103,35 @@ Sequence red → green → refactor → refactor — OK.
 Once the tester fixes the REQ005 resource path (and once US004/US005 land), re-spawn this task for re-review (pass 2) to confirm the full-suite `make e2e-run` reaches 3x green. No US003 code change is required.
 
 **Tech-debt:** filed (see below) — committed Robot artifacts tracked-on-main despite being gitignored.
+
+### Review pass 2 — 2026-06-08 — verdict: approved
+Pass-1 blocker is RESOLVED. Rebased `agent/us003be` onto `main` (5 commits replayed clean), which pulled in the REQ005 Resource-path fix. Verified `tests/e2e/REQ005_quality_hardening_retrospective/US006_rapid_navigation.robot:22` now reads `Resource ../REQ004_project_detail_page/resources/project_detail_keywords.resource` (was `../../`). The full-suite `make e2e-run` no longer parse-aborts — all 30 tests now execute.
+
+**Scope / architecture conformance (D-003/D-004):** US003 diff vs main touches only `.github/workflows/e2e.yml` (47 lines, new), `services/agent-board/internal/workflow/workflow_test.go` (test-only), `docs/tech_debt.md` (+2), and this task file. Workflow conforms: `on.pull_request.branches: [main]` only, no `push` ✓; `runs-on: ubuntu-latest` ✓; reuses `make e2e-up`/`e2e-seed`/`e2e-run` ✓; `actions/upload-artifact@v4` with `if: always()` → `tests/e2e/results/` ✓; `make e2e-down` with `if: always()` ✓. No silent deviation.
+
+**TDG conformance:** `git log main..HEAD` (pre-rebase dev commits) — `red:` → `green:` → `refactor:` → `refactor:`, all ending `(US003)`. OK (unchanged from pass 1).
+
+**Test spec exhaustiveness:** CI YAML has no application error branches. 5 Go validation tests UT-US003-001..005 map 1:1 to the 5 dryrun assertion steps in `US003_e2e_tests.md` and cover all 6 ACs. No production `.go` file ⇒ no error-branch gap. Coverage exemption valid.
+
+**Test summary:** `go test ./...` (services/agent-board) = 312 passed, exit 0; `go vet ./...` clean.
+
+**Coverage (per `## Files touched`):** `internal/workflow/` contains only `workflow_test.go` — no production `.go` to measure (`go tool cover -func` = total 0.0% statements, expected). Covered by the written `## Coverage exemption` section — accepted.
+
+**Gate evidence (verbatim):**
+- `scripts/review/run-gate.sh be services/agent-board` → `REVIEW GATE: PASS` (gosec/govulncheck WARN-skipped — not installed; gate-internal tolerated, already in tech-debt)
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`
+- `robot --dryrun tests/e2e/REQ007_*/` → `7 tests, 7 passed, 0 failed`
+
+**Live full-suite e2e (`make e2e-run` via Podman), 3 consecutive runs — DETERMINISTIC, not flaky:**
+- Run 1: `30 tests, 24 passed, 6 failed` — `E2E-US003-001 GitHub Actions workflow is correctly configured | PASS`
+- Run 2: `30 tests, 24 passed, 6 failed` — `E2E-US003-001 GitHub Actions workflow is correctly configured | PASS`
+- Run 3: `30 tests, 24 passed, 6 failed` — `E2E-US003-001 GitHub Actions workflow is correctly configured | PASS`
+
+The same 6 tests fail on every run (identical set, identical TimeoutError reasons) — this is deterministic cross-task sequencing, NOT a flake. All 6 failures are REQ007 Browser/FE tests whose FE has not yet merged into this BE-only worktree:
+- `E2E-US001-001/002` — wait on `text="Coming soon — user stories will appear here in a future release."` (User Stories tab placeholder not rendered — FE tab not built).
+- `E2E-US004-001/002` — user story cards (US004 FE not merged).
+- `E2E-US005-001/002` — story detail drawer (US005 FE not merged).
+
+US003's diff cannot affect any Browser test (CI YAML + Go test file only). The US003-tagged test passes 3/3 in both full-suite and isolated runs. Per the task scope and the REQ007 dependency graph, these failures are out of US003's responsibility — they are not flakes, not US003 application/CI defects, and not a gate/tooling failure. Filed as an operational sequencing note in `docs/tech_debt.md` (do not enable branch protection until REQ007 FE stories land). Approving.
+
+**Tech-debt:** filed this pass — operational note that the e2e gate is RED until REQ007 FE merges (branch-protection sequencing). The pass-1 gitignore item remains filed.

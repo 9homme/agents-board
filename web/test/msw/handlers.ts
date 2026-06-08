@@ -175,4 +175,97 @@ export const handlers = [
       { status: 404 }
     )
   }),
+
+  // ---------------------------------------------------------------------------
+  // GET /api/v1/projects/:id/user-stories — list user stories (US004)
+  // Architecture: 200 with userStories array; 404 when project not found; 500
+  // ---------------------------------------------------------------------------
+
+  // broken-project — 500
+  http.get('*/api/v1/projects/broken-project/user-stories', () => {
+    return HttpResponse.json(
+      { code: 'INTERNAL_ERROR', message: 'Failed to fetch user stories' },
+      { status: 500 }
+    )
+  }),
+
+  // ghost-project — 404 (project not found)
+  http.get('*/api/v1/projects/ghost-project/user-stories', () => {
+    return HttpResponse.json(
+      { code: 'NOT_FOUND', message: 'Project not found' },
+      { status: 404 }
+    )
+  }),
+
+  // Wildcard happy path — returns one story for any other project id
+  http.get('*/api/v1/projects/:id/user-stories', ({ params }) => {
+    const id = typeof params.id === 'string' ? params.id : String(params.id);
+    return HttpResponse.json({
+      userStories: [
+        {
+          id: 'us1',
+          projectId: id,
+          title: 'Add item to basket',
+          description: 'As a shopper I want to add an item to my basket.',
+          status: 'in_development',
+          taskCount: 3,
+          createdAt: '2024-01-01T00:00:00Z',
+          updatedAt: '2024-01-02T09:30:00Z',
+        },
+      ],
+    })
+  }),
+
+  // ---------------------------------------------------------------------------
+  // GET /api/v1/user-stories/:id/tasks — tasks for a user story (US005)
+  // Architecture §3: wrapped tasks array; 404 / 500
+  // NOTE: must be registered BEFORE the bare /:id handler to avoid shadowing.
+  // ---------------------------------------------------------------------------
+
+  // Wildcard happy path — returns two tasks for any story id
+  http.get('*/api/v1/user-stories/:id/tasks', ({ params }) => {
+    const id = typeof params.id === 'string' ? params.id : String(params.id);
+    return HttpResponse.json({
+      tasks: [
+        {
+          id: 'task-001',
+          userStoryId: id,
+          title: 'be_basket_repo',
+          description: 'Implement the basket repository layer.',
+          status: 'completed',
+          createdAt: '2024-01-01T10:00:00Z',
+          updatedAt: '2024-01-02T11:00:00Z',
+        },
+        {
+          id: 'task-002',
+          userStoryId: id,
+          title: 'fe_basket_button',
+          description: 'Add the add-to-basket button.',
+          status: 'in_review',
+          createdAt: '2024-01-02T10:00:00Z',
+          updatedAt: '2024-01-03T11:00:00Z',
+        },
+      ],
+    })
+  }),
+
+  // ---------------------------------------------------------------------------
+  // GET /api/v1/user-stories/:id — single user story detail (US005)
+  // Architecture §2: bare UserStory object (no taskCount); 404 / 500
+  // NOTE: registered AFTER /:id/tasks to avoid shadowing.
+  // ---------------------------------------------------------------------------
+
+  // Wildcard happy path — returns story detail for any id
+  http.get('*/api/v1/user-stories/:id', ({ params }) => {
+    const id = typeof params.id === 'string' ? params.id : String(params.id);
+    return HttpResponse.json({
+      id,
+      projectId: 'proj-001',
+      title: 'Add item to basket',
+      description: 'As a shopper I want to add an item to my basket so that I can purchase it later.',
+      status: 'in_development',
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-02T09:30:00Z',
+    })
+  }),
 ]

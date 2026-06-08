@@ -116,8 +116,8 @@ describe('ProjectDetailPage', () => {
         'true'
       );
 
-      // UserStoriesTab now renders the real card list (placeholder replaced in US005)
-      expect(screen.getByRole('tabpanel', { name: /user stories/i })).toBeInTheDocument();
+      // Verify it loads the card list (wait for async load)
+      expect(await screen.findByText('Add item to basket')).toBeInTheDocument();
     });
   });
 

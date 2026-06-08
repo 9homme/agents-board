@@ -4,7 +4,7 @@
 **Story:** US005
 **Track:** FE
 **Status:** blocked_review_gate
-**Blocked by:** US004_fe_user_stories_list.md
+**Blocked by:** US004_fe_user_stories_list.md, US004/US005 BE REST endpoints (not present on this branch — see Review pass 4)
 **Worked-by:** fe-dev-2026-06-08T09-36-00Z-a4f2
 **Implements:** US005, D-006, Frontend surface (UserStoryDrawer)
 
@@ -176,6 +176,45 @@ Resubmit after the orchestrator merged `main` (carrying US001 migrate-at-startup
 **Routing:** Orchestrator should re-perform the `main`→`agent/us005fe` merge and resolve `web/lib/api/types.ts` to the HEAD (doc-commented) interfaces — they are field-for-field identical to `main`, so this is a clean keep-ours-with-docs resolution. Then re-spawn tech-lead review to run the full gate + coverage + robot dryrun + 3× live e2e and finalize. No fe-dev rework required.
 
 Tech-debt: none filed this pass.
+
+### Review pass 4 — 2026-06-08 — verdict: blocked_review_gate
+
+Resubmit after the orchestrator (a) merged `main` carrying US001 migrate-at-startup and (b) hand-fixed the conflict markers in `web/lib/api/types.ts` (pure comment additions, no logic change). Both pass-2/pass-3 infrastructure blockers are now RESOLVED, and every static/unit gate I can run on this branch is GREEN. The verdict is `blocked_review_gate` (highest precedence) solely because the mandatory live-e2e DoD gate cannot go green — the BE REST endpoints the FE depends on are not implemented on this branch. This is a cross-task integration gap, NOT an FE code fault. No fe-dev rework is warranted.
+
+**Pass-3 blocker — RESOLVED:**
+- `grep -rnE "^(<<<<<<<|>>>>>>>|=======)" web/ (excluding node_modules)` → no markers in any tracked source file. `web/lib/api/types.ts` is clean; the only `<<<<<<<` hits are string literals inside `web/node_modules/typescript/lib/*.js` (the TS compiler's own merge-conflict detector), not our code.
+- `web/lib/api/types.ts` carries the doc-commented HEAD interfaces (`UserStoryListItem` with `taskCount`, bare `UserStory` without, `Task`, `TasksListResponse`) — contract-asymmetry intent preserved.
+
+**Pass-2 infra blocker — RESOLVED (US001 migrate wiring present and WORKS):**
+- `grep -n migrate services/agent-board/cmd/api-server/main.go` → line 16 import + line 73 `migrate.Run(ctx, db, migrations.FS)` before serving traffic.
+- Live-verified: after rebuilding the api-server image from current source, `make e2e-up` reported `-> stack is healthy: api-server :8080, web :3000, mcp-server :8081` (exit 0), and `\dt` showed `projects`, `user_stories`, `tasks`, `documents`, `schema_migrations`, `status_audit_trail` all created at startup. `GET /api/v1/projects` → 200 `{"projects":[]}`.
+- IMPORTANT for the orchestrator: the FIRST `make e2e-up` attempts failed with `relation "projects" does not exist (SQLSTATE 42P01)` purely because the cached `localhost/agents-board_api-server:latest` image was 35h stale (predated the migrate wiring). `e2e-up` runs `podman-compose up -d` with NO `--build`, so it reused the stale image. A `podman-compose build api-server` then `make e2e-up` brought the schema up correctly. The migrate code itself is sound — the failure was a stale-image artifact, not a code defect.
+
+**All static/unit gates — GREEN (verbatim):**
+- `npm run lint -- --max-warnings=0` → `ESLint: No issues found`.
+- `npm run typecheck` → clean (no merge-marker TS errors; pass-3 issue gone).
+- `npm test -- --coverage --watchAll=false --forceExit` → **23 passed, 23 total; Tests: 174 passed, 174 total, 0 failed.**
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS` (CSR-only PASS, no `web/pages/api/`, no raw `fetch()` outside `web/lib/api/`; npm-audit advisories are pre-existing Next.js/postcss CVEs, not introduced by this task).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep PASS, gitleaks PASS).
+- Per-file coverage (touched production files, all ≥ 80% line): `UserStoriesTab.tsx` 100%, `UserStoryDrawer.tsx` 100%, `UserStoryCard.tsx` 100%, `UserStoryCardList.tsx` 100%, `userStories.ts` 100%, `useUserStory.ts` 94.59%, `useUserStoryTasks.ts` 94.59%, `useProjectUserStories.ts` 91.17%.
+- `robot --dryrun tests/e2e/REQ007_*/` → **7 tests, 7 passed, 0 failed.**
+- react-doctor evidence present in `## Notes`: 92/100 diff score, no regression. OK.
+- TDG: dev commits (`dd11070`..`58dbe7f`, `86a36b7`, `6757b0f`) all use single `red:`/`green:`/`refactor:` prefixes with `(US005)` tags; pass-1 double-prefix fix holds. No deletions of US004 test files (`git diff main --diff-filter=D --name-only -- web/` empty).
+- Manual checklist: native `<dialog open>` (role=dialog) + `aria-modal`, accessible-labelled close button, document Escape handler, focus-to-close-button on mount, focus-return via `triggerRef`; backend calls only through `web/lib/api/userStories.ts`; no `getServerSideProps`/`getStaticProps`/`getInitialProps`; no `console.log`. Conforms to D-005 and the locked contract.
+
+**Why blocked_review_gate (live-e2e cannot go green — FE code NOT at fault):**
+The mandatory 3× live-e2e gate cannot be satisfied. Ran the full stack (rebuilt images, `make e2e-up` healthy, `make e2e-seed` OK) and `make e2e-run` once:
+- Grand total: **`30 tests, 23 passed, 7 failed`** — the 7 failures include both US005 e2e cases (E2E-US005-001, E2E-US005-002) plus US001/US003/US004 browser cases.
+- US005 failure mode: `TimeoutError: locator.waitFor: Timeout 10000ms exceeded — waiting for locator('role=heading').locator('text=US005 Story 1') to be visible`. The story card never renders.
+- ROOT CAUSE (verified): the api-server REST API does NOT register the user-story endpoints the FE calls. `curl http://localhost:8080/api/v1/projects/{id}/user-stories` → **`{"message":"Not Found"}`**. `main.go` lines 82-85 register ONLY `/api/v1/projects`, `/api/v1/projects/:id`, `/api/v1/projects/:id/documents`, `/api/v1/documents/:id`. There is NO `GET /api/v1/projects/:id/user-stories`, NO `GET /api/v1/user-stories/:id`, NO `GET /api/v1/user-stories/:id/tasks` HTTP route. (`user_story_tools.go`/`task_tools.go` exist but are MCP-SSE tools, not the REST handlers the FE consumes.)
+- The architecture LOCKS these three REST endpoints (architecture.md lines 87, 95-96, 146, 181, 211, 338). The FE correctly implements against them; the BE REST handlers for US004/US005 are simply not present/merged on `agent/us005fe`. With no backend to serve `/user-stories`, the list never populates and no card heading appears — hence the browser timeouts.
+
+**Routing (NOT a dev fix, NOT approved):**
+- NOT `approved`: the three consecutive green live-e2e evidence lines do not exist; one run already shows 7 failures including both US005 cases.
+- NOT `changes_requested`: the FE code is fully verified against the locked MSW contract (174 unit + gates + dryrun green); the failure is the absent BE REST API, outside this FE task's scope and `Track`.
+- Orchestrator action: ensure the US004/US005 BE REST endpoints (`GET /projects/{id}/user-stories`, `GET /user-stories/{id}`, `GET /user-stories/{id}/tasks` per architecture §1-3) are implemented and merged into the working branch, then rebuild images (`podman-compose build`) so `e2e-up` does not reuse a stale cache, then re-spawn tech-lead review to run the 3× live e2e and finalize. Consider adding `--build` to the `e2e-up` Makefile target (or a documented `make e2e-build` step) so stale-image false failures stop recurring — filed to tech-debt below.
+
+Tech-debt: filed (see docs/tech_debt.md — stale-image e2e-up footgun).
 
 ## Notes
 

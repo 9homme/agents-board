@@ -70,9 +70,12 @@ func Run(ctx context.Context, db *sql.DB, fsys fs.FS) error {
 			}
 			defer func() { _ = tx.Rollback() }()
 
+			if _, err := tx.ExecContext(ctx, string(content)); err != nil {
+				return fmt.Errorf("failed to execute migration %s: %w", file, err)
+			}
+
 			return tx.Commit()
 		}()
-		_ = content
 
 		if err != nil {
 			return err

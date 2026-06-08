@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** 
 **Worked-by:** be-dev-2026-06-08T00-00-00Z-a4f2
 **Implements:** US004, API contract GET /api/v1/projects/{id}/user-stories, Data model (ListUserStoriesWithTaskCount query)
@@ -189,3 +189,33 @@ Re-review on a host with **Podman** (no Docker). Stack brought up via `make e2e-
 **TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries).
 
 **Tech-debt:** none filed this pass (the sole finding is blocking, not a non-blocking nit).
+
+### Review pass 3 rework — 2026-06-08 — be-dev response
+
+**Rework driver:** Pass 3 finding — branch cut from stale base (`3ccd7ee`), causing `cmd/api-server/main.go` to be missing US001's `migrate.Run(ctx, db, migrations.FS)` boot call and related imports. Rebase onto current `main` (`72f17e8`) required.
+
+**Fix applied:** `git rebase main` inside the worktree. Conflicts in `docs/tech_debt.md` and Robot artifact files (`log.html`, `output.xml`, `report.html`, `playwright-log.txt`) from tech-lead review-log commits were resolved by accepting HEAD (main) versions. Rebase completed successfully (`34/34` commits applied).
+
+**Verification — main.go now contains (all three requirements satisfied):**
+- `import "agent-board/internal/migrate"` (line 16)
+- `import "agent-board/migrations"` (line 18)
+- `migrate.Run(ctx, db, migrations.FS)` boot call (line 73)
+- `GET /api/v1/projects/:id/user-stories` route registration (line 89)
+
+**Test run (post-rebase):** `go test ./...` → **316 passed, 0 failed** (up from 310+1-failed on the stale base; all US001 migrate tests now pass). `go vet ./...` → clean.
+
+**BE review gate (post-rebase):** `scripts/review/run-gate.sh be services/agent-board` → **REVIEW GATE: PASS** (gofmt, go vet, golangci-lint, go test all PASS; gosec/govulncheck WARN-skipped — not installed).
+
+**Cross gate:** `scripts/review/run-gate.sh cross` → **REVIEW GATE: PASS**.
+
+**Live e2e (3 runs, Podman stack):**
+- Stack rebuilt (`podman-compose build api-server`) to pick up the rebased main.go with migrate.Run.
+- `make e2e-up` → stack healthy (api-server ran migrations at startup; `GET /api/v1/projects` returned 200 after migration).
+- `make e2e-seed` → 3 rows inserted.
+- Run 1: `30 tests, 25 passed, 5 failed`
+- Run 2: `30 tests, 25 passed, 5 failed`
+- Run 3: `30 tests, 25 passed, 5 failed`
+- `E2E-US001-001 API starts and serves requests immediately on a fresh stack` → **PASS** (confirms migrate.Run wiring works end-to-end).
+- `E2E-US002-001 mcp-server health-check is bounded and e2e-seed is data-only` → **PASS**.
+- Persistent failures (all 3 runs, deterministic, not flakes): `E2E-US003-001` (GitHub Actions workflow file absent — US003 BE, separate unmerged worktree), `E2E-US004-001/002` (FE User Stories tab — US004 FE, separate unmerged worktree), `E2E-US005-001/002` (FE drawer — US005 FE, separate unmerged worktree). None of these is a BE contract defect.
+- `make e2e-down` completed.

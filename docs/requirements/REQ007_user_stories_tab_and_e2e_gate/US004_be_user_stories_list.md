@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** 
 **Worked-by:** be-dev-2026-06-08T00-00-00Z-a4f2
 **Implements:** US004, API contract GET /api/v1/projects/{id}/user-stories, Data model (ListUserStoriesWithTaskCount query)
@@ -149,3 +149,43 @@ Re-review on a host with **Podman** (no Docker). Stack brought up via `make e2e-
 **Test results:** `go test ./internal/handler/... ./internal/repo/...` → 263 passed, 0 failed. `go vet ./...` → clean. Pre-existing `internal/migrate/TestRun_UT001_CreateTableFails` failure is US001 scope, unchanged.
 
 **Coverage (US004 production files):** `GetProjectUserStories` → 93.3% (up from 86.7%; the project-check 500 branch is now covered by IT-003). Both production files remain ≥80%.
+
+### Review pass 3 — 2026-06-08 — verdict: changes_requested
+
+**Counter note:** passes 1 and 2 were `blocked_review_gate` (gate/tooling unobtainable, NOT code-fault). The interim "Review pass 3 (spec update)" entry above is a dev re-application note, not a tech-lead verdict. The consecutive-`changes_requested` streak is therefore **0** — this is the **1st** `changes_requested`. Circuit breaker does NOT trip.
+
+**Verdict driver: a real integration regression introduced by a stale worktree base.** The US004 BE application logic itself (handler + repo + tests) is correct and matches the architecture contract field-for-field, AND the IT-003/IT-004 spec-alignment fixes from the tester revision are correctly applied. But this worktree branched from an **older `main`** (merge-base `3ccd7ee`) that predates US001's migrations-at-startup wiring landing on `main` (current `main` = `39a4b90`). As a result, merging this branch back into the current `main` would silently **revert US001's boot-time migration** — a cross-task regression outside this task's `Scope: In`.
+
+**Evidence:**
+- `git merge-base --is-ancestor main HEAD` → **NO** (current `main` is not an ancestor of this branch — the branch is behind `main`).
+- `git diff main HEAD -- services/agent-board/cmd/api-server/main.go` shows this branch, relative to current `main`, **deletes**:
+  - `import "agent-board/internal/migrate"`
+  - `import "agent-board/migrations"`
+  - the entire boot block:
+    ```go
+    // Run embedded migrations idempotently before serving traffic (D-001, D-002).
+    if err := migrate.Run(ctx, db, migrations.FS); err != nil {
+        return fmt.Errorf("migration failed: %w", err)
+    }
+    ```
+  while correctly adding the user-stories wiring. The deletion is not a dev edit — it is the absence of US001's wiring on the stale base. On merge it would clobber US001 and re-break the `make e2e-up` circular dependency that REQ007 exists to fix.
+- `git ls-tree HEAD services/agent-board/migrations/embed.go` → **absent** in this worktree; present on current `main`. `services/agent-board/internal/migrate/` here is the **old, pre-fix** US001 code: `go test ./...` and the BE gate both fail on `internal/migrate/TestRun_UT001_CreateTableFails` — a test that is fixed on current `main` (`git status` on main shows `migrate.go`/`migrate_test.go` modified post-this-base).
+
+**Required change (single, mechanical — for be-dev):**
+- Rebase (or merge) `agent/us004be` onto current `main` (`39a4b90` or later) so that US001's `migrate.Run(...)` boot block and `migrations/embed.go` are preserved, and the stale `internal/migrate` package + its failing `TestRun_UT001_CreateTableFails` are replaced by main's fixed versions. After rebasing, re-add ONLY the user-stories route registration to the up-to-date `main.go` (do not delete the migrate wiring). Then re-run the gates from a current base.
+  - `services/agent-board/cmd/api-server/main.go` — must retain the migrate import + `migrate.Run` block AND add `e.GET("/api/v1/projects/:id/user-stories", userStoryHandler.GetProjectUserStories)`.
+
+**Gate evidence (run this pass, from the stale worktree):**
+- `go test ./internal/handler/... ./internal/repo/...` → 263 passed, 0 failed (US004's own UT/IT all green; IT-003 now 500/INTERNAL_ERROR, IT-004 message correct — spec fixes verified).
+- `go vet ./...` → clean. `go build ./...` → success (worktree builds only because its own stale `main.go` doesn't import migrate).
+- `go test ./...` (full module) → 310 passed, **1 failed** — `internal/migrate/TestRun_UT001_CreateTableFails` (stale US001 code; fixed on current `main`).
+- `scripts/review/run-gate.sh be services/agent-board` → **`REVIEW GATE: FAIL (2 check(s))`** — `golangci-lint run ./...` + `go test ./...`, both attributable to the stale `internal/migrate` package. (gosec/govulncheck WARN-skipped — not installed.)
+- Did NOT run `scripts/review/run-gate.sh cross`, `robot --dryrun`, or the live-e2e x3: a `changes_requested` requiring a rebase makes downstream gate evidence moot until the base is corrected — re-running them on a stale base would not produce mergeable evidence.
+
+**Why changes_requested and not blocked_review_gate:** the gate ran cleanly to a deterministic FAIL — there is no tooling hang/missing-binary blocking a verdict. The FAIL and the main.go regression are both caused by a **fixable dev/base condition** (stale worktree base), so the code (specifically: the branch state) is at fault and a be-dev can resolve it by rebasing. This routes to be-dev, not the gate-fix track.
+
+**Why changes_requested and not approved:** approving would merge a branch that reverts US001's migrations-at-startup and reintroduces a fixed-on-main failing test. The mandatory gate does not emit `REVIEW GATE: PASS`.
+
+**TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries).
+
+**Tech-debt:** none filed this pass (the sole finding is blocking, not a non-blocking nit).

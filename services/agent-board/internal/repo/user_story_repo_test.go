@@ -596,8 +596,30 @@ func TestUserStoryRepo_ListUserStoriesWithTaskCount_ScanError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// US004-UT-005: ListUserStoriesWithTaskCount returns error on rows iteration failure.
-// [SKIP - will be implemented after UT-004 loop]
+// US004-UT-005: ListUserStoriesWithTaskCount returns error on rows iteration failure (rows.Err()).
+func TestUserStoryRepo_ListUserStoriesWithTaskCount_RowsErr(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewUserStoryRepo(db)
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	now := time.Now()
+
+	cols := []string{"id", "project_id", "title", "description", "status", "created_at", "updated_at", "task_count"}
+	iterErr := errors.New("rows iteration failed")
+	mock.ExpectQuery(`SELECT us.id`).
+		WithArgs(projectID).
+		WillReturnRows(sqlmock.NewRows(cols).
+			AddRow("us-id-1", projectID, "Title", "Desc", "draft", now, now, 1).
+			RowError(0, iterErr))
+
+	stories, err := r.ListUserStoriesWithTaskCount(context.Background(), projectID)
+	assert.Nil(t, stories)
+	assert.Error(t, err)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
 
 // UT-019: List user stories by Project
 func TestUserStoryRepo_ListUserStories(t *testing.T) {

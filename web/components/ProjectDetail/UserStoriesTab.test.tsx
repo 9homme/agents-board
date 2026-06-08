@@ -1,24 +1,33 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { UserStoriesTab } from './UserStoriesTab';
 
 describe('UserStoriesTab', () => {
-  it('FCT-US001-012 — renders exact verbatim placeholder text (em dash, not hyphen)', () => {
-    render(<UserStoriesTab />);
-    // Must match character-for-character including the em dash —
-    expect(
-      screen.getByText('Coming soon — user stories will appear here in a future release.')
-    ).toBeInTheDocument();
+  it('FCT-US004-001 — renders the user story card list', async () => {
+    render(<UserStoriesTab projectId="proj-001" />);
+
+    // Should show loading state initially
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    // Wait for the stories to load (mocked in handlers.ts)
+    expect(await screen.findByText('Add item to basket')).toBeInTheDocument();
+    expect(screen.getByText('3 tasks')).toBeInTheDocument();
   });
 
-  it('FCT-US001-013 — no network requests made on render', async () => {
-    // MSW is in error mode for unhandled requests — if any request is made this test will fail
-    render(<UserStoriesTab />);
-    // Wait one event loop tick
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    // If we reach here with no unhandled request error from MSW, test passes
-    expect(
-      screen.getByText('Coming soon — user stories will appear here in a future release.')
-    ).toBeInTheDocument();
+  it('renders the tabpanel container', () => {
+    render(<UserStoriesTab projectId="proj-001" />);
+    expect(screen.getByRole('tabpanel')).toBeInTheDocument();
+  });
+
+  it('onSelect stub fires silently (no-op) when a story card is clicked', async () => {
+    render(<UserStoriesTab projectId="proj-001" />);
+
+    // Wait for card to appear
+    const card = await screen.findByRole('button');
+    // Clicking invokes the no-op onSelect — should not throw
+    await userEvent.click(card);
+    // No assertion needed beyond "did not throw"; presence of card is the invariant
+    expect(card).toBeInTheDocument();
   });
 });

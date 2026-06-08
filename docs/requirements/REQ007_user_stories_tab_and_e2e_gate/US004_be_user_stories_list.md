@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** blocked_review_gate
+**Status:** in_review
 **Blocked by:** 
 **Worked-by:** be-dev-2026-06-08T00-00-00Z-a4f2
 **Implements:** US004, API contract GET /api/v1/projects/{id}/user-stories, Data model (ListUserStoriesWithTaskCount query)
@@ -136,3 +136,16 @@ Re-review on a host with **Podman** (no Docker). Stack brought up via `make e2e-
 2. **Live-e2e mandatory gate → run at the story-completion boundary (Phase 3c), NOT per-BE-task:** the US004 e2e tests are Browser tests that need the US004 FE merged. Merge BE + FE, then run the 3× live-e2e gate at story level. Do NOT route this BE task back to a be-dev — there is no BE code fix that makes the Browser FE render.
 
 **Tech-debt filed this pass:** 1 new item (IT-003 invalid-UUID spec gap) appended to docs/tech_debt.md, alongside the 2 from pass 1.
+
+### Review pass 3 (spec update) — 2026-06-08
+
+**Driver:** Tester revised `US004_be_unit_tests.md` (Revision 2) to align IT-003 and IT-004 with real DB behaviour and the architecture contract.
+
+**Changes made:**
+- `internal/handler/user_story_handler_test.go` — IT-003: renamed function to `TestUserStoryHandler_GetProjectUserStories_500_InvalidUUID`; mock now returns a generic `errors.New("invalid input syntax for type uuid: ...")` (not `ErrNotFound`) to accurately reflect Postgres behaviour; expected status changed from 404 to 500; expected body changed from `NOT_FOUND / "Project not found"` to `INTERNAL_ERROR / "Failed to fetch user stories"`.
+- `internal/handler/user_story_handler.go` — aligned project-check 500-branch message from `"Internal server error"` to `"Failed to fetch user stories"` to match the architecture contract (this was the pre-existing defect flagged in pass 1 tech-debt item 1).
+- IT-004 message was already correct (`"Failed to fetch user stories"`) — no change needed.
+
+**Test results:** `go test ./internal/handler/... ./internal/repo/...` → 263 passed, 0 failed. `go vet ./...` → clean. Pre-existing `internal/migrate/TestRun_UT001_CreateTableFails` failure is US001 scope, unchanged.
+
+**Coverage (US004 production files):** `GetProjectUserStories` → 93.3% (up from 86.7%; the project-check 500 branch is now covered by IT-003). Both production files remain ≥80%.

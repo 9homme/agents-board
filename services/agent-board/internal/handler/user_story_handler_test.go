@@ -3,6 +3,7 @@ package handler_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -173,4 +174,32 @@ func TestUserStoryHandler_GetProjectUserStories_404_InvalidUUID(t *testing.T) {
 }
 
 // IT-004 — GET /api/v1/projects/{id}/user-stories: 500 on repository failure
-// [SKIP - will be implemented after IT-003 loop]
+func TestUserStoryHandler_GetProjectUserStories_500_RepoFailure(t *testing.T) {
+	e := echo.New()
+	projectID := "123e4567-e89b-12d3-a456-426614174000"
+
+	projectRepo := &mockProjectRepoForUSHandler{
+		GetProjectFunc: func(ctx context.Context, id string) (*domain.Project, error) {
+			return &domain.Project{ID: id, Name: "Test Project", Description: ""}, nil
+		},
+	}
+	usRepo := &mockUserStoryListRepo{
+		ListWithTaskCountFunc: func(ctx context.Context, pid string) ([]*repo.UserStoryWithCount, error) {
+			return nil, errors.New("db connection refused")
+		},
+	}
+
+	h := handler.NewUserStoryHandler(usRepo, projectRepo)
+	e.GET("/api/v1/projects/:id/user-stories", h.GetProjectUserStories)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects/"+projectID+"/user-stories", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+	assert.Equal(t, "Failed to fetch user stories", res["message"])
+}

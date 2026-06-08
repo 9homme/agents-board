@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"testing/fstest"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,16 @@ import (
 
 	"agent-board/internal/migrate"
 )
+
+// testFS returns an in-memory FS with one migration file so UT-003 through
+// UT-006 can reach the transaction path.
+func testFS() fstest.MapFS {
+	return fstest.MapFS{
+		"000001_test.up.sql": &fstest.MapFile{
+			Data: []byte("CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY);"),
+		},
+	}
+}
 
 // TestRun_UT001_CreateTableFails verifies that Run returns an error when the
 // CREATE TABLE IF NOT EXISTS schema_migrations statement fails.
@@ -29,5 +40,27 @@ func TestRun_UT001_CreateTableFails(t *testing.T) {
 	// Then
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "db error")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// TestRun_UT002_QueryAppliedVersionsFails verifies that Run returns an error
+// when the SELECT version FROM schema_migrations query fails.
+func TestRun_UT002_QueryAppliedVersionsFails(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS schema_migrations").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT version FROM schema_migrations").
+		WillReturnError(errors.New("query error"))
+
+	// When
+	err = migrate.Run(context.Background(), db, testFS())
+
+	// Then
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "query error")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

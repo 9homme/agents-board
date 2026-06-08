@@ -105,3 +105,34 @@ The dev must make these tests pass:
 **Action for the orchestrator:** This BE task's code is done and correct; merge it and run the mandatory live-e2e gate in Phase 3c once the US004/US005 FE tracks (and US002/US003) are also merged, OR run the e2e gate at the story-completion boundary rather than per-BE-task. Do NOT route this back to a be-dev.
 
 **Non-blocking tech-debt filed this pass (2 items in docs/tech_debt.md):** (1) `user_story_handler.go` project-verify 500 branch returns `"Internal server error"` vs the architecture-contract / sibling-handler value `"Failed to fetch user stories"`; (2) spec IT-004 message text contradicts the architecture, and the project-verify 500 branch has no spec IT case (handler 86.7% uncovered lines). Both are tester/minor-consistency items, not code defects that block.
+
+### Review pass 2 — 2026-06-08 — verdict: blocked_review_gate (+ SPEC_GAP_FOUND routed to tester)
+
+Re-review on a host with **Podman** (no Docker). Stack brought up via `make e2e-up` (podman-compose auto-detected); migrations + fixtures applied via `make e2e-seed` (clean — no "relation already exists", confirming this BE-only worktree does not auto-migrate; that is US001, unmerged).
+
+**BE code verdict: still PASS on everything in this task's scope (re-confirmed live).**
+
+- **Unit + integration tests:** `go test ./internal/repo/... ./internal/handler/...` → 263 passed, 0 failed. Full module: only `internal/migrate/TestRun_UT001_CreateTableFails` fails — pre-existing US001 worktree code, NOT touched by this branch (verified: `git diff --name-only` shows no `internal/migrate` files). `go vet ./...` → clean.
+- **BE review gate:** `scripts/review/run-gate.sh be services/agent-board` → `REVIEW GATE: FAIL (2 check(s))` = `golangci-lint run ./...` + `go test ./...`. BOTH attributable solely to the pre-existing `internal/migrate` failure. `golangci-lint run ./internal/handler/... ./internal/repo/... ./cmd/api-server/...` → **"No issues found"**; full `golangci-lint run ./...` also now reports **"No issues found"** (the pass-1 `migrate_test.go:17` errcheck is gone — only the failing test remains). Treated as effectively PASS for this task's scope per the known-context migrate exception. (gosec/govulncheck WARN-skipped — not installed; covered via golangci-lint gosec linter.)
+- **Cross gate:** `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep + gitleaks).
+- **Coverage (this task's production files):** `internal/repo/user_story_repo.go:130 ListUserStoriesWithTaskCount` — **100.0%**; `internal/handler/user_story_handler.go:43 GetProjectUserStories` — **86.7%**; `NewUserStoryHandler` — **100.0%**. Both new files ≥80%.
+- **Robot dryrun:** `robot --dryrun tests/e2e/REQ007_*/` → `7 tests, 7 passed, 0 failed`.
+- **Live BE contract verification (against running podman stack, seeded):**
+  - `GET /api/v1/projects/00000000-0000-0000-0000-000000000001/user-stories` (empty project) → `200 {"userStories":[]}` (array, never null) ✓
+  - missing project → `404 {"code":"NOT_FOUND","message":"Project not found"}` ✓
+  - **invalid-UUID path param (`/projects/not-a-uuid/user-stories`) → `500 {"code":"INTERNAL_ERROR","message":"Internal server error"}`** — this is the live, real-DB behavior.
+
+**SPEC_GAP_FOUND (decisive new finding — IT-003 contradicts real DB + architecture).** Spec IT-003 demands invalid-UUID → `404 NOT_FOUND`. Against real Postgres the endpoint returns **500**, because `projectRepo.GetProject("not-a-uuid")` raises Postgres `invalid input syntax for type uuid`, which is NOT `sql.ErrNoRows` → not `repo.ErrNotFound` → falls to the 500 branch. The handler is a **faithful byte-for-byte mirror of the architect-mandated sibling `document_handler.go:ListProjectDocuments`** (architecture §1 says "404 if not — mirrors `ListProjectDocuments`"), which behaves identically on an invalid UUID. IT-003's unit test passes ONLY because it mocks `GetProject` to return `ErrNotFound` for the malformed input — a mock that does not reflect real DB behavior (the REQ005 happy-path-mock pattern). The architecture enumerates 404 only for "project does not exist", not for malformed UUID format. **This is a spec/contract defect, NOT a dev defect** — the dev correctly implemented the mandated sibling pattern; forcing a special-case UUID pre-validation would be an un-mandated deviation requiring an architecture decision. Per `## Rules`, a wrong spec routes to **tester** (revision mode), with the architect to confirm whether malformed-UUID → 500 (sibling-consistent) is the intended contract or whether system-wide 400/404 pre-validation should be added. Filed to docs/tech_debt.md this pass.
+
+**Live e2e gate — STILL UNOBTAINABLE on this BE-only worktree (same structural blocker as pass 1).** `make e2e-run` (run 1) → `30 tests, 24 passed, 6 failed`. The two **US004-tagged** e2e tests are Browser/Playwright UI tests requiring the FE User Stories tab, which lives in the separate, unmerged US004 FE worktree:
+  - `E2E-US004-001 User stories render with accurate details` — FAIL (FE tab not present)
+  - `E2E-US004-002 Empty state when no stories` — FAIL (FE tab not present)
+  Other 4 failures: `E2E-US005-001/002` (FE drawer, unmerged), `E2E-US002-001` (Makefile seed change, unmerged), `E2E-US003-001` (GitHub Actions workflow, unmerged). NONE is a BE contract defect (BE proven correct live above). These two US004 failures are **deterministic, not flakes** — the FE component does not exist in this worktree, so they fail identically on every run; running 3× would not change the outcome. The mandatory "3 consecutive 100%-green runs" evidence for the US004-tagged e2e cannot be produced here. This is `blocked_review_gate` (the gate cannot complete to PASS for reasons outside this task's code), NOT `changes_requested` and NOT `approved`. Stack torn down via `make e2e-down`.
+
+**TDG conformance:** PASS — `git log` over the branch shows red → green → refactor with `(US004)` tags on every commit. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern, tech_debt.md REQ006/US001,US004,US007).
+
+**Action for the orchestrator (two parallel routes):**
+1. **SPEC_GAP_FOUND → tester (revision mode):** align IT-003 with real DB behavior; architect to confirm the malformed-UUID → 500 contract. This must resolve before US004 BE can be approved, because spec and live behavior currently disagree.
+2. **Live-e2e mandatory gate → run at the story-completion boundary (Phase 3c), NOT per-BE-task:** the US004 e2e tests are Browser tests that need the US004 FE merged. Merge BE + FE, then run the 3× live-e2e gate at story level. Do NOT route this BE task back to a be-dev — there is no BE code fix that makes the Browser FE render.
+
+**Tech-debt filed this pass:** 1 new item (IT-003 invalid-UUID spec gap) appended to docs/tech_debt.md, alongside the 2 from pass 1.

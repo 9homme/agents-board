@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US005
 **Track:** FE
-**Status:** in_review
+**Status:** blocked_review_gate
 **Blocked by:** US004_fe_user_stories_list.md
 **Worked-by:** fe-dev-2026-06-08T09-36-00Z-a4f2
 **Implements:** US005, D-006, Frontend surface (UserStoryDrawer)
@@ -114,6 +114,38 @@ All four findings from Review pass 1 addressed:
 - `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`.
 - `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`.
 - `robot --dryrun tests/e2e/REQ007_*/` → 7 tests, 7 passed, 0 failed.
+
+### Review pass 2 — 2026-06-08 — verdict: blocked_review_gate
+
+All four pass-1 code findings are confirmed FIXED, and every gate I can run on this branch is green. The verdict is `blocked_review_gate` (highest precedence) solely because the mandatory live-e2e DoD gate cannot be exercised on this branch — a cross-task infrastructure dependency, not an FE code fault. Detail below.
+
+**Pass-1 findings — all verified fixed:**
+1. TDG double prefix — RESOLVED. `git log main..HEAD` shows no `refactor: chore:` double prefix; all subjects use a single `red:`/`green:`/`refactor:` prefix with a `(US005)` tag.
+2. Deleted US004 test files — RESTORED. `git diff main --diff-filter=D --name-only -- web/` is empty (zero deletions). `UserStoryCard.test.tsx`, `UserStoryCardList.test.tsx`, `useProjectUserStories.test.ts` all present.
+3. `onSelect` two-arg assertions — UPDATED (verified via restored `UserStoryCard.test.tsx`).
+4. Weakened page assertion — RESTORED to `findByText('Add item to basket')` (verified in diff).
+
+**Checks I ran on this branch (all PASS):**
+- `npm run lint -- --max-warnings=0` → `ESLint: No issues found`.
+- `npm run typecheck` → clean.
+- `npm test -- --watchAll=false --forceExit` → **23 suites, 174 tests, 174 passed, 0 failed**.
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS` (CSR-only PASS, no `web/pages/api/`, no raw `fetch()` outside `web/lib/api/`). npm-audit advisories are pre-existing Next.js CVEs, not introduced by this task.
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep PASS, gitleaks PASS).
+- Coverage (touched production files, all ≥ 80% line): `UserStoriesTab.tsx` 100%, `UserStoryDrawer.tsx` 100%, `UserStoryCard.tsx` 100%, `UserStoryCardList.tsx` 100%, `userStories.ts` 100%, `useUserStory.ts` 94.59%, `useUserStoryTasks.ts` 94.59%.
+- `robot --dryrun tests/e2e/REQ007_*/` → **7 tests, 7 passed, 0 failed**.
+- react-doctor evidence present in `## Notes`: 92/100 diff score, 1 warning (`prefer-tag-over-role` false-positive on `role="status"` spinner), no regression vs base. OK.
+- Manual checklist: native `<dialog open>` (role=dialog) + `aria-modal`, accessible-labelled close button, document-level Escape handler, focus-to-close-button on mount, focus-return via `triggerRef` on close — conforms to D-005. Types/MSW honor the contract asymmetry (list item has `taskCount`, detail does not). All backend calls route through `web/lib/api/userStories.ts`. No `console.log`, no `getServerSideProps`/`getStaticProps`/`getInitialProps`, no `web/pages/api/`.
+
+**Why blocked_review_gate (live-e2e gate could not run — code NOT at fault):**
+The mandatory live-e2e gate (`make e2e-up && make e2e-seed && make e2e-run` x3) cannot be satisfied on this branch. Verified root cause:
+- `make e2e-up` brings the compose stack up but never becomes healthy. The api-server boots, connects to Postgres, but every `GET /api/v1/projects` returns 500: `ERROR: relation "projects" does not exist (SQLSTATE 42P01)`.
+- Root cause: US001 (migrations-at-startup) is NOT present on this branch. `grep -n migrate services/agent-board/cmd/api-server/main.go` on `us005fe` → 0 matches; the branch has no `migrate.Run` call, so the schema is never created at boot. The `make e2e-up` health probe (`curl -sf http://localhost:8080/api/v1/projects`) can therefore never pass, and `e2e-run` cannot proceed.
+- US001's `migrate.go`/`embed.go`/`migrate.Run` ARE on `main` (verified via `git show main:...`), i.e. US001 was merged to `main` AFTER this branch was cut. This is a pure cross-task integration ordering issue.
+- This is NOT an FE defect: the FE is fully verified against the MSW-mocked contract (174 unit tests + robot dryrun green), and the failure is in the BE boot path that this branch predates.
+
+**Routing:** Per the verdict precedence (`blocked_review_gate` highest) and the agent rule "If the e2e stack itself is unavailable on the review host, that's `blocked_review_gate` — NOT `approved`," I am NOT issuing `approved` (the three live-e2e evidence lines do not exist) and NOT `changes_requested` (the FE code is not at fault). The orchestrator should rebase/merge `main` (carrying US001) into `agent/us005fe` so `make e2e-up` can come healthy, then re-spawn tech-lead review to run the 3x live e2e and finalize the verdict. No dev rework is required for the existing findings.
+
+Tech-debt: none filed this pass.
 
 ## Notes
 

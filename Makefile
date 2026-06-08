@@ -24,7 +24,7 @@ MCP_PORT              ?= 8081
 FRONTEND_URL          ?= http://localhost:3000
 NEXT_PUBLIC_API_BASE_URL ?= http://localhost:$(API_PORT)
 
-.PHONY: e2e-up e2e-down e2e-seed e2e-run e2e e2e-logs _check-compose \
+.PHONY: e2e-up e2e-build e2e-down e2e-seed e2e-run e2e e2e-logs _check-compose \
         dev-up dev-down dev-migrate dev-seed
 
 # Internal guard — fails at recipe time when neither docker nor podman is installed.
@@ -32,6 +32,9 @@ NEXT_PUBLIC_API_BASE_URL ?= http://localhost:$(API_PORT)
 _check-compose:
 	@command -v docker >/dev/null 2>&1 || command -v podman-compose >/dev/null 2>&1 || \
 	  { echo "ERROR: Neither 'docker compose' nor 'podman-compose' is available on PATH. Install one first." >&2; exit 1; }
+
+e2e-build: _check-compose      ## Rebuild container images from source (needed after code changes).
+	$(COMPOSE) build
 
 e2e-up: _check-compose         ## Start postgres + api-server + web (compose, healthcheck-gated).
 	$(COMPOSE) up -d

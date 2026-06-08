@@ -18,7 +18,7 @@ func workflowPath(t *testing.T) string {
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok, "runtime.Caller failed")
 	// services/agent-board/internal/workflow → up 4 dirs = repo root
-	repoRoot := filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "..")
+	repoRoot := filepath.Join(filepath.Dir(file), "..", "..", "..", "..")
 	return filepath.Join(repoRoot, ".github", "workflows", "e2e.yml")
 }
 

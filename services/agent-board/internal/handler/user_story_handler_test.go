@@ -146,7 +146,31 @@ func TestUserStoryHandler_GetProjectUserStories_404_MissingProject(t *testing.T)
 }
 
 // IT-003 — GET /api/v1/projects/{id}/user-stories: 404 for invalid project ID format
-// [SKIP - will be implemented after IT-002 loop]
+func TestUserStoryHandler_GetProjectUserStories_404_InvalidUUID(t *testing.T) {
+	e := echo.New()
+
+	// projectRepo returns ErrNotFound for any ID that's not a valid uuid (mimicking DB behaviour)
+	projectRepo := &mockProjectRepoForUSHandler{
+		GetProjectFunc: func(ctx context.Context, id string) (*domain.Project, error) {
+			return nil, repo.ErrNotFound
+		},
+	}
+	usRepo := &mockUserStoryListRepo{}
+
+	h := handler.NewUserStoryHandler(usRepo, projectRepo)
+	e.GET("/api/v1/projects/:id/user-stories", h.GetProjectUserStories)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects/invalid-uuid/user-stories", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "NOT_FOUND", res["code"])
+	assert.Equal(t, "Project not found", res["message"])
+}
 
 // IT-004 — GET /api/v1/projects/{id}/user-stories: 500 on repository failure
 // [SKIP - will be implemented after IT-003 loop]

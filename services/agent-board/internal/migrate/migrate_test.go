@@ -87,3 +87,29 @@ func TestRun_UT003_BeginTxFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "begin error")
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+// TestRun_UT004_MigrationSQLExecFails verifies that Run returns an error when
+// executing the embedded migration SQL fails, proving the transaction rolls back.
+func TestRun_UT004_MigrationSQLExecFails(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS schema_migrations").
+		WillReturnResult(sqlmock.NewResult(0, 0))
+	mock.ExpectQuery("SELECT version FROM schema_migrations").
+		WillReturnRows(sqlmock.NewRows([]string{"version"}))
+	mock.ExpectBegin()
+	mock.ExpectExec("CREATE TABLE IF NOT EXISTS test_table").
+		WillReturnError(errors.New("exec error"))
+	mock.ExpectRollback()
+
+	// When
+	err = migrate.Run(context.Background(), db, testFS())
+
+	// Then
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "exec error")
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

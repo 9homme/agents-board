@@ -216,6 +216,46 @@ The mandatory 3× live-e2e gate cannot be satisfied. Ran the full stack (rebuilt
 
 Tech-debt: filed (see docs/tech_debt.md — stale-image e2e-up footgun).
 
+### Review pass 5 — 2026-06-08 — verdict: blocked_review_gate
+
+Resubmit after the orchestrator instructed me to merge `agent/us004be` (US004 BE, not yet on `main`) plus `main` fixes into this worktree before re-running the live e2e. I performed both merges, resolved a `docs/tech_debt.md` append-conflict (both sides' entries kept), and re-ran the full gate stack. Every static/unit gate is GREEN and all pass-1 code findings remain fixed. The verdict is `blocked_review_gate` (highest precedence) — **the same root cause as pass 4 persists**: the two BE REST endpoints the US005 drawer consumes are still NOT implemented anywhere, so the mandatory live-e2e gate cannot go green. This is a cross-task BE-infrastructure gap, NOT an FE code fault. No fe-dev rework is warranted.
+
+**Merges performed this pass (review setup, not dev work):**
+- `git merge agent/us004be --no-ff` → resolved `docs/tech_debt.md` append-conflict by keeping both sides (HEAD's struck items + the three US004-be entries). No `web/` or source conflicts.
+- `git merge main --no-ff` → clean (only a REQ005 robot path fix).
+- Post-merge: `grep -rn conflict-markers web/` → CLEAN; `git diff main --diff-filter=D --name-only -- web/` → empty (no US004 test deletions; pass-1 finding 2 stays fixed).
+
+**All static/unit gates — GREEN (verbatim):**
+- `npm run lint -- --max-warnings=0` → `ESLint: No issues found`.
+- `npm run typecheck` → clean (`tsc --noEmit`, no merge-marker errors).
+- `npm test -- --watchAll=false --forceExit` → **Test Suites: 23 passed, 23 total; Tests: 174 passed, 174 total** (0 failed).
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS` (CSR-only PASS, no `web/pages/api/`, no raw `fetch()` outside `web/lib/api/`; npm-audit advisories are pre-existing Next.js/postcss CVEs, not introduced here).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (semgrep PASS, gitleaks PASS).
+- Per-file coverage (touched production files, all ≥ 80% line): `UserStoriesTab.tsx` 100%, `UserStoryDrawer.tsx` 100%, `UserStoryCard.tsx` 100%, `UserStoryCardList.tsx` 100%, `userStories.ts` 100%, `useUserStory.ts` 94.59%, `useUserStoryTasks.ts` 94.59%, `useProjectUserStories.ts` 91.17%.
+- `robot --dryrun tests/e2e/REQ007_*/` → **7 tests, 7 passed, 0 failed**.
+- react-doctor evidence present in `## Notes`: 92/100 diff score, no regression. OK.
+- All pass-1 code findings (TDG double-prefix, deleted US004 tests, onSelect two-arg assertions, weakened page assertion) verified still fixed.
+
+**Why blocked_review_gate (live-e2e cannot go green — FE code NOT at fault):**
+Live stack brought up cleanly this time (rebuilt images first via `podman-compose build api-server web` to dodge the pass-4 stale-cache footgun):
+- `make e2e-up` → `-> stack is healthy: api-server :8080, web :3000, mcp-server :8081` (US001 migrate-at-startup confirmed working — `\dt` shows `projects`, `user_stories`, `tasks`, `documents`, `schema_migrations`, `status_audit_trail` all created at boot; `GET /api/v1/projects` → 200).
+- `make e2e-seed` → OK (3 INSERTs).
+- **Direct endpoint probes against the live api-server (root cause, verbatim):**
+  - `GET /api/v1/projects/{id}/user-stories` → 200 `{"userStories":[]}` (list route registered — US004 BE present).
+  - `GET /api/v1/user-stories/{id}` → **HTTP 404 `{"message":"Not Found"}`** (Echo default route-not-found; route NOT registered).
+  - `GET /api/v1/user-stories/{id}/tasks` → **HTTP 404 `{"message":"Not Found"}`** (Echo default route-not-found; route NOT registered).
+  - Confirmed the 404 shape is Echo's route-not-found by probing a bogus path `/api/v1/totally-bogus-route` → identical `{"message":"Not Found"}`.
+- `main.go` registers only ONE user-story route (line 89: `GET /api/v1/projects/:id/user-stories`). There is NO `GET /api/v1/user-stories/:id` and NO `GET /api/v1/user-stories/:id/tasks` handler or route anywhere under `services/agent-board/internal/handler/` (only `GetProjectUserStories` exists; `user_story_tools.go` GetUserStory is an MCP-SSE tool, not a REST handler).
+- The architecture LOCKS all three REST endpoints (architecture.md lines 95-96, 105, 181, 211, 338). The drawer correctly issues the parallel detail + tasks calls per D-005; the BE simply has not implemented the two detail endpoints.
+- `make e2e-run REQ=REQ007 US=US005` (one run) → **2 tests, 0 passed, 2 failed**: both E2E-US005-001 and E2E-US005-002 fail with `TimeoutError: locator.waitFor: ... waiting for locator('role=dialog').locator('text=Full description for story 1') to be visible` — the drawer never populates because its two backing endpoints 404. Running 3× was pointless (the backend cannot serve the data), so only one diagnostic run was performed; no `0 failed` evidence lines can be produced.
+
+**Routing (NOT a dev fix, NOT approved):**
+- NOT `approved`: the three consecutive green live-e2e evidence lines do not exist; the single run shows 2/2 US005 failures.
+- NOT `changes_requested`: the FE code is fully verified against the locked MSW contract (174 unit + both gates + dryrun green); the failure is the absent BE REST detail/tasks endpoints, outside this FE task's `Track` and scope. `agent/us004be` delivered only the LIST endpoint, not the two DETAIL endpoints US005 needs.
+- Orchestrator action: the US005 BE REST endpoints `GET /api/v1/user-stories/{id}` (bare object, architecture §2) and `GET /api/v1/user-stories/{id}/tasks` (wrapped list, architecture §3) must be implemented and merged onto the working branch (there appears to be no BE task currently delivering them — check whether a US005 BE task exists; if not, this is a planning gap to surface). Then rebuild images (`podman-compose build` — the pass-4 stale-cache footgun) and re-spawn tech-lead review to run the 3× live e2e and finalize. No fe-dev rework required for the existing findings.
+
+Tech-debt: none filed this pass (the stale-image e2e-up footgun was already filed pass 4; no new non-blocking FE finding surfaced).
+
 ## Notes
 
 ### Files created / modified

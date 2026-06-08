@@ -116,11 +116,8 @@ describe('ProjectDetailPage', () => {
         'true'
       );
 
-      expect(
-        screen.getByText(
-          'Coming soon — user stories will appear here in a future release.'
-        )
-      ).toBeInTheDocument();
+      // Verify it loads the card list (wait for async load)
+      expect(await screen.findByText('Add item to basket')).toBeInTheDocument();
     });
   });
 

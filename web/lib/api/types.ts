@@ -38,3 +38,42 @@ export interface Document {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface UserStoryListItem {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  status: string;
+  taskCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserStoriesListResponse {
+  userStories: UserStoryListItem[];
+}
+
+export interface UserStory {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Task {
+  id: string;
+  userStoryId: string;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TasksListResponse {
+  tasks: Task[];
+}

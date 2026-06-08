@@ -75,7 +75,7 @@ export default function ProjectDetailPage() {
 
             <div className="mt-4">
               {activeTab === 'user-stories' ? (
-                <UserStoriesTab />
+                <UserStoriesTab projectId={project.id} />
               ) : (
                 <DocumentsTab projectId={project.id} />
               )}

@@ -72,6 +72,19 @@ Command: `robot --include US001 tests/e2e/REQ007_user_stories_tab_and_e2e_gate/`
 
 ## Review log
 
+### Review pass 3 — 2026-06-08 — verdict: blocked_review_gate
+
+**Re-review purpose:** dedicated re-run of the mandatory live-e2e 3-consecutive-run flake gate, which was the sole outstanding blocker from pass 2 (code, TDG history, BE gate, cross gate, coverage, and robot dryrun were all confirmed PASS in pass 2).
+
+**Outcome: still blocked on tooling — `docker` is NOT available on this review host.**
+- `docker info 2>&1 | head -5` → `command not found: docker`.
+- Without docker, `make e2e-up && make e2e-seed && make e2e-run` cannot bring the e2e stack up, so the mandatory live-e2e 3-run flake verification (agent definition §3, added 2026-06-03 per REQ005/US008) cannot be executed.
+- Per agent definition §6 strict precedence: "If the e2e stack itself is unavailable on the review host, that's `blocked_review_gate` — NOT `approved`." The live-e2e evidence is a mandatory `approved`-path artifact that does not exist. This is an environment/tooling fault, not a code fault, so `changes_requested` is also wrong. `blocked_review_gate` is the correct verdict.
+
+**No code checks were re-run this pass** (they were green in pass 2 and the code is unchanged): 307 tests passed, `go vet` clean, BE gate PASS, cross gate PASS, coverage `migrate.go` 81% ≥ 80%, robot dryrun 7/7. The ONLY missing artifact remains the 3 consecutive live-e2e runs.
+
+**Required to unblock:** re-review on a docker-capable host. The orchestrator should route this to the gate-fix / docker-capable-host track, not to a dev — there is no code defect to fix.
+
 ### Review pass 2 — 2026-06-08 — verdict: blocked_review_gate
 
 **TDG conformance (the pass-1 blocker) — RESOLVED.** `git log --pretty=format:'%s' main..HEAD` now shows a proper red→green cycle, one cycle per UT case, every subject ending `(US001)`:

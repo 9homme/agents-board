@@ -13,7 +13,9 @@ import (
 
 	"agent-board/internal/config"
 	"agent-board/internal/handler"
+	"agent-board/internal/migrate"
 	"agent-board/internal/repo"
+	"agent-board/migrations"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
@@ -65,6 +67,11 @@ func run() error {
 
 	if err := pingDB(pingCtx, db); err != nil {
 		return fmt.Errorf("db ping failed: %w", err)
+	}
+
+	// Run embedded migrations idempotently before serving traffic (D-001, D-002).
+	if err := migrate.Run(ctx, db, migrations.FS); err != nil {
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	projectRepo := repo.NewProjectRepo(db)

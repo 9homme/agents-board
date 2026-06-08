@@ -8,23 +8,15 @@ interface UserStoryCardProps {
 
 /**
  * A card representing a user story in a list.
- * Keyboard-accessible: role="button", tabIndex=0, Enter/Space triggers onSelect.
+ * Keyboard-accessible: uses a semantic <button> element so Enter/Space are
+ * handled natively; tabIndex and keyboard events are therefore implicit.
  */
 export const UserStoryCard: React.FC<UserStoryCardProps> = ({ story, onSelect }) => {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onSelect(story.id);
-    }
-  };
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={() => onSelect(story.id)}
-      onKeyDown={handleKeyDown}
-      className="p-4 border rounded shadow-sm hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="w-full text-left p-4 border rounded shadow-sm hover:shadow-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
       aria-label={`User story: ${story.title}`}
     >
       <div className="flex justify-between items-start mb-2">
@@ -41,6 +33,6 @@ export const UserStoryCard: React.FC<UserStoryCardProps> = ({ story, onSelect })
       <div className="flex items-center text-xs text-gray-500">
         <span className="font-medium">{story.taskCount} tasks</span>
       </div>
-    </div>
+    </button>
   );
 };

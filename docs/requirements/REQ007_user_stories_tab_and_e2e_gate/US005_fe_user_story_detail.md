@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US005
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US004_fe_user_stories_list.md (BE REST endpoints now merged — see Review pass 6/7)
 **Worked-by:** fe-dev-2026-06-08T09-36-00Z-a4f2
 **Implements:** US005, D-006, Frontend surface (UserStoryDrawer)
@@ -363,6 +363,39 @@ The pass-7 layout/behavior defect (E2E-US005-002: fixed-position drawer overlay 
 **Circuit breaker:** consecutive `changes_requested` streak = **2** (pass 7 + pass 8). Passes 2–6 were `blocked_review_gate` (do not count); pass 1 `changes_requested` is not consecutive with pass 7 (interrupted by five `blocked_review_gate` passes). Breaker NOT tripped. NOTE for orchestrator: a 3rd consecutive `changes_requested` on the next pass would trip the breaker — the remaining finding is a trivial commit re-author, so this should close on the next pass.
 
 Tech-debt: none filed this pass (the one finding is blocking and routed above; no separate non-blocking nit surfaced).
+
+### Review pass 9 — 2026-06-09 — verdict: approved
+
+Both outstanding findings are FIXED and verified at the code/history level. The pass-7 layout defect (fixed-position drawer overlay intercepting card clicks) and the pass-8 TDG double-prefix on the US005 hand-off commit are both resolved. All static/unit gates remain GREEN. Setting `Status: completed`.
+
+**Pass-7 finding (drawer overlay) — VERIFIED FIXED:**
+- `web/components/ProjectDetail/UserStoryDrawer.tsx:57-61` — drawer is `<dialog open aria-modal="true" aria-label={...} className="static m-0 w-96 h-full max-h-none ... flex flex-col p-0 shrink-0">`. `grep` for `fixed`/`z-50`/`inset-y-0` on the drawer element → only `static` present; the out-of-flow overlay classes are gone. The dialog is now an in-flow flex child.
+- `web/components/ProjectDetail/UserStoriesTab.tsx:53-63` — card list wrapper is `flex-1 p-4 overflow-y-auto` (shrinks to make room); drawer is the in-flow `shrink-0` sibling rendered only when `selectedStoryId !== null`. No overlay, so a second card stays clickable while the drawer is open — the architected switch-while-open path (D-005) is reachable.
+
+**Pass-8 finding (TDG double-prefix) — VERIFIED FIXED:**
+- `git log main..agent/us005fe` shows the three US005 commits all single-prefix `refactor: ... (US005)`: `0e3d8f9 refactor: set US005 FE in_review — TDG double-prefix fixed by orchestrator ...`, `f28c322 refactor: set US005 FE in_review after drawer layout fix (US005)`, `6757b0f refactor: fix drawer fixed-position overlay blocking card click-while-open (US005)`. The pass-8 offending `01ef6d8 refactor: chore: ...` was re-authored by the orchestrator to `0e3d8f9`. No US005 double-prefix remains. (The `refactor: chore:` subjects still in the log belong to merged US004 BE commits — a different story, out of scope for this US005 review.)
+
+**Accessibility — INTACT (unchanged):** native `<dialog open>` (implicit role=dialog) + `aria-modal="true"` + `aria-label`; document-level Escape handler (`UserStoryDrawer.tsx:38-50`); focus-to-close-button on mount (`:33-36`); focus-return via `triggerRef` on close (`UserStoriesTab.tsx:30-43`). Conforms to D-005.
+
+**Pass-1 findings — all remain fixed:**
+- No US004 test deletions: `git diff main --diff-filter=D --name-only -- web/` → empty.
+- Two-arg `onSelect` contract: `UserStoryCard.test.tsx:37,49,61` assert `toHaveBeenCalledWith('us-001', expect.any(HTMLButtonElement))`.
+- Strong page assertion: `[id].test.tsx:120` `expect(await screen.findByText('Add item to basket')).toBeInTheDocument()`.
+
+**Gate evidence (verified this pass):**
+- `npm test -- --watchAll=false --forceExit` → **Test Suites: 23 passed, 23 total; Tests: 174 passed, 174 total, 0 failed** (re-run on this branch).
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS` (carried from `## Notes` pass-8 re-run; FE diff unchanged since — only the orchestrator's commit-subject rewrite, no source change).
+- `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS` (carried from `## Notes` pass-8).
+- `robot --dryrun tests/e2e/REQ007_*/` → **7 tests, 7 passed, 0 failed** (carried from `## Notes` pass-8).
+- react-doctor `--diff` score: **92/100**, no regression (carried from `## Notes` pass-8).
+- Per-file coverage all ≥80% (carried from `## Notes`): `UserStoryDrawer.tsx` 100%, `UserStoriesTab.tsx` 100%, `UserStoryCard.tsx` 100%, `UserStoryCardList.tsx` 100%, `userStories.ts` 100%, `useUserStory.ts` 94.59%, `useUserStoryTasks.ts` 94.59%.
+- CSR-only: no `getServerSideProps`/`getStaticProps`/`getInitialProps`, no `web/pages/api/`; all backend calls via `web/lib/api/userStories.ts`.
+
+**Note on live e2e (Mode 1 scope):** Per Mode-1 rules, no live e2e (`make e2e-up`/`e2e-run`) was run in this pass — that runs only in the Mode 2 REQ Quality Gate on integrated main. The deterministic layout fix that closed E2E-US005-002 in pass 7/8 is verified at the code level (in-flow drawer, no overlay); the 3× live-e2e flake check will be exercised at the REQ Quality Gate once all REQ007 tasks are completed.
+
+**Circuit breaker:** consecutive `changes_requested` streak does NOT reach 3 — this pass is `approved`, which resets the streak. Breaker NOT tripped.
+
+Tech-debt: none filed this pass (both findings were blocking and are now resolved; no new non-blocking nit surfaced).
 
 ## Notes
 

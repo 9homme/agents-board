@@ -1,7 +1,7 @@
 # US004 — User Stories tab — story cards list
 
 **Requirement:** REQ007 — User Stories Tab + E2E Quality Gate + Health-Check Fixes
-**Status:** in_signoff
+**Status:** done
 
 ## Story
 As a user viewing a project, I want the User Stories tab to show a grid of cards — one per user story — each summarising the story, so that I can scan all stories in a project at a glance and pick one to drill into.
@@ -70,3 +70,14 @@ As a user viewing a project, I want the User Stories tab to show a grid of cards
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-09 — verdict: approved
+- **Spec review:** All six AC scenarios map to at least one UT-* / IT-* / FCT-* / E2E-* case.
+  - Happy path (title/status/task count/desc preview): FCT-001, FCT-005, IT-001, E2E-US004-001.
+  - Description truncation: FCT-001 (>80-char description) with an honest coverage exemption — CSS `line-clamp`/`text-overflow` is not computed in jsdom, so the test asserts the full text is in the DOM; visual truncation is verified at the e2e layer (E2E-US004-001 "truncated descriptions are visible"). Acceptable.
+  - Empty state: FCT-002, UT-002, E2E-US004-002. Loading: FCT-003. Error: FCT-004 + IT-002/IT-003/IT-004 (404/500 paths).
+  - Keyboard/click activation: FCT-005 (role=button, accessible name = title, click + Enter/Space → onSelect with story id).
+  - E2E justification is honest — the 2 e2e cases (cross-stack task-count aggregation, empty state) genuinely require full-stack integration; everything else is correctly pushed down the pyramid.
+- **Result review:** BE 4/4 PASS (IT-001..IT-004), FE all green (174 passed, 0 failed, 23 suites), E2E 2/2 PASS, full suite green × 3 consecutive runs. REQ Quality Gate approved. No tests skipped, no `t.Skip`, no `[Tags] skip`.
+  - Note: the report renumbers FCT IDs (FCT-001..FCT-011) more granularly than the spec (FCT-001..FCT-006) — it is a superset (splits click/Enter and fetch/error into separate cases, adds a tab-panel integration test). Every spec case maps to a passing report case; no case was dropped.
+- **Routed to:** none — story approved, Status set to done.

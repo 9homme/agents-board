@@ -90,8 +90,7 @@ brew install semgrep gitleaks
 
 ## Wiring into tech-lead
 
-The agent prompt at `.claude/agents/tech-lead.md` (sync'd to `.gemini/agents/tech-lead.md`
-by `scripts/sync-gemini.py`) makes the gate mandatory in review mode. Tech-lead
-cannot issue an `approved` verdict without pasting the gate output. A parity
-test under `.claude/evals/tests/test_agent_integrity.py` asserts both platform
-versions reference `scripts/review/run-gate.sh`.
+The agent prompt at `.claude/agents/tech-lead.md` makes the gate mandatory in review mode. Tech-lead
+cannot issue an `approved` verdict without pasting the gate output. A structural
+test under `.claude/evals/tests/test_agent_integrity.py` asserts the agent file
+references `scripts/review/run-gate.sh`.

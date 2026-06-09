@@ -62,3 +62,9 @@ eval-workspace/iteration-*/runs/
 
 # e2e run artefacts — Robot output, logs, reports (US008)
 tests/e2e/results/
+
+# Claude Code local settings (machine-specific permission grants)
+.claude/settings.local.json
+
+# Go build cache
+**/.gocache/

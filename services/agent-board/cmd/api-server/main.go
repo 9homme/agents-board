@@ -13,7 +13,9 @@ import (
 
 	"agent-board/internal/config"
 	"agent-board/internal/handler"
+	"agent-board/internal/migrate"
 	"agent-board/internal/repo"
+	"agent-board/migrations"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
@@ -67,15 +69,28 @@ func run() error {
 		return fmt.Errorf("db ping failed: %w", err)
 	}
 
+	// Run embedded migrations idempotently before serving traffic (D-001, D-002).
+	if err := migrate.Run(ctx, db, migrations.FS); err != nil {
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
 	projectRepo := repo.NewProjectRepo(db)
 	projectHandler := handler.NewProjectHandler(projectRepo)
 
 	documentHandler := handler.NewDocumentHandler(repo.NewDocumentRepo(db), projectRepo)
 
+	userStoryRepo := repo.NewUserStoryRepo(db)
+	taskRepo := repo.NewTaskRepo(db)
+	userStoryHandler := handler.NewUserStoryHandler(userStoryRepo, projectRepo)
+	userStoryHandler.SetTaskRepo(taskRepo)
+
 	e.GET("/api/v1/projects", projectHandler.GetProjects)
 	e.GET("/api/v1/projects/:id", projectHandler.GetProject)
 	e.GET("/api/v1/projects/:id/documents", documentHandler.ListProjectDocuments)
 	e.GET("/api/v1/documents/:id", documentHandler.GetDocument)
+	e.GET("/api/v1/projects/:id/user-stories", userStoryHandler.GetProjectUserStories)
+	e.GET("/api/v1/user-stories/:id", userStoryHandler.GetUserStory)
+	e.GET("/api/v1/user-stories/:id/tasks", userStoryHandler.GetUserStoryTasks)
 
 	// Start server
 	port := os.Getenv("PORT")

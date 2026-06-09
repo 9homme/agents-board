@@ -1,4 +1,4 @@
-"""Structural tests for vibe-commerce skills under .claude/skills/.
+"""Structural tests for a-team skills under .claude/skills/.
 
 Mirrors claude-skills/tests/test_skill_integrity.py, scoped to this project.
 Recurses to handle plugin-bundled skills (skills/<name>/skills/<name>/SKILL.md).

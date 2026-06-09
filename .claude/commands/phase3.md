@@ -1,11 +1,11 @@
 ---
-description: Phase 3 — Implementation. Runs the work-stealing scheduler with parallel BE+FE devs, tech-lead review gate (per track), test report capture (Go + Jest + Robot), and po-ba sign-off gate, until every story is `done` or the circuit breaker trips.
+description: Phase 3 — Implementation. Runs the work-stealing scheduler with parallel BE+FE devs (each runs the review gate once), tech-lead-reviewer per-task code review, a REQ-level quality gate, test report capture (Go + Jest + Robot), and po-ba sign-off gate, until every story is `done` or the circuit breaker trips.
 argument-hint: <REQ_ID>
 ---
 
 # /phase3 — Implementation, review, sign-off
 
-You are the orchestrator. Run Phase 3 of the vibe-commerce pipeline (see `CLAUDE.md`).
+You are the orchestrator. Run Phase 3 of the a-team pipeline (see `CLAUDE.md`).
 
 ## Input
 
@@ -21,7 +21,7 @@ You are the orchestrator. Run Phase 3 of the vibe-commerce pipeline (see `CLAUDE
 
 ## Concurrency cap
 
-Default to **2 parallel `be-dev` + 2 parallel `fe-dev`** per scheduler tick (4 devs total) and **N parallel `tech-lead` reviews** where N = current `in_review` count.
+Default to **2 parallel `be-dev` + 2 parallel `fe-dev`** per scheduler tick (4 devs total) and **N parallel `tech-lead-reviewer` reviews** where N = current `in_review` count.
 
 ## The loop
 
@@ -30,14 +30,14 @@ Repeat until: no task is in `pending` / `changes_requested` / `in_progress` / `i
 ### 3a. Implementation tick (parallel work-stealing across both tracks)
 
 1. **Build the ready queue.** Tasks with `Status: pending` OR `Status: changes_requested` AND every `Blocked by` resolved to `completed`. Sort REQ → US → filename. **`changes_requested` first.**
-2. **Pick with no-overlap guarantee.** From the ready queue, pick up to 2 `Track: BE` tasks AND up to 2 `Track: FE` tasks. Distinct task paths only. **Additionally:** for each candidate task, read its `## Files touched (estimated, exclusive)` section. **Skip any candidate whose file list intersects an already-picked task's file list this tick** — push the skipped task back to the front of the queue for the next tick. This prevents two parallel devs from doing work that will only collide at merge. If a task is missing `## Files touched`, treat that as a `changes_requested`-style routing back to `tech-lead` plan mode rather than guessing — do NOT pick it this tick.
+2. **Pick with no-overlap guarantee.** From the ready queue, pick up to 2 `Track: BE` tasks AND up to 2 `Track: FE` tasks. Distinct task paths only. **Additionally:** for each candidate task, read its `## Files touched (estimated, exclusive)` section. **Skip any candidate whose file list intersects an already-picked task's file list this tick** — push the skipped task back to the front of the queue for the next tick. This prevents two parallel devs from doing work that will only collide at merge. If a task is missing `## Files touched`, treat that as a `changes_requested`-style routing back to `tech-lead-planner` rather than guessing — do NOT pick it this tick.
 3. **Spawn each dev in an isolated git worktree** — one `Agent` call per task, all in a single message with parallel calls. Each call MUST include `isolation: "worktree"` so the harness creates a fresh worktree on a new branch off the current HEAD. Each prompt contains exactly one task path, plus a one-line note pointing to the latest `### Review pass N` if it's rework. (On harnesses without built-in worktree isolation, the orchestrator must wrap each spawn with `git worktree add -b agent/<short-id> .worktrees/<short-id>` before invoking the subagent and `git worktree remove --force .worktrees/<short-id>` after merging the branch.)
 4. **Devs run in parallel, isolated.** Each dev sees only its own worktree on its own branch. The Worked-by claim mechanism on the task file still applies (handles double-spawn bugs), but the worktree guarantees no cross-spawn file collisions during the work itself.
 5. **Merge each dev's branch back to the working branch — serially, in the order they completed.** For each dev that returned `Status: in_review`:
    1. From the working branch: `git merge --no-ff --no-commit agent/<short-id>`.
    2. If the merge applies cleanly → `git commit --no-edit` (keep the merge commit) → continue to the next dev's merge.
-   3. **If a merge conflict** → `git merge --abort`. Re-queue the task with a `MERGE_CONFLICT` note listing the conflicting files. The task does NOT advance to `in_review`. The orchestrator records this so `tech-lead` can decide whether to (a) refine the task's `## Files touched` and the overlapping task's, or (b) split one of the tasks. The losing dev's branch is preserved for inspection; clean it up after the user has reviewed.
-   4. After all clean merges, the working branch has the combined work and is the source of truth for `tech-lead`'s review in 3b.
+   3. **If a merge conflict** → `git merge --abort`. Re-queue the task with a `MERGE_CONFLICT` note listing the conflicting files. The task does NOT advance to `in_review`. The orchestrator records this so `tech-lead-planner` can decide whether to (a) refine the task's `## Files touched` and the overlapping task's, or (b) split one of the tasks. The losing dev's branch is preserved for inspection; clean it up after the user has reviewed.
+   4. After all clean merges, the working branch has the combined work and is the source of truth for `tech-lead-reviewer`'s review in 3b.
 6. **Collect dev reports.** Handle:
    - `RACE_LOST` → re-queue, re-pick on next tick.
    - `WRONG_TRACK` → orchestrator routing bug — re-spawn the correct dev type for that task.
@@ -46,20 +46,32 @@ Repeat until: no task is in `pending` / `changes_requested` / `in_progress` / `i
    - `ARCHITECTURE_TEST_CONFLICT` or `ARCHITECTURE_GAP_FOUND` → spawn `system-architect` to resolve (HARD STOP loop), then resume.
    - Spec gap reports → spawn `tester` (revision mode) for the right spec file (`be_unit_tests.md` if BE dev raised it; `fe_unit_tests.md` if FE dev raised it), then resume.
 
-### 3b. Tech-lead code review (gate, per track)
+### 3b. Tech-lead-reviewer per-task code review (gate, per track — Mode 1)
 
 For each task now in `Status: in_review`:
 
-1. **Spawn `tech-lead` in review mode** (parallel-safe — one invocation per task in a single message with parallel `Agent` calls). **Each spawn MUST include `isolation: "worktree"`** — even though parallel tech-lead reviews update different task files (no file collision), each review runs the gate (which executes `go test`, `npm test`, semgrep, etc.) and writes a commit; running those in shared worktrees would race on git state and build caches. Brief tech-lead with the task path; tech-lead infers track from the file.
+1. **Spawn `tech-lead-reviewer` (Mode 1 — Task Code Review)** (parallel-safe — one invocation per task in a single message with parallel `Agent` calls). **Each spawn MUST include `isolation: "worktree"`** — even though parallel reviews update different task files (no file collision), each review runs unit tests and writes a commit; running those in shared worktrees would race on git state and build caches. Brief tech-lead-reviewer with the task path; it infers track from the file. Mode 1 verifies the dev's pasted gate evidence + runs unit tests + architecture/test-contract/TDD-honesty/scope checks — it does NOT re-run the full `run-gate.sh` per task (the dev already ran it once before hand-off; the full gate runs once at the REQ level in Mode 2).
 2. **Merge each completed review serially**, same protocol as 3a step 5: `git merge --no-ff --no-commit agent/<short-id>` → on clean → commit → on conflict → abort and re-queue (rare here, since reviews only touch the task file's review log, but possible if two reviewers somehow target the same task).
 3. Collect verdicts:
    - `approved` → task `completed`. Continue.
    - `changes_requested` → task back in the ready queue for the next 3a tick. The track field still says BE or FE, so the next pick automatically routes to be-dev or fe-dev.
+   - `blocked_review_gate` → gate/tooling at fault (not code). Route to the gate-fix track, never to a dev. Surface to the user.
    - `CIRCUIT_BREAKER_TRIPPED` → STOP THE PIPELINE for this requirement.
+
+### 3b-gate. REQ Quality Gate (Mode 2 — once all tasks completed)
+
+When **every task across all stories** is `Status: completed`, run the REQ-level quality gate ONCE before capturing test reports:
+
+1. **Spawn `tech-lead-reviewer` (Mode 2 — REQ Quality Gate)** on the integrated working branch. Brief with the REQ folder path. Mode 2 runs the full `scripts/review/run-gate.sh be <svc>` (each touched service) + `fe` + `cross`, requires `REVIEW GATE: PASS`, checks coverage ≥80%, runs `robot --dryrun`, then `make e2e-up && make e2e-seed && make e2e-run` **3× all green** (flake check), and verifies react-doctor evidence for FE work.
+2. Collect verdict:
+   - `REQ_QUALITY_APPROVED` → proceed to 3c (test-report capture).
+   - `changes_requested` → Mode 2 creates a fix task routed to the matching dev (be-dev or fe-dev); the affected task(s) roll back to `changes_requested` and the loop re-enters 3a. Devs fix until the gate passes, then Mode 2 re-runs.
+   - `blocked_review_gate` → gate/tooling at fault — route to the gate-fix track, surface to the user, do not fake a pass.
+   - `CIRCUIT_BREAKER_TRIPPED` → STOP THE PIPELINE.
 
 ### 3c. Capture test report (orchestrator)
 
-When all tasks for a story are `Status: completed`:
+Once the REQ Quality Gate reports `REQ_QUALITY_APPROVED` and all tasks for a story are `Status: completed`:
 
 1. For each touched service, run `cd services/<name> && go test ./... -v` — capture per-test outcomes mapped back to UT-* / IT-* IDs from `be_unit_tests.md`.
 2. Run `cd web && npm test -- --watchAll=false --json` — capture per-test outcomes mapped to FCT-* IDs from `fe_unit_tests.md`.
@@ -84,7 +96,7 @@ For each story now in `Status: in_signoff`:
    - `changes_requested` → po-ba's sign-off log entry tells you where to route:
      - **tester (spec)** → spawn `tester` (revision mode) inline within this command; affected tasks roll back to `changes_requested` (BE or FE per the changed spec) and the loop re-enters 3a.
      - **dev (failing/missing behavior)** → po-ba already flipped the affected task(s) to `changes_requested`; the loop re-enters 3a naturally and routes to the matching dev type.
-     - **po-ba (AC rewrite)** → po-ba edits the story. Halt this command, surface the AC change to the user, and instruct them to run `/phase2 <REQ_ID>` (so tester and tech-lead regenerate specs and tasks against the new AC) then `/phase3 <REQ_ID>` again. Do not try to continue 3a with a stale plan against rewritten AC.
+     - **po-ba (AC rewrite)** → po-ba edits the story. Halt this command, surface the AC change to the user, and instruct them to run `/phase2 <REQ_ID>` (so tester and tech-lead-planner regenerate specs and tasks against the new AC) then `/phase3 <REQ_ID>` again. Do not try to continue 3a with a stale plan against rewritten AC.
    - `CIRCUIT_BREAKER_TRIPPED` → STOP THE PIPELINE.
 
 ## Circuit-breaker handling

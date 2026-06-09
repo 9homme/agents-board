@@ -24,7 +24,7 @@ MCP_PORT              ?= 8081
 FRONTEND_URL          ?= http://localhost:3000
 NEXT_PUBLIC_API_BASE_URL ?= http://localhost:$(API_PORT)
 
-.PHONY: e2e-up e2e-down e2e-seed e2e-run e2e e2e-logs _check-compose \
+.PHONY: e2e-up e2e-build e2e-down e2e-seed e2e-run e2e e2e-logs _check-compose \
         dev-up dev-down dev-migrate dev-seed
 
 # Internal guard — fails at recipe time when neither docker nor podman is installed.
@@ -32,6 +32,9 @@ NEXT_PUBLIC_API_BASE_URL ?= http://localhost:$(API_PORT)
 _check-compose:
 	@command -v docker >/dev/null 2>&1 || command -v podman-compose >/dev/null 2>&1 || \
 	  { echo "ERROR: Neither 'docker compose' nor 'podman-compose' is available on PATH. Install one first." >&2; exit 1; }
+
+e2e-build: _check-compose      ## Rebuild container images from source (needed after code changes).
+	$(COMPOSE) build
 
 e2e-up: _check-compose         ## Start postgres + api-server + web (compose, healthcheck-gated).
 	$(COMPOSE) up -d
@@ -46,7 +49,7 @@ e2e-up: _check-compose         ## Start postgres + api-server + web (compose, he
 	  if [ $$i -ge 60 ]; then echo "ERROR: web failed to become healthy" >&2; exit 1; fi; \
 	  sleep 2; \
 	done
-	@i=0; until curl -sf http://localhost:8081/sse >/dev/null 2>&1 || curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/sse 2>&1 | grep -qE "^(200|405|404)$$"; do \
+	@i=0; until curl -sf --max-time 5 http://localhost:8081/sse >/dev/null 2>&1 || curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:8081/sse 2>&1 | grep -qE "^(200|405|404)$$"; do \
 	  i=$$((i+1)); \
 	  if [ $$i -ge 60 ]; then echo "ERROR: mcp-server failed to become healthy" >&2; exit 1; fi; \
 	  sleep 2; \
@@ -56,11 +59,7 @@ e2e-up: _check-compose         ## Start postgres + api-server + web (compose, he
 e2e-down: _check-compose       ## Stop and remove containers + volumes.
 	$(COMPOSE) down -v
 
-e2e-seed:                      ## Apply migrations then seed fixtures (idempotent).
-	@for f in $$(ls $(MIGRATIONS_DIR)/*.up.sql | sort); do \
-	  echo "-> applying migration $$f"; \
-	  psql "$(PG_CONN)" -v ON_ERROR_STOP=1 -f $$f; \
-	done
+e2e-seed:                      ## Seed test-data fixtures only (migrations run at api-server startup — US001).
 	@for f in $$(ls $(SEEDS_DIR)/*.sql 2>/dev/null | sort); do \
 	  echo "-> applying seed $$f"; \
 	  psql "$(PG_CONN)" -v ON_ERROR_STOP=1 -f $$f; \

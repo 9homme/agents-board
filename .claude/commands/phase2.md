@@ -1,11 +1,11 @@
 ---
-description: Phase 2 — Planning & Testing. Pre-checks architecture is approved, then spawns tech-lead (decomposing into BE + FE tasks) and tester (writing be_unit_tests.md, fe_unit_tests.md, e2e_tests.md) in parallel.
+description: Phase 2 — Planning & Testing. Pre-checks architecture is approved, then spawns tech-lead-planner (decomposing into BE + FE tasks) and tester (writing be_unit_tests.md, fe_unit_tests.md, e2e_tests.md) in parallel.
 argument-hint: <REQ_ID>
 ---
 
 # /phase2 — Planning & Testing
 
-You are the orchestrator. Run Phase 2 of the vibe-commerce pipeline (see `CLAUDE.md`).
+You are the orchestrator. Run Phase 2 of the a-team pipeline (see `CLAUDE.md`).
 
 ## Input
 
@@ -19,23 +19,23 @@ You are the orchestrator. Run Phase 2 of the vibe-commerce pipeline (see `CLAUDE
 
 ## Steps
 
-1. **Spawn `tech-lead` (plan mode) and `tester` (author mode) in parallel** — single message, two `Agent` tool calls. Brief each fully:
-   - **tech-lead** — REQ folder path; reminder that pre-condition is met; reminder that every task must be tagged `Track: BE` (with `Service: services/<name>`) or `Track: FE`, and that BE+FE tasks for the same story must be parallel-able (no `Blocked by` link between them — they meet only at the architecture's API contract); reminder to set `Implements:` on each task and to report `ARCHITECTURE_GAP_FOUND` if it discovers the architect missed something.
+1. **Spawn `tech-lead-planner` and `tester` (author mode) in parallel** — single message, two `Agent` tool calls. Brief each fully:
+   - **tech-lead-planner** — REQ folder path; reminder that pre-condition is met; reminder that every task must be tagged `Track: BE` (with `Service: services/<name>`) or `Track: FE`, and that BE+FE tasks for the same story must be parallel-able (no `Blocked by` link between them — they meet only at the architecture's API contract); reminder to set `Implements:` on each task, to populate a **self-contained `## Architecture extract`** in every task (devs never open `architecture.md`), and to report `ARCHITECTURE_GAP_FOUND` if it discovers the architect missed something.
    - **tester** — REQ folder path; reminder to produce three spec files per story (`be_unit_tests.md`, `fe_unit_tests.md`, `e2e_tests.md`) and Robot files; reminder that FE component specs and e2e specs both bind to the architecture's exact JSON contracts; reminder to skip the FE spec for stories whose UI/UX section says "No UI: ...".
 2. **Collect both reports.**
 3. **Handle blockers (in priority order):**
    - **`ARCHITECTURE_GAP_FOUND` from either agent** → halt this command. Spawn `system-architect` with the gap so it can revise `architecture.md` (status flips back to `pending_approval`). Report back to the user: gap summary + the architect's revision is ready + instruct them to run `/approve-architecture <REQ_ID>` to re-approve, then `/phase2 <REQ_ID>` again. Do NOT continue planning/testing inside this invocation — re-approval is a human gate.
-   - **Untestable AC reported by tester** → spawn `po-ba` (intake mode) inline to refine the affected story, then continue this command's flow only for stories that aren't affected. For stories whose AC was rewritten, instruct the user to re-run `/phase2 <REQ_ID>` so tester and tech-lead pick up the new AC cleanly.
+   - **Untestable AC reported by tester** → spawn `po-ba` (intake mode) inline to refine the affected story, then continue this command's flow only for stories that aren't affected. For stories whose AC was rewritten, instruct the user to re-run `/phase2 <REQ_ID>` so tester and tech-lead-planner pick up the new AC cleanly.
    - **Other blockers** → relay to the user and stop.
 4. **Verify, don't trust.** Spot-check that:
-   - tech-lead created at least one task per story; each task has `Track:` set; BE tasks have `Service:` set; per story there is at least one BE task and (if the story has a UI surface) at least one FE task.
+   - tech-lead-planner created at least one task per story; each task has `Track:` set and a populated `## Architecture extract`; BE tasks have `Service:` set; per story there is at least one BE task and (if the story has a UI surface) at least one FE task.
    - tester created `US[ID]_be_unit_tests.md`, `US[ID]_fe_unit_tests.md` (unless No-UI story), and `US[ID]_e2e_tests.md` per story.
    - Robot files exist under `tests/e2e/REQ[ID]_*/`.
 
 ## Reporting back
 
 End your turn with:
-- per-track task counts + dependency-graph summary from tech-lead,
+- per-track task counts + dependency-graph summary from tech-lead-planner,
 - spec coverage summary from tester (BE / FE / e2e per story),
 - any open questions,
 - next command (`/phase3 <REQ_ID>`).

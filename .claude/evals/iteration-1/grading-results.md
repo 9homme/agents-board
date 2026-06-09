@@ -34,10 +34,8 @@ Verdict legend: ✅ PASS · ⚠️ PARTIAL · ❌ FAIL · ⏭️ SKIPPED (with r
 | po-ba-2 | po-ba | sign-off | gemini | _pending_ | |
 | system-architect-1 | system-architect | draft | claude | _pending_ | |
 | system-architect-1 | system-architect | draft | gemini | _pending_ | |
-| tech-lead-1 | tech-lead | plan | claude | _pending_ | |
-| tech-lead-1 | tech-lead | plan | gemini | _pending_ | |
-| tech-lead-2 | tech-lead | review | claude | _pending_ | |
-| tech-lead-2 | tech-lead | review | gemini | _pending_ | |
+| tech-lead-planner-1 | tech-lead-planner | plan | claude | _pending_ | |
+| tech-lead-reviewer-1 | tech-lead-reviewer | review (Mode 1) | claude | _pending_ | |
 | tester-1 | tester | author | claude | _pending_ | |
 | tester-1 | tester | author | gemini | _pending_ | |
 | be-dev-1 | be-dev | happy path | claude | _pending_ | |

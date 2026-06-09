@@ -11,16 +11,18 @@ REPO_ROOT = os.path.abspath(
 )
 
 CLAUDE_AGENTS_DIR = os.path.join(REPO_ROOT, ".claude", "agents")
-GEMINI_AGENTS_DIR = os.path.join(REPO_ROOT, ".gemini", "agents")
 CLAUDE_SKILLS_DIR = os.path.join(REPO_ROOT, ".claude", "skills")
 
-REQUIRED_AGENTS = {"po-ba", "system-architect", "tech-lead", "tester", "be-dev", "fe-dev"}
+REQUIRED_AGENTS = {
+    "po-ba", "system-architect", "tech-lead-planner", "tech-lead-reviewer",
+    "tester", "be-dev", "fe-dev",
+}
 
-# Per CLAUDE.md role matrix.
 CLAUDE_AGENT_MODELS = {
     "po-ba": "opus",
     "system-architect": "opus",
-    "tech-lead": "opus",
+    "tech-lead-planner": "opus",
+    "tech-lead-reviewer": "opus",
     "tester": "sonnet",
     "be-dev": "sonnet",
     "fe-dev": "sonnet",
@@ -31,7 +33,4 @@ CLAUDE_TOOL_ALLOWLIST = {
     "AskUserQuestion", "WebFetch", "WebSearch",
 }
 
-GEMINI_TOOL_ALLOWLIST = {
-    "read_file", "write_file", "replace", "glob",
-    "search_file_content", "run_shell_command", "google_web_search",
-}
+

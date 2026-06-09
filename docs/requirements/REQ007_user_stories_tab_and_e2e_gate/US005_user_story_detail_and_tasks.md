@@ -1,7 +1,7 @@
 # US005 — User story detail + tasks in a side drawer on card click
 
 **Requirement:** REQ007 — User Stories Tab + E2E Quality Gate + Health-Check Fixes
-**Status:** changes_requested
+**Status:** done
 
 ## Story
 As a user, I want to click a user-story card and see the full story detail together with all of its tasks in a right-side drawer — with the card list still visible behind it — so that I can drill into a story and its breakdown without losing my place in the list.
@@ -92,3 +92,11 @@ As a user, I want to click a user-story card and see the full story detail toget
   - **tester** — reconcile `US005_e2e_tests.md` with `US005_user_story_detail_and_tasks.robot`: (a) either restore E2E-US005-003 as its own case or update the spec to reflect the consolidation into E2E-002 and renumber; (b) align E2E-US005-002 close-control wording (X button) with the implementation (Escape) — or implement the X-button click in the robot case. No code change required; both AC outcomes already pass.
   - **orchestrator (report capture)** — regenerate `US005_test_report.md` FE/E2E tables mapped to the spec's real FCT-* / E2E-* IDs (and reflect E2E-003's status) on the next pass.
   - No dev/task routing — no failing behavior; all behaviors meet their ACs.
+
+### Sign-off pass 2 — 2026-06-09 — verdict: approved
+- **Spec review:** All three pass-1 findings resolved and now internally consistent across spec + robot file:
+  - **E2E-US005-003 count mismatch — fixed.** `US005_e2e_tests.md` revision 1 documents the removal (lines 37, 45) with a coverage-exemption rationale; the robot suite has exactly two cases (E2E-001, E2E-002) and the suite Documentation string (lines 5-6) explains the consolidation. Spec count now matches implementation.
+  - **E2E-US005-002 close-control mismatch — fixed.** Spec step 4 now reads "Press the Escape key" (line 30) with rationale (line 35); robot line 87 uses `Keyboard Key press Escape`. X-button close remains proven at FCT-003. Spec and implementation agree on the exercised control.
+  - AC-to-test coverage re-verified, all layers, no skips/`t.Skip`/`[Tags] skip`: happy path (FCT-001 / IT-001 / IT-003 / E2E-001); empty-state (FCT-002 / IT-004 / E2E-002 step 3a); close (FCT-003 X-button + FCT-004 / E2E-002 Escape); switch (FCT-005 / E2E-002); loading (FCT-006); error (FCT-007 / IT-006 / IT-007 / UT-002 / UT-004); 404 paths (IT-002 / IT-005 / UT-001 / UT-003). Pyramid is honest — empty-state and error mapping live at the right layers; only the genuinely user-observable drawer lifecycle is at e2e.
+- **Result review:** `US005_test_report.md` regenerated against real spec IDs — FCT-001..007 (lines 33-39), no invented FCT-008..011, E2E-US005-001/002 with explicit E2E-003-removal note (lines 50-52). All 11 BE (UT-001..004, IT-001..007), all 7 FE (FCT-001..007), and both E2E cases report PASS; 0 failed; e2e green ×3 consecutive runs. No skipped or dropped cases. Counts match the specs.
+- **Routed to:** none — story approved, `Status: done`.

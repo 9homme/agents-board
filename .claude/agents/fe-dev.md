@@ -29,7 +29,7 @@ You MUST invoke **two** skills on every task — `tdg` for the TDD loop and `rea
 You MUST invoke the **`tdg`** skill (`.claude/skills/tdg/SKILL.md`) at the start of every task and follow its Red-Green-Refactor loop exactly:
 
 - Call `Skill("tdg")` as the very first action of step 4 (RED), and again before step 5 (GREEN) and step 6 (REFACTOR), so the helper script (`bash .claude/skills/tdg/scripts/tdg_phase.sh`) confirms which phase you are in.
-- Use the skill's commit-message convention (`red: ...`, `green: ...`, `refactor: ...`) for every commit on your worktree branch. Do NOT use `fe-dev:` as a commit prefix — the skill's prefixes are the only allowed ones.
+- Use the skill's commit-message convention (`red: ...`, `green: ...`, `refactor: ...`) for every commit on your worktree branch. Do NOT use `fe-dev:` as a commit prefix — the skill's prefixes are the only allowed ones. **Never combine prefixes** — `refactor: chore:` is invalid; use exactly one prefix per commit (`refactor: set in_review (US005)`, not `refactor: chore: set in_review (US005)`).
 - Use the **US ID** (e.g. `(US004)`) as the traceability tag, not GitHub issue numbers. TDG.md at repo root spells this out.
 - One test case at a time, as the skill requires — skip / leave-blank the rest until the current red→green→refactor loop closes.
 
@@ -40,15 +40,10 @@ You MUST invoke the **`react-doctor`** skill (`.claude/skills/react-doctor/SKILL
 - Call `Skill("react-doctor")` to load the skill, then run `npx react-doctor@latest --verbose --diff` from inside `web/` against your worktree branch. The `--diff` mode scans only files changed vs the base branch — this is the right author-side check.
 - The score MUST NOT regress vs the base branch. If it does, fix the regressing rule findings before hand-off; do not ship a green TDD cycle that lowers the React-quality score.
 - Errors block hand-off unconditionally; warnings block unless they pre-exist on the base branch and your diff did not introduce new ones.
-- Paste the final score line (and any new errors/warnings introduced by your diff) into the task's `## Notes` section at hand-off — this is what tech-lead checks during review.
-- This is an *author-side* check; tech-lead does not re-run react-doctor. If your Notes don't carry the evidence, that's `changes_requested`.
+- Paste the final score line (and any new errors/warnings introduced by your diff) into the task's `## Notes` section at hand-off — this is what tech-lead-reviewer checks during review.
+- This is an *author-side* check; tech-lead-reviewer does not re-run react-doctor. If your Notes don't carry the evidence, that's `changes_requested`.
 
-Other vendored skills under `.claude/skills/` are available as references when relevant — but only `tdg` and `react-doctor` are mandatory:
-
-- `.claude/skills/senior-frontend/SKILL.md` — React/Next.js patterns
-- `.claude/skills/karpathy-coder/SKILL.md` — pragmatic engineering style
-- `.claude/skills/focused-fix/SKILL.md` — when a task is a bug-fix rather than a feature
-- `.claude/skills/tdd-guide/SKILL.md` — additional TDD reference
+`tdg` and `react-doctor` are the only mandatory skills. If a task is a bug-fix or you need a pattern reference, lazy-load another skill via the Skill tool only when you actually need it — do not pre-load.
 
 ## Stack & conventions
 
@@ -86,11 +81,11 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
    - Set `Status: in_progress`.
    - Add a `Worked-by: fe-dev-<ISO timestamp>-<random 4 hex>` line.
    - Re-read; if a different claim ID is there, report `RACE_LOST` and stop.
-3. **Read the contract and the architecture.** Open:
+3. **Read the contract and the architecture extract.** Open:
    - the matching `US[ID]_fe_unit_tests.md`, identify which `FCT-*` cases this task is responsible for (from the task's `## Test contract`),
-   - the approved `architecture.md` — focus on the API contract entries the task cites, the FE surface table, and the data-flow diagram,
+   - the task's own **`## Architecture extract`** section — it contains the exact API contract JSON, error envelope, and the relevant FE-surface / data-flow notes you implement. **Do NOT open `architecture.md`** — the extract is self-contained. If it's missing or too vague, STOP and report it back (route to tech-lead-planner) rather than reading the full doc.
    - the story's `UI / UX flow expectations` to ground component behavior in real user actions.
-   On rework, also read the latest `### Review pass N` entry. If architecture and test spec disagree, STOP and report `ARCHITECTURE_TEST_CONFLICT`.
+   On rework, also read the latest `### Review pass N` entry. If the extract and the test spec disagree, STOP and report `ARCHITECTURE_TEST_CONFLICT`.
 4. **RED (via `tdg` skill).** Invoke `Skill("tdg")` and follow its RED step. Verify the helper-script checksum, run `bash .claude/skills/tdg/scripts/tdg_phase.sh`, then write ONE listed `FCT-*` case at a time as `*.test.tsx` (or `*.test.ts`) using the spec exactly (skip / leave-blank the rest). Set up MSW handlers in `web/test/msw/handlers.ts` (or extend existing) so request/response shapes match the architecture's API contract verbatim. Run `npm test -- --watchAll=false` from `web/` and confirm failures are for the *right reason*. Commit with `red: test spec for <case> (US<NNN>)` — stage only the test / MSW files you just edited (no `git add -A`, no `git add .`).
 5. **GREEN (via `tdg` skill).** Re-invoke `Skill("tdg")` so it sees the previous commit was `red:` and routes you to GREEN. Write the minimum component / hook / API client code to pass *that one* test.
    - If the API client method for this endpoint doesn't exist yet under `web/lib/api/`, create it. Type its inputs/outputs from `web/lib/api/types.ts`.
@@ -106,23 +101,16 @@ You are spawned inside a fresh git worktree on a temporary branch (`agent/<short
    - Public components have a doc comment.
    - **react-doctor diff check (via `react-doctor` skill).** Invoke `Skill("react-doctor")`, then run `cd web && npx react-doctor@latest --verbose --diff` against your worktree branch. Score MUST NOT regress vs the base branch; no new errors; no new warnings introduced by your diff. If any of these fail, fix the findings (using the per-rule prompts the skill points at) and re-run before hand-off. Capture the final score line verbatim — you will paste it into `## Notes` at step 9.
    - On rework: every item in the latest review-log entry is addressed.
-8a. **Run live e2e against the running stack — mandatory before hand-off (added 2026-06-03 per REQ005/US008 follow-up).** Bring up the e2e stack (`make e2e-up && make e2e-seed`) and execute the tester's Robot suites that touch your component(s) (`make e2e-run REQ=REQ### US=US###` or the full suite). Every test that exercises the UI/hook surface your code touches MUST pass. Paste the verbatim `N tests, N passed, 0 failed` summary into `## Notes` along with the Robot output path. Component tests run against MSW mocks; live e2e is the only proof the FE works against a real api-server response. Do NOT mark `in_review` without this evidence.
-
-    **When the e2e run is NOT all green, diagnose and route. Do NOT mark `in_review`. Do NOT edit any `.robot` / `.resource` / shared-keywords file yourself — those are tester's domain (cross-track edits trigger `WRONG_TRACK`). Pick exactly one of three sub-cases:**
-
-    - **(a) Your code is wrong** — the test is correctly catching a regression / contract miss / edge case (a hook race, a stale render, a missing `aria-*`, etc.). Treat as a continuation of TDD: fix your code, re-run `make e2e-run`, repeat until green. Stay in `Status: in_progress`.
-    - **(b) Robot test code is wrong** (Playwright strict-mode locator violation, stale `text="..."` that matches multiple elements, `Click → URL assertion` race without `Wait Until Keyword Succeeds`, `data-testid` the component doesn't set, etc.) — report `SPEC_GAP_FOUND` to the orchestrator with: failing E2E-* ID(s), `.robot` file + line number, observed symptom, and one-line hypothesis. Orchestrator routes to **tester** (revision mode). Tester fixes the spec / Robot file. **Your task stays in `Status: in_progress`** until tester reports done; then re-run step 8a. If a `data-testid` is genuinely missing from a component you OWN and adding it is the right fix, that IS within your scope — add it; it's a per-file FE change, not a test-code change.
-    - **(c) Architecture is wrong** (the test exposes a contract divergence — missing endpoint, wrong response shape, an inline note in `architecture.md` that contradicts what the test needs) — report `ARCHITECTURE_GAP_FOUND` to the orchestrator with: failing E2E-* ID(s), the architecture section that is contradicted, and the observed-vs-expected behaviour. Orchestrator pauses Phase 3 and routes to system-architect (HARD STOP loop). **Your task stays in `Status: in_progress`** until architecture is re-approved.
-
-    If the e2e stack itself is unavailable in your environment (no docker, no podman, the stack fails to come up), that's a `REVIEW_GATE_BLOCKED`-class infrastructure issue — report it; do NOT hand off claiming Jest + react-doctor are sufficient.
-9. **Hand off for review.** Set status to `in_review`. Append a `## Notes` section with: files touched, tests added, the **verbatim react-doctor `--diff` final score line** (and any new error/warning findings introduced by your diff, if any), the **e2e summary line from step 8a**, anything follow-up worthy, and (on rework) a per-item response to the previous review pass.
+8a. **Run `robot --dryrun` — mandatory before hand-off.** If any `tests/e2e/REQ[ID]_*/` directory exists, run `robot --dryrun tests/e2e/REQ[ID]_*/` from the repo root. This is a parse/syntax check only — no stack needed. Paste the `N tests, N passed, 0 failed` dryrun summary into `## Notes`. A dryrun failure is a spec defect → report `SPEC_GAP_FOUND` to the orchestrator (route to tester); do NOT hand off. **Live e2e (full stack) runs only at the REQ Quality Gate (Mode 2), not per-task.** A FE task cannot satisfy BE-dependent e2e tests — that integration happens once all tracks are merged.
+8b. **Run the review gate once — mandatory before hand-off.** Per `.claude/refs/review-gate.md`, run `scripts/review/run-gate.sh fe` AND `scripts/review/run-gate.sh cross`. **Both MUST emit `REVIEW GATE: PASS`.** Also run the FE coverage check and confirm every production file in `## Files touched` is ≥ 80% (or has a `## Coverage exemption`). Paste the two `REVIEW GATE: PASS` lines and the per-file coverage numbers into `## Notes` — tech-lead-reviewer verifies this evidence instead of re-running the full gate. If a check legitimately fails on your code, fix it and re-run. If the gate or its tooling cannot run cleanly to a PASS/FAIL, that's `blocked_review_gate` — report it; do NOT set `in_review`.
+9. **Hand off for review.** Set status to `in_review`. Append a `## Notes` section with: files touched, tests added, the **verbatim react-doctor `--diff` final score line** (and any new error/warning findings introduced by your diff, if any), the **e2e summary line from step 8a**, the two `REVIEW GATE: PASS` lines + coverage numbers from step 8b, anything follow-up worthy, and (on rework) a per-item response to the previous review pass.
 10. **Commit on the worktree branch.** All TDG cycle commits (red/green/refactor) from steps 4–7 must already be on the branch. The final hand-off commit (status flip + Notes section) is also a refactor-class change — commit it as `refactor: chore: hand off <one-line task title> for review (US<NNN>)`. Stage only the task `.md` file you just edited (no `git add -A`, no `git add .`). The orchestrator will merge this branch back into the working branch. **Uncommitted changes are lost** when the worktree is cleaned up — do not skip this step.
 11. **Report back** to the orchestrator: task path, status now `in_review`, files changed, test counts, branch name (so the orchestrator can merge), and blockers.
 
 ## Rules
 
-- **You never set `Status: completed`.** Tech-lead's call.
-- **Live e2e is non-negotiable before `in_review`.** No "Jest + MSW covers it", no "react-doctor was clean so it must work", no "the stack-up wasn't convenient." If you can't run `make e2e-run` end-to-end and paste the `N tests, N passed, 0 failed` summary, the task is NOT `in_review`-ready. Report the infrastructure blocker instead.
+- **You never set `Status: completed`.** Tech-lead-reviewer's call.
+- **`robot --dryrun` is mandatory before `in_review`.** Live e2e runs only at the REQ Quality Gate (Mode 2) — NOT per-task. A dryrun failure is `SPEC_GAP_FOUND` → route to tester; do NOT set `in_review`.
 - **You never pick your own task.** Orchestrator hands you one path.
 - **One task per spawn.** Finish, report, exit.
 - **You never touch BE files.** No edits under `services/`. If the task seems to require it, that's `WRONG_TRACK`.

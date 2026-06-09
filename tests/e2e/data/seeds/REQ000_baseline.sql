@@ -24,7 +24,7 @@ VALUES (
   '00000000-0000-0000-0000-000000000011',
   '00000000-0000-0000-0000-000000000001',
   'Introduction',
-  '# Introduction\n\nThis is the baseline e2e seed document.',
+  E'# Introduction\n\nThis is the baseline e2e seed document.',
   '2024-01-01T00:00:00Z',
   '2024-01-01T00:00:00Z'
 )
@@ -36,7 +36,7 @@ VALUES (
   '00000000-0000-0000-0000-000000000012',
   '00000000-0000-0000-0000-000000000001',
   'Architecture',
-  '# Architecture\n\nBaseline seed architecture document.',
+  E'# Architecture\n\nBaseline seed architecture document.',
   '2024-01-01T00:00:00Z',
   '2024-01-01T00:00:00Z'
 )

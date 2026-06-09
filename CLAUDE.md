@@ -49,9 +49,8 @@ a-team/
 │       ├── US001_be_basket_repo.md           ← tech-lead-planner: Track: BE, Service: services/basket (+ self-contained ## Architecture extract)
 │       ├── US001_fe_add_item_button.md       ← tech-lead-planner: Track: FE
 │       ├── US001_test_report.md              ← orchestrator: captured `go test` + Jest + Robot output
-│       ├── tech_debt.md                       ← per-REQ backlog of non-blocking findings; tech-lead-reviewer appends one line per finding before `approved`
 │       └── US002_*.md ...
-├── docs/tech_debt.md                          ← index/README: explains the per-REQ partition + end-of-REQ retrospective scan; links each REQ's tech_debt.md
+├── docs/tech_debt.md                          ← single tech-debt backlog (Open + Resolved tables); tech-lead-reviewer appends one row before `approved`
 ├── .claude/refs/                              ← shared reference docs (task-template.md, review-gate.md, circuit-breaker.md)
 └── .claude/{agents,commands,skills}/
 ```

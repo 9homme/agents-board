@@ -39,7 +39,7 @@ The orchestrator invokes you when a task is `Status: in_review`. The dev has alr
 | 11 | Check TDG commit convention (`red:` → `green:` → `refactor:` with `(US<NNN>)`) |
 | 12 | Enforce the circuit breaker (`.claude/refs/circuit-breaker.md`) |
 | 13 | Verdict: `approved` → `completed`; `changes_requested`; `blocked_review_gate`; or `SPEC_GAP_FOUND` → tester |
-| 14 | File tech-debt for non-blocking findings (per-REQ file) |
+| 14 | File tech-debt for non-blocking findings (`docs/tech_debt.md` Open table) |
 | 15 | Commit the review log on the worktree branch |
 
 ### Mode 1 detail
@@ -65,7 +65,7 @@ The orchestrator invokes you when a task is `Status: in_review`. The dev has alr
    - **blocked_review_gate** (HIGHEST) → the gate/coverage tooling/`robot --dryrun` could not run cleanly to a clear PASS/FAIL (gate or tooling at fault, not code). **Live e2e is NOT a Mode 1 gate** — that runs only in Mode 2. Append `### Review pass N — verdict: blocked_review_gate` quoting the exact failure mode. Report `REVIEW_GATE_BLOCKED`. Not `changes_requested`, not `approved`. See `.claude/refs/review-gate.md`.
    - **changes_requested** → a check legitimately failed with the code at fault, or you found a code defect on the manual checklist (architecture deviation, missing test, scope creep, sub-threshold coverage with no exemption). Append `### Review pass N` listing each required change with `file:line`. Do NOT fix the code. The orchestrator re-spawns the matching dev (`be-dev`/`fe-dev` by `Track:`). **Before issuing this, apply the circuit breaker** (`.claude/refs/circuit-breaker.md`).
    - **approved** → set `Status: completed`. Append `### Review pass N` with verdict `approved` and the dev's gate `REVIEW GATE: PASS` + coverage lines (verbatim, carried from `## Notes`).
-     - **Mandatory tech-debt filing.** Any non-blocking finding (style nit, minor refactor, dependency-placement smell, missing-but-not-essential test, tolerable sibling-pattern divergence, dead code, comment drift) MUST be appended as one line to the **current REQ's tech-debt file** `docs/requirements/REQ[ID]_*/tech_debt.md` BEFORE flipping to `completed`. Format: ` - YYYY-MM-DD — <file:line> — <what's wrong> — <suggested fix> — REQ[ID]/US[ID]/<task-name>`. Burying findings in the review-log narrative is disallowed. If nothing is worth filing, say so explicitly: `Tech-debt: none filed this pass`.
+     - **Mandatory tech-debt filing.** Any non-blocking finding (style nit, minor refactor, dependency-placement smell, missing-but-not-essential test, tolerable sibling-pattern divergence, dead code, comment drift) MUST be appended as one row to the **Open table** in `docs/tech_debt.md` BEFORE flipping to `completed`. Format: `| N | YYYY-MM-DD | \`file:line\` | what's wrong | suggested fix | REQ[ID]/US[ID] |`. Burying findings in the review-log narrative is disallowed. If nothing is worth filing, say so explicitly: `Tech-debt: none filed this pass`.
 7. **Commit on the worktree branch.** `git add -A` then `git commit -m "tech-lead-reviewer: review pass N for <task-name> (<verdict>)"`. The orchestrator merges back.
 8. **Report back:** task path, verdict, test summary, one-line per finding (if `changes_requested`), branch name.
 
@@ -100,7 +100,7 @@ Invoked ONCE, when **every task across every story in the REQ is `Status: comple
   - Architecture divergence → `ARCHITECTURE_GAP_FOUND` to system-architect (HARD STOP loop).
   - Gate/tooling/stack can't run → `REVIEW_GATE_BLOCKED` to the gate-fix track.
 - **On full pass:** report `REQ_QUALITY_APPROVED` to the orchestrator with the three e2e summary lines and the gate PASS lines. The orchestrator then proceeds to Phase 3c (test-report capture) and 3d (po-ba sign-off).
-- File any non-blocking findings to `docs/requirements/REQ[ID]_*/tech_debt.md`.
+- File any non-blocking findings to the Open table in `docs/tech_debt.md`.
 - Commit your evidence on the worktree branch: `git commit -m "tech-lead-reviewer: REQ[ID] quality gate (<pass|fail>)"`.
 
 ---

@@ -4,9 +4,9 @@
 **Story:** US005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** US004_be_user_stories_list.md
-**Worked-by:** 
+**Worked-by:** be-dev-2026-06-09T054300Z-a3f1
 **Implements:** US005, API contract GET /api/v1/user-stories/{id}, GET /api/v1/user-stories/{id}/tasks, D-004
 
 ## Goal
@@ -41,5 +41,58 @@ The dev must make these tests pass:
 - Code matches the cited architecture entries (no silent deviation).
 - **Review gate green:** `scripts/review/run-gate.sh be services/agent-board` exits 0 AND emits `REVIEW GATE: PASS` on stdout. Also `scripts/review/run-gate.sh cross` exits 0 AND emits `REVIEW GATE: PASS`. If the REQ has Robot e2e suites, `robot --dryrun tests/e2e/REQ007_*/` also passes.
 - Dev set status to `in_review` and reported back.
+
+## Notes
+
+### Files touched
+- `services/agent-board/internal/handler/user_story_detail_handler.go` (new — 113 lines)
+- `services/agent-board/internal/handler/user_story_detail_handler_test.go` (new — 477 lines)
+- `services/agent-board/internal/handler/user_story_handler.go` (modified — added `taskRepo` field)
+- `services/agent-board/cmd/api-server/main.go` (modified — added 2 routes + `taskRepo` wiring)
+
+### Tests added
+- 12 unit/integration tests: UT-001, UT-002, UT-003, UT-004, IT-001, IT-002, IT-003, IT-004, IT-004b, IT-005, IT-005b, IT-006, IT-007 (333 total across service; 13 new tests)
+
+### Live BE e2e evidence
+All 5 BE endpoint scenarios verified against the live stack after `make e2e-build && make e2e-up && make e2e-seed`:
+- `GET /api/v1/user-stories/{id}` → 200 correct 7-field shape (no taskCount)
+- `GET /api/v1/user-stories/{id}` → 404 `{"code":"NOT_FOUND","message":"User story not found"}`
+- `GET /api/v1/user-stories/{id}/tasks` → 200 with task array
+- `GET /api/v1/user-stories/{id}/tasks` → 200 `{"tasks":[]}` (empty, not null)
+- `GET /api/v1/user-stories/{id}/tasks` (missing story) → 404 `{"code":"NOT_FOUND","message":"User story not found"}`
+
+### Robot e2e suite (REQ007): 5 passed, 2 failed
+`make e2e-run REQ=REQ007` results: `7 tests, 5 passed, 2 failed`
+
+E2E-US005-001 and E2E-US005-002 fail because they wait for `role=dialog` (the FE drawer component at `tests/e2e/REQ007_user_stories_tab_and_e2e_gate/US005_user_story_detail_and_tasks.robot` lines 51, 71). These tests exercise the FE drawer UI, which requires `US005_fe_user_story_detail.md` (currently `in_progress`) to be completed. The BE API endpoints are confirmed correct. This is a FE dependency gap, not a BE code issue.
+
+**SPEC_GAP_FOUND** — orchestrator should note: E2E-US005-001, E2E-US005-002 at `tests/e2e/REQ007_user_stories_tab_and_e2e_gate/US005_user_story_detail_and_tasks.robot:51,71` fail because the FE drawer (`role=dialog`) doesn't exist yet (`US005_fe_user_story_detail.md` is `in_progress`). These will pass once the FE task is completed.
+
+### Robot dryrun: 7 tests, 7 passed, 0 failed
+`robot --dryrun tests/e2e/REQ007_*/` → `7 tests, 7 passed, 0 failed`
+
+### Review gate evidence
+```
+BE gate: REVIEW GATE: PASS
+  PASS  gofmt -s (no diff)
+  PASS  go vet ./...
+  PASS  golangci-lint run ./...
+  PASS  go test ./...
+
+Cross gate: REVIEW GATE: PASS
+  PASS  semgrep (owasp/golang/typescript)
+  PASS  gitleaks (no secrets)
+```
+
+### Coverage (new production files)
+```
+agent-board/internal/handler/user_story_detail_handler.go:38:  SetTaskRepo       100.0%
+agent-board/internal/handler/user_story_detail_handler.go:44:  GetUserStory      100.0%
+agent-board/internal/handler/user_story_detail_handler.go:81:  GetUserStoryTasks 100.0%
+```
+
+### Implementation notes
+- `GetUserStoryTasks` performs a two-step check: first `ListTasks`, then (when tasks list is empty) `GetUserStory` to disambiguate "story exists with no tasks" (200 `{"tasks":[]}`) from "story not found" (404). This is required because `ListTasks` returns an empty slice rather than `ErrNotFound` for missing stories.
+- `taskRepo` injected via `SetTaskRepo(repo.TaskRepository)` setter on `UserStoryHandler` — avoids creating a separate handler type and keeps main.go simple.
 
 ## Review log

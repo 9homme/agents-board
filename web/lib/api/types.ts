@@ -39,41 +39,50 @@ export interface Document {
   updatedAt: string;
 }
 
+/** A user story list item — includes taskCount (aggregate from BE JOIN). */
 export interface UserStoryListItem {
   id: string;
   projectId: string;
   title: string;
-  description: string;
+  description: string; // MAY be ""
   status: string;
-  taskCount: number;
-  createdAt: string;
-  updatedAt: string;
+  taskCount: number; // integer ≥ 0
+  createdAt: string; // ISO-8601 UTC
+  updatedAt: string; // ISO-8601 UTC
 }
 
+/** Response shape for GET /api/v1/projects/{id}/user-stories. */
 export interface UserStoriesListResponse {
   userStories: UserStoryListItem[];
 }
 
+/**
+ * Full user story detail object (bare, no taskCount).
+ * Returned by GET /api/v1/user-stories/{id}.
+ * taskCount is intentionally absent — derive from tasks.length on the FE.
+ */
 export interface UserStory {
   id: string;
   projectId: string;
   title: string;
-  description: string;
+  description: string; // MAY be ""
   status: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string; // ISO-8601 UTC
+  updatedAt: string; // ISO-8601 UTC
 }
 
+/** A single task. */
 export interface Task {
   id: string;
   userStoryId: string;
   title: string;
-  description: string;
+  description: string; // MAY be ""
   status: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string; // ISO-8601 UTC
+  updatedAt: string; // ISO-8601 UTC
 }
 
+/** Response shape for GET /api/v1/user-stories/{id}/tasks. */
 export interface TasksListResponse {
   tasks: Task[];
 }

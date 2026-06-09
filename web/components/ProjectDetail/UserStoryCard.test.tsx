@@ -26,7 +26,7 @@ describe('FCT-005 — UserStoryCard is clickable and accessible', () => {
     expect(card).toHaveAccessibleName(/Add item to basket/i);
   });
 
-  it('calls onSelect with the story ID when clicked', async () => {
+  it('calls onSelect with the story ID and button element when clicked', async () => {
     const onSelect = jest.fn();
     render(<UserStoryCard story={story} onSelect={onSelect} />);
 
@@ -34,10 +34,10 @@ describe('FCT-005 — UserStoryCard is clickable and accessible', () => {
     await userEvent.click(card);
 
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith('us-001');
+    expect(onSelect).toHaveBeenCalledWith('us-001', expect.any(HTMLButtonElement));
   });
 
-  it('calls onSelect with the story ID when Enter is pressed', async () => {
+  it('calls onSelect with the story ID and button element when Enter is pressed', async () => {
     const onSelect = jest.fn();
     render(<UserStoryCard story={story} onSelect={onSelect} />);
 
@@ -46,10 +46,10 @@ describe('FCT-005 — UserStoryCard is clickable and accessible', () => {
     await userEvent.keyboard('{Enter}');
 
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith('us-001');
+    expect(onSelect).toHaveBeenCalledWith('us-001', expect.any(HTMLButtonElement));
   });
 
-  it('calls onSelect with the story ID when Space is pressed', async () => {
+  it('calls onSelect with the story ID and button element when Space is pressed', async () => {
     const onSelect = jest.fn();
     render(<UserStoryCard story={story} onSelect={onSelect} />);
 
@@ -58,6 +58,6 @@ describe('FCT-005 — UserStoryCard is clickable and accessible', () => {
     await userEvent.keyboard(' ');
 
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith('us-001');
+    expect(onSelect).toHaveBeenCalledWith('us-001', expect.any(HTMLButtonElement));
   });
 });

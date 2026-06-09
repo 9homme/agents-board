@@ -1,7 +1,7 @@
 # US004 — User Stories tab — story cards list
 
 **Requirement:** REQ007 — User Stories Tab + E2E Quality Gate + Health-Check Fixes
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a user viewing a project, I want the User Stories tab to show a grid of cards — one per user story — each summarising the story, so that I can scan all stories in a project at a glance and pick one to drill into.

@@ -1,7 +1,7 @@
 # US005 — User story detail + tasks in a side drawer on card click
 
 **Requirement:** REQ007 — User Stories Tab + E2E Quality Gate + Health-Check Fixes
-**Status:** draft
+**Status:** in_signoff
 
 ## Story
 As a user, I want to click a user-story card and see the full story detail together with all of its tasks in a right-side drawer — with the card list still visible behind it — so that I can drill into a story and its breakdown without losing my place in the list.

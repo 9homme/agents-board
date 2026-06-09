@@ -26,6 +26,7 @@ type userStoryListItem struct {
 type UserStoryHandler struct {
 	userStoryRepo repo.UserStoryRepository
 	projectRepo   repo.ProjectRepository
+	taskRepo      repo.TaskRepository
 }
 
 // NewUserStoryHandler creates a new UserStoryHandler with the given user story and project repositories.

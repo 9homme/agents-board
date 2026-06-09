@@ -4,7 +4,7 @@
 **Story:** US004
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review (held — SPEC_GAP_FOUND routed to tester; see Review pass 4)
+**Status:** completed
 **Blocked by:** 
 **Worked-by:** be-dev-2026-06-08T00-00-00Z-a4f2
 **Implements:** US004, API contract GET /api/v1/projects/{id}/user-stories, Data model (ListUserStoriesWithTaskCount query)
@@ -258,3 +258,179 @@ Once tester publishes Revision 2, re-spawn tech-lead review pass 5 — at that p
 **TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags on every commit. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries) — noted, not blocking.
 
 **Tech-debt:** none newly filed this pass. The sole finding (IT-003 spec staleness) is the SPEC_GAP_FOUND routed to tester, not a non-blocking nit. The 3 items filed in passes 1–2 (handler 500 message — now resolved by the dev; IT-003/IT-004 spec gap — this is the SPEC_GAP route) remain in docs/tech_debt.md.
+
+### Review pass 5 — 2026-06-08 — verdict: blocked_review_gate (live-e2e host contention — NOT approved, NOT changes_requested)
+
+**Streak note:** passes 1–2 `blocked_review_gate`, pass 3 the 1st `changes_requested`, pass 4 `SPEC_GAP_FOUND`. `blocked_review_gate` does NOT advance the consecutive-`changes_requested` streak. Streak remains 1. Circuit breaker does NOT trip.
+
+**The pass-4 SPEC_GAP is RESOLVED.** `US004_be_unit_tests.md` now carries `### Revision 2` (line 91) authored by tester: IT-003 changed to `500 INTERNAL_ERROR / "Failed to fetch user stories"` (coverage matrix line 10, body line 70–76), IT-004 message corrected to `"Failed to fetch user stories"` (line 83). The handler test code agrees byte-for-byte:
+- IT-002 (`user_story_handler_test.go:141,146`) → `404` / `"Project not found"` ✓ matches spec line 68.
+- IT-003 (`:150` `TestUserStoryHandler_GetProjectUserStories_500_InvalidUUID`, `:169,174`) → `500` / `"Failed to fetch user stories"` ✓ matches spec Revision 2 line 76.
+- IT-004 (`:200,205`) → `500` / `"Failed to fetch user stories"` ✓ matches spec line 83.
+Spec ↔ code disagreement that drove pass 4 no longer exists.
+
+**Stale-base concern (pass-3 driver) re-examined and CLEARED for the BE merge.** `git merge-base --is-ancestor main HEAD` reports main is NOT an ancestor — but the divergence is cosmetic for this BE task:
+- merge-base = `97ed8c1`. The ONLY commit on `main` not in HEAD is `c9c0070` (`fix: correct wrong Resource path in REQ005_quality_hardening_retrospective/US006_rapid_navigation.robot ../../ → ../`). It touches ZERO `services/` files and is a REQ005 (not REQ007) Robot artifact.
+- `git diff main --stat -- services/agent-board/` → 6 files, **+462 / -0** (only the in-scope files; pure additions, no deletions).
+- `cmd/api-server/main.go` RETAINS US001's migrate wiring: `import "agent-board/internal/migrate"` (line 16), `import "agent-board/migrations"` (line 18), `migrate.Run(ctx, db, migrations.FS)` (line 73), and ADDS the user-stories route (line 89). main.go diff vs main is +4/-0 — no deletion of migrate wiring. Merging this branch does NOT revert US001. The pass-3 regression risk is absent.
+
+**Architecture conformance:** PASS, field-for-field. `GetProjectUserStories` returns `{"userStories":[...]}` with exactly `id, projectId, title, description, status, taskCount, createdAt, updatedAt`; array via `make([]...,0,len)` (never null); timestamps `2006-01-02T15:04:05Z`; 404 `NOT_FOUND / "Project not found"` for non-existent project; 500 `INTERNAL_ERROR / "Failed to fetch user stories"` for generic failure — faithful mirror of sibling `ListProjectDocuments`. `ListUserStoriesWithTaskCount` uses the mandated `LEFT JOIN tasks t ON t.user_story_id = us.id ... GROUP BY us.id ORDER BY us.created_at DESC` (no N+1).
+
+**Spec branch exhaustiveness (anti-REQ005 check):** repo `ListUserStoriesWithTaskCount` has 3 error sites — `QueryContext`, `rows.Scan`, `rows.Err()` → UT-003, UT-004, UT-005 in spec. Handler has 404 + 2×500 branches → IT-002, IT-003, IT-004. Plus happy paths UT-001/UT-002/IT-001. Every branch maps to a spec case. No spec gap.
+
+**Mechanical gates — ALL PASS on this base:**
+- **Tests:** `go test ./...` → `316 passed in 9 packages`, 0 failed. `go vet ./...` → "No issues found".
+- **BE review gate:** `scripts/review/run-gate.sh be services/agent-board` → final stdout line `REVIEW GATE: PASS` (gofmt -s PASS, go vet PASS, golangci-lint PASS, go test PASS; gosec/govulncheck WARN-skipped — not installed on review host, security pack covered via golangci-lint's gosec linter; gate still emits PASS).
+- **Cross gate:** `scripts/review/run-gate.sh cross` → final stdout line `REVIEW GATE: PASS` (semgrep owasp/golang/typescript PASS, gitleaks PASS).
+- **Coverage (this task's production files):** `internal/handler/user_story_handler.go:43 GetProjectUserStories` — **100.0%**; `internal/handler/user_story_handler.go:32 NewUserStoryHandler` — **100.0%**; `internal/repo/user_story_repo.go:130 ListUserStoriesWithTaskCount` — **100.0%**. All ≥ 80%.
+- **Robot dryrun:** `robot --dryrun tests/e2e/REQ007_*/` → `7 tests, 7 passed, 0 failed`.
+
+**DECISIVE BLOCKER — mandatory live-e2e (3 consecutive green runs) UNOBTAINABLE: the Podman review host is occupied by a concurrent review.** A second tech-lead review of `US005 FE` is running in parallel on the SAME Podman host and currently OWNS the fixed host ports the compose stack binds (`127.0.0.1:15432→postgres`, `8080→api-server`, `8081→mcp-server`, `3000→web`):
+- `podman ps -a` shows `us005fe_postgres_1 (healthy)`, `us005fe_api-server_1 (Up)`, `us005fe_mcp-server_1 (Up)`, `us005fe_web_1 (Created)` holding those ports; a live `make e2e-up COMPOSE=podman-compose` process from `.worktrees/us005fe` (PID 29137) is still in flight.
+- My `make e2e-up` for `us004be` therefore failed: `Error 125 — "proxy already running"`, `internal libpod error`, `no container with name or ID "us004be_web_1" found`. No `us004be_*` container came up.
+- I did NOT run `make e2e-down` (would tear down the in-flight us005fe review's stack and sabotage a parallel review) and did NOT force-rebind the ports.
+
+Per the tech-lead `## Rules` verdict precedence (HIGHEST): "If the e2e stack itself is unavailable on the review host, that's `blocked_review_gate` — NOT `approved`." The e2e stack is unavailable to this worktree for a host-contention reason entirely outside this task's code. The mandatory three consecutive 100%-green `make e2e-run` runs cannot be produced here. Approving without that evidence is forbidden; `changes_requested` is wrong because there is no BE code defect (every other gate is green and the code is correct).
+
+**Action for the orchestrator:** This BE code is correct and merge-clean (proven above; pass-3 and pass-4 blockers both resolved). The ONLY outstanding item is the mandatory live-e2e gate, which needs sole occupancy of the Podman host. Either (a) re-spawn tech-lead review pass 6 for this task AFTER the parallel `us005fe` review releases the Podman host (serialise the live-e2e gate), OR (b) run the mandatory 3× live-e2e gate at the REQ007 story-completion boundary (Phase 3c) once BE + FE tracks are merged and the host is free — noting the US004-tagged e2e tests (`E2E-US004-001/002`) are Browser/Playwright tests that additionally require the unmerged US004 FE worktree, so they only pass at the merged story boundary regardless. Do NOT route this back to a be-dev — there is no BE change that frees the host or renders the FE.
+
+**TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags on every commit. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries) — noted, not blocking.
+
+**Tech-debt:** none filed this pass — no new non-blocking finding; the sole blocker is the host-contention live-e2e gate, which is a routing/infra matter, not a code nit.
+
+### Review pass 6 — 2026-06-08 — verdict: blocked_review_gate (US004-tagged e2e are Browser/FE tests — 100%-green run requires merged US004 FE; NOT approved, NOT changes_requested)
+
+**Streak note:** passes 1–2 `blocked_review_gate`, pass 3 the 1st (and only) `changes_requested`, pass 4 `SPEC_GAP_FOUND`, pass 5 `blocked_review_gate`. `blocked_review_gate` does NOT advance the consecutive-`changes_requested` streak. Streak remains 1. Circuit breaker does NOT trip.
+
+**Pass-5 host-contention blocker is RESOLVED.** This was the only-concurrent e2e review — exclusive Podman host. `podman ps -a` showed no competing `*_postgres_1`/`*_api-server_1` containers (only an unrelated, long-exited `open-webui`). The `us004be_*` stack came up cleanly on the fixed ports with no `proxy already running` error.
+
+**Rebased onto current `main` this pass.** Brief instruction followed: `git rebase main`. Merge-base advanced from `97ed8c1` to current `main` (which now includes US003 `be_github_actions_gate`, merged via PRs after pass 5). Two `docs/tech_debt.md` conflicts (from this branch's own pass-1/pass-2 review-log commits) resolved by taking main's superset — the two US004 tech-debt lines on the incoming side were both already RESOLVED (handler 500-message fixed in pass 3; IT-003/IT-004 spec gap closed by spec Revision 2), so no live finding was dropped. Robot run-artifact files (`log.html`, `output.xml`, `report.html`, `playwright-log.txt`) were removed during rebase (already untracked on main). Post-rebase:
+- `git merge-base --is-ancestor main HEAD` → **main IS an ancestor of HEAD** ✓ (no longer stale; pass-3 regression risk absent).
+- `git diff main --stat -- services/agent-board/` → 6 files, **+462 / −0** (pure additions, in-scope files only).
+- `cmd/api-server/main.go` diff vs main is **+4 / −0**: adds `userStoryRepo`/`userStoryHandler` wiring + the `GET /api/v1/projects/:id/user-stories` route, and RETAINS US001's migrate wiring (`import "agent-board/internal/migrate"` line 16, `import "agent-board/migrations"` line 18, `migrate.Run(ctx, db, migrations.FS)` line 73). Merging this branch does NOT revert US001.
+
+**Architecture conformance:** PASS, field-for-field vs architecture.md §"API contracts (exact) → 1. GET /api/v1/projects/{id}/user-stories". `GetProjectUserStories` returns `{"userStories":[...]}` with exactly `id, projectId, title, description, status, taskCount, createdAt, updatedAt`; array via `make([]...,0,len)` (never null); timestamps `2006-01-02T15:04:05Z`; 404 `NOT_FOUND / "Project not found"` (architecture line 171/173); BOTH 500 branches `INTERNAL_ERROR / "Failed to fetch user stories"` (architecture line 175/177) — faithful mirror of sibling `ListProjectDocuments`. `ListUserStoriesWithTaskCount` uses the mandated `LEFT JOIN tasks t ON t.user_story_id = us.id ... GROUP BY us.id ORDER BY us.created_at DESC` (no N+1).
+
+**Spec branch exhaustiveness (anti-REQ005 check):** repo `ListUserStoriesWithTaskCount` has 3 error sites — `QueryContext` (UT-003), `rows.Scan` (UT-004), `rows.Err()` (UT-005). Handler has 404 (IT-002) + 2×500 branches (project-verify → IT-003, repo-list → IT-004). Plus happy paths UT-001/UT-002/IT-001. Every branch maps 1:1 to a spec case. No spec gap. Spec ↔ test code agree byte-for-byte (IT-003 = 500/"Failed to fetch user stories" per spec Revision 2; IT-004 = 500/"Failed to fetch user stories").
+
+**Mechanical gates — ALL PASS on the rebased base:**
+- **Tests:** `go test ./...` → `321 passed in 10 packages`, 0 failed (count rose from 316 → 321 because US003 merged to main; pre-existing `internal/migrate` test green post-rebase). `go vet ./...` → "No issues found".
+- **BE review gate:** `scripts/review/run-gate.sh be services/agent-board` → final stdout line **`REVIEW GATE: PASS`** (gofmt -s PASS, go vet PASS, golangci-lint PASS, go test PASS; gosec/govulncheck WARN-skipped — not installed on review host, security pack covered via golangci-lint's gosec linter; gate still emits PASS).
+- **Cross gate:** `scripts/review/run-gate.sh cross` → final stdout line **`REVIEW GATE: PASS`** (semgrep owasp/golang/typescript PASS, gitleaks PASS).
+- **Coverage (this task's production files, all 100%):** `internal/handler/user_story_handler.go:43 GetProjectUserStories` — **100.0%**; `internal/handler/user_story_handler.go:32 NewUserStoryHandler` — **100.0%**; `internal/repo/user_story_repo.go:130 ListUserStoriesWithTaskCount` — **100.0%**. All ≥ 80%.
+- **Robot dryrun:** `robot --dryrun tests/e2e/REQ007_*/` → `7 tests, 7 passed, 0 failed`.
+
+**Live BE contract verification (against the running, seeded Podman stack — image confirmed current/rebased):**
+- `GET /api/v1/projects/00000000-0000-0000-0000-000000000001/user-stories` (empty project) → `200 {"userStories":[]}` (array, never null) ✓
+- missing project → `404 {"code":"NOT_FOUND","message":"Project not found"}` ✓
+- malformed UUID (`/projects/not-a-uuid/user-stories`) → `500 {"code":"INTERNAL_ERROR","message":"Failed to fetch user stories"}` ✓ (matches spec Revision 2 IT-003)
+- `GET /api/v1/projects` returned `200` at stack-up health-check, confirming `migrate.Run` ran tables-first at startup (the REQ007/US001 fix is exercised end-to-end). This proves the running image is the rebased code, not a stale build.
+
+**Live e2e — THREE consecutive runs, exclusive Podman host (`make e2e-up` + `make e2e-seed` → `make e2e-run` ×3 → `make e2e-down`):**
+- Run 1: **`30 tests, 26 passed, 4 failed`**
+- Run 2: **`30 tests, 26 passed, 4 failed`**
+- Run 3: **`30 tests, 26 passed, 4 failed`**
+
+The 4 failures are **identical and deterministic across all 3 runs (NOT flakes)** — they are exclusively the Browser/Playwright UI tests that require FE components living in separate, unmerged worktrees:
+- `E2E-US004-001 User stories render with accurate details` — FAIL (FE User Stories tab not present; needs US004 FE worktree)
+- `E2E-US004-002 Empty state when no stories` — FAIL (same)
+- `E2E-US005-001 Clicking a card opens detail drawer with tasks` — FAIL (FE drawer; needs US005 FE worktree)
+- `E2E-US005-002 Switching stories and closing the drawer` — FAIL (same)
+
+**No previously-passing test regressed** — and the pass count IMPROVED vs the dev's hand-off (`30 tests, 25 passed, 5 failed` ×3): `E2E-US003-001 GitHub Actions workflow is correctly configured` now PASSES because US003 merged to main and was picked up on rebase. All BE-backed REQ007 e2e tests pass consistently across all 3 runs: `E2E-US001-001 API starts and serves requests immediately on a fresh stack` (PASS — confirms migrate.Run end-to-end), `E2E-US002-001 mcp-server health-check is bounded and e2e-seed is data-only` (PASS), `E2E-US003-001` (PASS), plus all REQ001–REQ005 CRUD-lifecycle and regression tests. The 4 failures are NOT BE contract defects (BE proven correct live above) and NOT flakes (deterministic — the FE component simply does not exist in a BE-only worktree).
+
+**DECISIVE: the mandatory 3-consecutive-100%-green live-e2e gate CANNOT be produced at the BE-task boundary by construction.** The two US004-tagged e2e tests (`E2E-US004-001/002`) are Browser tests that render the FE User Stories tab; there is no BE code change that makes a Browser test render an FE component that lives in a different, unmerged worktree. Per the tech-lead `## Rules` verdict precedence (HIGHEST): the live-e2e gate cannot complete to a clear 100%-green PASS for a reason entirely outside this task's BE code → `blocked_review_gate`. Approving without 100%-green is forbidden (the literal gate is unmet). `changes_requested` is wrong — every BE gate is green, coverage is 100%, the contract is live-verified correct, and there is no BE defect a be-dev could fix to render the FE. The 4 failures are deterministic-structural cross-track, not the REQ005 flake/happy-path pattern the gate exists to catch.
+
+**Action for the orchestrator:** This BE code is correct, contract-verified, fully gated (BE PASS + cross PASS + 100% coverage), rebased clean onto current `main` (`+462/−0`, retains US001 migrate wiring, no regression risk), and the BE-backed half of the e2e suite is 100% green and stable across 3 runs. The ONLY unmet item is the 3×100%-green live-e2e gate, which is unobtainable per-BE-task because the US004 e2e tests are Browser tests needing the merged US004 FE. **Run the mandatory 3× live-e2e gate at the REQ007 story-completion boundary (Phase 3c)** once US004 BE + US004 FE (+ US005 FE) are merged and the full Browser suite can go green. Do NOT route this back to a be-dev — there is no BE change that renders the FE. Recommend the orchestrator merge this BE branch (it is clean and all BE-scope gates pass) and gate story-completion on the merged-stack e2e rather than on the per-BE-task e2e.
+
+**TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags on every commit (e.g. `red: test spec for ListUserStoriesWithTaskCount (US004)` → `green: implement ListUserStoriesWithTaskCount (US004)` → `refactor: ...`). The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006/US001,US004,US007) — noted, not blocking.
+
+**Tech-debt:** none newly filed this pass. No new non-blocking nit surfaced; the BE code is clean, fully covered, and contract-conformant. The sole outstanding item is the structural live-e2e routing matter (run at story boundary), not a code finding. Tech-debt: none filed this pass.
+
+### Review pass 7 — 2026-06-08 — verdict: blocked_review_gate (+ SPEC_GAP_FOUND routed to tester) — NOT approved, NOT changes_requested
+
+**Streak note:** passes 1–2 `blocked_review_gate`, pass 3 the 1st (and only) `changes_requested`, pass 4 `SPEC_GAP_FOUND`, passes 5–6 `blocked_review_gate`. Neither `blocked_review_gate` nor `SPEC_GAP_FOUND` advances the consecutive-`changes_requested` streak. Streak remains 1. Circuit breaker does NOT trip. (This pass is also NOT a `changes_requested`, so the streak does not advance.)
+
+**Setup for this pass (exclusive Podman host — sole concurrent e2e review):** `git rebase main` applied cleanly (38/38 commits). Only `4445291 fix: add make e2e-build target` was on main and not in HEAD; picked up. `git merge-base --is-ancestor main HEAD` → **main IS ancestor** (not stale). `git diff main --stat -- services/agent-board/` → 6 files, **+462 / −0** (in-scope additions only; `main.go` diff +4/−0 RETAINS US001 migrate wiring at lines 16/18/73 AND adds the user-stories route at line 89 — no US001 regression). `make e2e-build` rebuilt images from the rebased source (exit 0); the FE User Stories tab is on main and wired in `web/pages/projects/[id].tsx:78` + `web/components/ProjectDetail/UserStoriesTab.tsx`, so the rebuilt `web` image now contains the real tab content.
+
+**BE code verdict: PASS on everything in this task's scope (re-confirmed live).**
+- **Tests:** `cd services/agent-board && go test ./...` → **321 passed in 10 packages, 0 failed**. `go vet ./...` → "No issues found".
+- **BE review gate:** `scripts/review/run-gate.sh be services/agent-board` → final stdout line **`REVIEW GATE: PASS`** (gofmt -s PASS, go vet PASS, golangci-lint PASS, go test PASS; gosec/govulncheck WARN-skipped — not installed on review host; security pack covered via golangci-lint's gosec linter; gate still emits PASS).
+- **Cross gate:** `scripts/review/run-gate.sh cross` → final stdout line **`REVIEW GATE: PASS`** (semgrep owasp/golang/typescript PASS, gitleaks PASS).
+- **Coverage (this task's production functions, all ≥80%):** `internal/handler/user_story_handler.go:43 GetProjectUserStories` — **100.0%**; `:32 NewUserStoryHandler` — **100.0%**; `internal/repo/user_story_repo.go:130 ListUserStoriesWithTaskCount` — **100.0%**.
+- **Robot dryrun:** `robot --dryrun tests/e2e/REQ007_*/` → **`7 tests, 7 passed, 0 failed`**.
+- **Live BE contract verification (seeded Podman stack, rebuilt image):** `GET /api/v1/projects` → `200` at health-check (proves `migrate.Run` ran tables-first at startup — REQ007/US001 fix exercised end-to-end; image is the rebased code, not stale). Endpoint field-for-field correct per architecture §"API contracts (exact) → 1".
+- **Architecture conformance:** PASS, field-for-field. **Spec branch exhaustiveness:** repo 3 error sites (QueryContext→UT-003, Scan→UT-004, rows.Err→UT-005) + handler 404 (IT-002) + 2×500 (IT-003, IT-004) + happy paths (UT-001/002, IT-001) — every branch maps 1:1 to a spec case. Spec ↔ test code agree byte-for-byte (IT-003 = 500/"Failed to fetch user stories" per spec Revision 2; IT-004 = 500/"Failed to fetch user stories"). No spec gap on the BE unit/integration contract.
+- **TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags. Recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries) — noted, not blocking.
+
+**PROGRESS vs pass 6 — the US004-tagged e2e now PASS deterministically.** After the FE merge + `make e2e-build`, live e2e three consecutive runs (`make e2e-up` + `make e2e-seed` → `make e2e-run` ×3 → `make e2e-down`):
+- Run 1: **`30 tests, 26 passed, 4 failed`**
+- Run 2: **`30 tests, 26 passed, 4 failed`**
+- Run 3: **`30 tests, 26 passed, 4 failed`**
+
+**Identical, deterministic across all 3 runs (NOT flakes).** The two US004-tagged tests are now GREEN in every run:
+- `E2E-US004-001 User stories render with accurate details` — **PASS ×3**
+- `E2E-US004-002 Empty state when no stories` — **PASS ×3**
+Also `E2E-US001-001 API starts and serves requests immediately on a fresh stack` (REQ007/US001) — PASS ×3; `E2E-US002-001` — PASS ×3; `E2E-US003-001` — PASS ×3.
+
+**The 4 deterministic failures are NOT BE-code defects — and TWO are a newly-surfaced stale e2e spec:**
+1. `E2E-US005-001 Clicking a card opens detail drawer with tasks` — FAIL ×3 (US005 FE drawer; separate unmerged worktree; acceptable per review brief).
+2. `E2E-US005-002 Switching stories and closing the drawer` — FAIL ×3 (same).
+3. **`E2E-US001-001 Dashboard click-through to detail page then tab switch`** (`tests/e2e/REQ004_project_detail_page/US001_navigate.robot:44`) — FAIL ×3.
+4. **`E2E-US001-002 Direct URL with tab=user-stories survives browser refresh`** (`tests/e2e/REQ004_project_detail_page/US001_navigate.robot:95`) — FAIL ×3.
+
+**SPEC_GAP_FOUND (decisive new finding — stale REQ004 nav e2e superseded by REQ007/US004).** Failures #3/#4 are REQ004 (not REQ007) Browser tests that `Wait For Elements State ... text="Coming soon — user stories will appear here in a future release." visible` (lines 85–87 and 102–104, 115–117). Playwright failure (verbatim from results/playwright-log.txt): `TimeoutError: locator.waitFor: Timeout 10000ms exceeded. - waiting for locator('text="Coming soon — user stories will appear here in a future release."') to be visible`. That placeholder string was **intentionally removed** by REQ007/US004 FE: REQ004 architecture.md:113 defines `UserStoriesTab.tsx` as rendering the verbatim "Coming soon …" placeholder; **REQ007 architecture.md:43 marks the same file `modified (replaces placeholder)`**, and REQ007/US004 FE scope (`US004_fe_user_stories_list.md:15`) is literally *"Replacing the 'Coming soon' placeholder in UserStoriesTab."* The User Stories tab now renders the real story list (proven by `E2E-US004-001/002` PASS), so the REQ004 nav tests that assert the old placeholder are **stale test specs**, not application defects. Per `## Rules`, a wrong/stale test spec routes to **tester (revision mode)** — NOT `changes_requested` (no BE or FE *code* is at fault; the FE correctly did what its story mandated), and NOT a US004-FE rework. The REQ004 `US001_navigate.robot` test must be revised to assert the new real-content behavior (e.g. story cards / empty-state) on `tab=user-stories` instead of the removed placeholder string, preserving the URL-persistence/refresh assertions.
+
+**DECISIVE: the mandatory 3-consecutive-100%-green live-e2e gate is STILL unmet — but for zero BE-code reasons.** The remaining 4 failures decompose into (a) genuinely-unmerged US005 FE drawer (×2) and (b) the stale REQ004 nav e2e spec (×2). There is no change to this US004 **BE** task's code that makes a Browser test render the unmerged US005 FE drawer or that un-asserts a removed placeholder string. Per tech-lead `## Rules` verdict precedence (HIGHEST): the live-e2e gate cannot complete to 100%-green for reasons entirely outside this task's BE code → `blocked_review_gate`. `approved` is forbidden (the literal "3 runs MUST be 100% green" gate is unmet — I will not pass-with-rationalisation). `changes_requested` is wrong (every BE gate is green, coverage 100%, contract live-verified, US004 e2e green ×3; no BE defect a be-dev could fix).
+
+**Action for the orchestrator (two routes):**
+1. **SPEC_GAP_FOUND → tester (revision mode):** revise `tests/e2e/REQ004_project_detail_page/US001_navigate.robot` (`E2E-US001-001` line 84–87/89–93; `E2E-US001-002` line 102–104/115–120) to stop asserting the removed `"Coming soon …"` placeholder and instead assert the REQ007/US004 real User Stories tab content (cards or empty-state) while keeping the `tab=user-stories` URL-persistence/refresh checks. This is a test-spec update, not a code change.
+2. **Live-e2e mandatory gate → run the 3×100%-green gate at the REQ007 story-completion boundary (Phase 3c)** once US004 BE + US004 FE + **US005 FE** are merged AND the stale REQ004 nav e2e (route 1) is fixed. At that point the full Browser suite can reach 100%-green. Do NOT route this BE task back to a be-dev — there is no BE change that renders the US005 FE drawer or rewrites the REQ004 test spec. This BE branch is clean, fully gated, and merge-safe; recommend merging it and gating story-completion on the merged-stack e2e.
+
+**Tech-debt:** none filed this pass — the two findings (stale REQ004 nav e2e = SPEC_GAP routed to tester; unmerged US005 FE = structural routing) are not non-blocking nits. The BE code itself surfaced no new non-blocking finding.
+
+### Review pass 8 — 2026-06-08 — verdict: approved
+
+**Streak note:** passes 1–2 `blocked_review_gate`, pass 3 the 1st (and only) `changes_requested`, pass 4 `SPEC_GAP_FOUND`, passes 5–7 `blocked_review_gate`. This pass is `approved` — the consecutive-`changes_requested` streak (which never exceeded 1) is now reset to 0. Circuit breaker never tripped.
+
+**All prior-pass blockers are now resolved:**
+- Pass-3 stale-base regression → RESOLVED. `git merge-base --is-ancestor main HEAD` → **main IS ancestor of HEAD** (not stale). `cmd/api-server/main.go` RETAINS US001 migrate wiring (`import "agent-board/internal/migrate"` line 16, `migrate.Run(ctx, db, migrations.FS)` line 73) AND adds the user-stories route (line 89). `git diff main --stat -- services/agent-board/` → 6 files, **+462 / −0** (in-scope pure additions; main.go +4/−0 — no US001 revert).
+- Pass-4 SPEC_GAP (IT-003) → RESOLVED via spec Revision 2; test code agrees byte-for-byte (IT-003 = 500/"Failed to fetch user stories").
+- Pass-5 host contention → RESOLVED — this was the ONLY concurrent e2e review; exclusive Podman host (`podman ps -a` showed only an unrelated long-exited `open-webui`; `us004be_*` stack came up cleanly on the fixed ports).
+- Pass-6/7 US004 FE not rendering → RESOLVED — US004 FE merged to main; `make e2e-build` rebuilt the `web` image with the real User Stories tab; E2E-US004-001/002 now PASS ×3.
+- Pass-7 SPEC_GAP (stale REQ004 nav e2e asserting removed "Coming soon" placeholder) → RESOLVED — the REQ004 nav fix is cherry-picked onto main and present in this rebased worktree: `tests/e2e/REQ004_project_detail_page/US001_navigate.robot` lines 86/103/116 now assert `text="No user stories yet for this project."` (the real empty-state) instead of the removed placeholder. `E2E-US001-001`/`E2E-US001-002` (REQ004 nav) now PASS ×3.
+
+**Architecture conformance:** PASS, field-for-field vs architecture.md §"API contracts (exact) → 1. GET /api/v1/projects/{id}/user-stories". `GetProjectUserStories` returns `{"userStories":[...]}` with exactly `id, projectId, title, description, status, taskCount, createdAt, updatedAt`; array via `make([]...,0,len)` (never null); timestamps `2006-01-02T15:04:05Z`; 404 `NOT_FOUND / "Project not found"`; 500 `INTERNAL_ERROR / "Failed to fetch user stories"` — faithful mirror of sibling `ListProjectDocuments`. `ListUserStoriesWithTaskCount` uses the mandated `LEFT JOIN tasks t ON t.user_story_id = us.id ... GROUP BY us.id ORDER BY us.created_at DESC` (no N+1).
+
+**Spec branch exhaustiveness (anti-REQ005 check):** repo `ListUserStoriesWithTaskCount` has 3 error sites (QueryContext→UT-003, rows.Scan→UT-004, rows.Err→UT-005); handler has 404 (IT-002) + 2×500 branches (project-verify→IT-003, repo-list→IT-004); plus happy paths UT-001/UT-002/IT-001. Every branch maps 1:1 to a spec case. No spec gap. Spec ↔ test code agree byte-for-byte.
+
+**Mechanical gates — ALL PASS:**
+- **Tests:** `go test ./...` → `321 passed in 10 packages`, **0 failed**. `go vet ./...` → "No issues found".
+- **BE review gate:** `scripts/review/run-gate.sh be services/agent-board` → final stdout line **`REVIEW GATE: PASS`** (gofmt -s PASS, go vet PASS, golangci-lint PASS, go test PASS; gosec/govulncheck WARN-skipped — not installed on review host, security pack covered via golangci-lint's gosec linter; gate still emits PASS).
+- **Cross gate:** `scripts/review/run-gate.sh cross` → final stdout line **`REVIEW GATE: PASS`** (semgrep owasp/golang/typescript PASS, gitleaks PASS).
+- **Coverage (this task's production functions — all 100%):** `internal/handler/user_story_handler.go:43 GetProjectUserStories` — **100.0%**; `:32 NewUserStoryHandler` — **100.0%**; `internal/repo/user_story_repo.go:130 ListUserStoriesWithTaskCount` — **100.0%**. All ≥ 80%.
+- **Robot dryrun:** `robot --dryrun tests/e2e/REQ007_*/` → **`7 tests, 7 passed, 0 failed`**.
+
+**Live e2e — THREE consecutive runs, exclusive Podman host (`make e2e-build` → `make e2e-up` → `make e2e-seed` → `make e2e-run` ×3 → `make e2e-down`). Totals parsed from `tests/e2e/results/output.xml`:**
+- Run 1: **`30 tests, 28 passed, 2 failed`**
+- Run 2: **`30 tests, 28 passed, 2 failed`**
+- Run 3: **`30 tests, 28 passed, 2 failed`**
+
+**Identical and deterministic across all 3 runs (NOT flakes).** The only 2 failures in every run are the documented, acceptable cross-track exceptions per the review brief:
+- `E2E-US005-001 Clicking a card opens detail drawer with tasks` — FAIL ×3 (US005 FE drawer; separate unmerged worktree).
+- `E2E-US005-002 Switching stories and closing the drawer` — FAIL ×3 (same).
+
+All US004-tagged and REQ004-nav tests are GREEN across all 3 runs:
+- `E2E-US004-001 User stories render with accurate details` — **PASS ×3**.
+- `E2E-US004-002 Empty state when no stories` — **PASS ×3**.
+- `E2E-US001-001 Dashboard click-through to detail page then tab switch` (REQ004 nav) — **PASS ×3** (cherry-picked fix confirmed working).
+- `E2E-US001-002 Direct URL with tab=user-stories survives browser refresh` (REQ004 nav) — **PASS ×3**.
+- `E2E-US001-001 API starts and serves requests immediately on a fresh migrated database` (REQ007/US001) — **PASS ×3** (confirms `migrate.Run` end-to-end).
+- `E2E-US002-001 mcp-server health-check is bounded and e2e-seed is data-only` (REQ007/US002) — **PASS ×3**.
+- `E2E-US003-001 GitHub Actions workflow is correctly configured` (REQ007/US003) — **PASS ×3**.
+
+**Why approved (not blocked_review_gate):** every gate ran cleanly to PASS; coverage 100% on all touched files; the live e2e produced three consecutive, deterministic, identical runs in which the entire BE-backed surface and the US004/REQ004-nav tests are 100% green. The two persistent failures are exclusively the US005 FE drawer tests for code that lives in a separate, unmerged worktree — explicitly enumerated as the only acceptable failures in the review brief and confirmed deterministic (not flakes) across all 3 runs. There is no BE code defect and no gate/tooling fault. The US004 BE task's contract is correct, fully covered, merge-clean, and end-to-end verified.
+
+**TDG conformance:** PASS — branch commits follow red → green → refactor with `(US004)` tags. The recurring `refactor: chore:` housekeeping-prefix drift persists (already-filed tolerated pattern; tech_debt.md REQ006 entries) — noted, not blocking.
+
+**Tech-debt: none filed this pass.** The BE code is clean, 100%-covered on every touched function, and contract-conformant; no new non-blocking nit surfaced. The two outstanding e2e items from prior passes (US005 FE drawer; the now-fixed REQ004 nav spec) were structural cross-track / spec routing matters, both resolved or owned elsewhere — neither is a US004 BE code nit.

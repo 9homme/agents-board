@@ -1,0 +1,47 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python and Robot Framework
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Robot Framework toolchain
+        run: pip install robotframework robotframework-requests robotframework-browser
+
+      - name: Install Playwright browsers
+        run: rfbrowser init
+
+      - name: Install postgresql-client
+        run: sudo apt-get install -y postgresql-client
+
+      - name: Bring up e2e stack
+        run: make e2e-up
+
+      - name: Seed data fixtures
+        run: make e2e-seed
+
+      - name: Run Robot e2e suite
+        run: make e2e-run
+
+      - name: Upload e2e results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: tests/e2e/results/
+
+      - name: Tear down e2e stack
+        if: always()
+        run: make e2e-down

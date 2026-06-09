@@ -49,7 +49,7 @@ None outstanding — all intake decisions (D-001 through D-008) are confirmed or
 | `US001_be_migrations_at_startup.md` | Auto-run migrations | | pending |
 | `US002_be_makefile_healthcheck.md` | Makefile health-check fix | `US001_be_migrations_at_startup.md` | pending |
 | `US003_be_github_actions_gate.md` | GitHub Actions gate | `US002_be_makefile_healthcheck.md` | pending |
-| `US004_be_user_stories_list.md` | BE: User stories list | | pending |
+| `US004_be_user_stories_list.md` | BE: User stories list | | completed |
 | `US004_fe_user_stories_list.md` | FE: User stories card list | | pending |
 | `US005_be_user_story_detail.md` | BE: User story detail | `US004_be_user_stories_list.md` | pending |
 | `US005_fe_user_story_detail.md` | FE: User story drawer | `US004_fe_user_stories_list.md` | pending |

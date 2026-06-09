@@ -3,8 +3,8 @@
 **Requirement:** REQ007
 **Story:** US005
 **Track:** FE
-**Status:** blocked_review_gate
-**Blocked by:** US004_fe_user_stories_list.md, US004/US005 BE REST endpoints (not present on this branch — see Review pass 4)
+**Status:** changes_requested
+**Blocked by:** US004_fe_user_stories_list.md (BE REST endpoints now merged — see Review pass 6/7)
 **Worked-by:** fe-dev-2026-06-08T09-36-00Z-a4f2
 **Implements:** US005, D-006, Frontend surface (UserStoryDrawer)
 
@@ -285,6 +285,38 @@ Resubmit after the orchestrator merged `main` (carrying the US005 BE REST endpoi
 - Orchestrator action (infrastructure, not code): free the e2e host ports by tearing down the stale `agents-board_*` stack (`make e2e-down` from the main worktree, OR remove `agents-board_postgres_1 agents-board_api-server_1 agents-board_mcp-server_1 agents-board_web_1`), then `podman-compose build` (with `--no-cache` for `web` if the cache-hit recurs) and `make e2e-up && make e2e-seed` **from this worktree** so the `us005fe_*` stack (with the FE under review) binds the ports. Re-spawn tech-lead-reviewer pass 7 to run the 3× live e2e and finalize. No fe-dev rework required.
 
 Tech-debt: none filed this pass (the stale-image/foreign-stack e2e footguns were already filed pass 4; no new non-blocking FE finding surfaced).
+
+### Review pass 7 — 2026-06-09 — verdict: changes_requested
+
+This is the **first pass where the live e2e actually executed E2E-US005-002 against a working backend** (passes 2–6 were all `blocked_review_gate` — infra: missing migrate, conflict markers, missing BE endpoints, port conflict — so this browser case was never observed before). The infra is now clean (ports free, `make e2e-up` healthy, US005 BE detail/tasks routes registered at `main.go:92-93`). All static/unit gates remain GREEN (174/174 Jest, typecheck clean, `run-gate.sh fe`/`cross` PASS, `robot --dryrun` 7/7, coverage ≥80%, react-doctor 92/100). The verdict is `changes_requested` because the live e2e surfaced a **deterministic FE layout/behavior defect** — code at fault, reproduced identically across 3 runs. NOT flake, NOT infra, NOT a re-open of a pass-1 finding.
+
+**Live e2e summary lines (verbatim — full suite run 1, then US005-narrowed runs 2 & 3):**
+- Run 1 (full suite): `30 tests, 29 passed, 1 failed`
+- Run 2 (REQ007 US005): `2 tests, 1 passed, 1 failed`
+- Run 3 (REQ007 US005): `2 tests, 1 passed, 1 failed`
+
+The single failure in every run is **E2E-US005-002 "Switching stories and closing the drawer"**. E2E-US005-001 (open drawer from a card) PASSES every run — so opening the drawer works; only switching stories *while the drawer is open* is broken. (Run 1's other "failures" were the same US005-002 case rolling up through parent suite summaries; the only leaf failure is US005-002.)
+
+**Finding 1 (CODE AT FAULT) — open drawer overlays the card list; clicking another card is impossible.**
+- `web/components/ProjectDetail/UserStoryDrawer.tsx:57-61` — the drawer is `<dialog open aria-modal="true" className="fixed inset-y-0 right-0 m-0 w-96 ... z-50">`. Because it is `position: fixed` (taken out of flow) pinned to the viewport's right edge, it overlays the right 384px of the page.
+- `web/components/ProjectDetail/UserStoriesTab.tsx:54` — the card list container is `flex-1` and stays full-width when the drawer opens (the `pr-0` toggle is a no-op against a `fixed` sibling — it reserves no space). So every card in the right portion of the grid sits *under* the open drawer.
+- Result in a real browser (Playwright, deterministic over 3 runs): clicking `text=US005 Story 2` resolves to the correct `<h3>US005 Story 2</h3>` card, but the click is intercepted by the drawer subtree — verbatim from the log: `<div class="flex items-start justify-between gap-2">… from <dialog open aria-modal="true" aria-label="US005 Story 1" …> subtree intercepts pointer events`. The card can never be clicked, so the architected story-switch never happens and the test times out at 10s.
+- This breaks **D-005 as the component itself documents it** (`UserStoriesTab.tsx:19`: "Selecting a different card sets a new id (drawer stays mounted, re-fetches)"). The behavior is architected and expected; the layout makes it physically unreachable. This is NOT a spec defect — the e2e correctly exercises the documented switch-while-open behavior.
+- Why the unit suite missed it: jsdom (Jest) has no layout/compositing engine, so pointer-event interception from a `fixed`-positioned overlay is invisible to RTL `fireEvent.click`. The unit tests assert the handler fires when the card is clicked directly; they cannot detect that a real overlay covers the card. This is exactly the class of defect the live e2e gate exists to catch.
+
+**Required change (fe-dev):** make the card list and the open drawer not overlap, so a card remains clickable while the drawer is open. Either (a) reserve space for the drawer when open — e.g. render the drawer as an in-flow flex column (`w-96 shrink-0`) inside the `flex` tabpanel instead of `fixed inset-y-0 right-0`, letting the `flex-1` list shrink to the remaining width; or (b) keep it fixed but add right-padding/margin to the list equal to the drawer width when `selectedStoryId !== null` so no card sits under the overlay; or (c) another approach that keeps `role=dialog` + `aria-modal` + Escape + focus-management intact AND lets E2E-US005-002 click the second card. Re-run the 3× live e2e to confirm green before handing back. Do NOT weaken or change the e2e — the test is correct.
+
+**Everything else verified GREEN this pass (carried/re-confirmed):**
+- `npm test -- --watchAll=false --forceExit` → 174/174 passed (from `## Notes`/pass 6, FE diff unchanged).
+- `scripts/review/run-gate.sh fe` → `REVIEW GATE: PASS`; `scripts/review/run-gate.sh cross` → `REVIEW GATE: PASS`.
+- `robot --dryrun tests/e2e/REQ007_*/` → 7 tests, 7 passed, 0 failed.
+- Coverage (touched prod files) all ≥80%; react-doctor 92/100, no regression.
+- BE detail/tasks endpoints live and correct: `GET /api/v1/user-stories/:id` and `/:id/tasks` registered at `main.go:92-93`; drawer populates correctly for Story 1 (E2E-US005-001 PASS).
+- All pass-1 code findings remain fixed (no US004 test deletions, single-prefix TDG, two-arg onSelect, strong page assertion).
+
+**Circuit breaker:** consecutive `changes_requested` streak = 1 (passes 2–6 were `blocked_review_gate`, which does not count toward the streak; pass 1 `changes_requested` is not consecutive with this one). Breaker NOT tripped.
+
+Tech-debt: none filed this pass (the one finding is blocking and routed above; no separate non-blocking nit surfaced).
 
 ## Notes
 

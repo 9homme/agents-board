@@ -74,6 +74,10 @@ func (h *UserStoryHandler) GetUserStory(c echo.Context) error {
 // GetUserStoryTasks handles GET /api/v1/user-stories/:id/tasks.
 // Returns {"tasks":[...]} — empty array [] is returned when the story has no tasks.
 // Returns 404 if the story is not found, 500 on other errors.
+//
+// Because ListTasks returns an empty slice (not ErrNotFound) when the story
+// does not exist, the handler explicitly verifies story existence via
+// GetUserStory before returning the task list.
 func (h *UserStoryHandler) GetUserStoryTasks(c echo.Context) error {
 	ctx := c.Request().Context()
 	id := c.Param("id")
@@ -91,6 +95,24 @@ func (h *UserStoryHandler) GetUserStoryTasks(c echo.Context) error {
 			"code":    "INTERNAL_ERROR",
 			"message": "Internal server error",
 		})
+	}
+
+	// ListTasks returns an empty slice for both "story exists, no tasks" and
+	// "story does not exist". Verify story existence to return the correct 404.
+	if len(tasks) == 0 {
+		if _, err := h.userStoryRepo.GetUserStory(ctx, id); err != nil {
+			if errors.Is(err, repo.ErrNotFound) {
+				return c.JSON(http.StatusNotFound, map[string]string{
+					"code":    "NOT_FOUND",
+					"message": "User story not found",
+				})
+			}
+			log.Printf("GetUserStoryTasks: failed to verify story %s: %v", id, err)
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"code":    "INTERNAL_ERROR",
+				"message": "Internal server error",
+			})
+		}
 	}
 
 	items := make([]taskResponse, 0, len(tasks))

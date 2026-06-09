@@ -320,19 +320,30 @@ func TestUserStoryDetailHandler_GetUserStoryTasks_IT003_200WithList(t *testing.T
 }
 
 // IT-004 — GET /api/v1/user-stories/{id}/tasks: 200 with empty list (never null)
+// Uses sqlmock: ListTasks returns empty rows, GetUserStory confirms story exists.
 func TestUserStoryDetailHandler_GetUserStoryTasks_IT004_EmptyList(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer func() { _ = db.Close() }()
 
 	storyID := "aaaaaaaa-0000-0000-0000-000000000001"
+	projectID := "bbbbbbbb-0000-0000-0000-000000000001"
+	fixedTime, err := time.Parse(time.RFC3339, "2026-06-01T10:00:00Z")
+	require.NoError(t, err)
 
+	// ListTasks returns empty rows (story exists but has no tasks).
 	mock.ExpectQuery(`SELECT id, user_story_id, title, description, status, created_at, updated_at FROM tasks WHERE user_story_id = \$1 ORDER BY created_at DESC`).
 		WithArgs(storyID).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}))
 
+	// Handler must verify story exists when task list is empty.
+	mock.ExpectQuery(`SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
+		WithArgs(storyID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}).
+			AddRow(storyID, projectID, "Empty Story", "No tasks here", "draft", fixedTime, fixedTime))
+
 	taskRepo := repo.NewTaskRepo(db)
-	usRepo := &mockUserStoryDetailRepo{}
+	usRepo := repo.NewUserStoryRepo(db)
 	projectRepo := &mockProjectRepoForUSHandler{}
 	h := handler.NewUserStoryHandler(usRepo, projectRepo)
 	h.SetTaskRepo(taskRepo)
@@ -359,23 +370,36 @@ func TestUserStoryDetailHandler_GetUserStoryTasks_IT004_EmptyList(t *testing.T) 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// IT-005 — GET /api/v1/user-stories/{id}/tasks: 404 when story missing
+// IT-005 — GET /api/v1/user-stories/{id}/tasks: 404 when story missing.
+// Uses sqlmock: ListTasks returns empty rows (no tasks for the ID), then
+// GetUserStory returns no rows (story does not exist) → 404.
 func TestUserStoryDetailHandler_GetUserStoryTasks_IT005_404StoryMissing(t *testing.T) {
-	e := echo.New()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
 
-	taskRepo := &mockTaskRepo{
-		ListTasksFunc: func(ctx context.Context, userStoryID string) ([]*domain.Task, error) {
-			return nil, repo.ErrNotFound
-		},
-	}
-	usRepo := &mockUserStoryDetailRepo{}
+	missingID := "00000000-0000-0000-0000-000000000000"
+
+	// ListTasks finds no tasks (the story ID matches nothing).
+	mock.ExpectQuery(`SELECT id, user_story_id, title, description, status, created_at, updated_at FROM tasks WHERE user_story_id = \$1 ORDER BY created_at DESC`).
+		WithArgs(missingID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}))
+
+	// GetUserStory also finds nothing → ErrNotFound → 404.
+	mock.ExpectQuery(`SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
+		WithArgs(missingID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}))
+
+	taskRepo := repo.NewTaskRepo(db)
+	usRepo := repo.NewUserStoryRepo(db)
 	projectRepo := &mockProjectRepoForUSHandler{}
 	h := handler.NewUserStoryHandler(usRepo, projectRepo)
 	h.SetTaskRepo(taskRepo)
 
+	e := echo.New()
 	e.GET("/api/v1/user-stories/:id/tasks", h.GetUserStoryTasks)
 
-	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/user-stories/00000000-0000-0000-0000-000000000000/tasks", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/user-stories/"+missingID+"/tasks", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
@@ -385,6 +409,8 @@ func TestUserStoryDetailHandler_GetUserStoryTasks_IT005_404StoryMissing(t *testi
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
 	assert.Equal(t, "NOT_FOUND", res["code"])
 	assert.Equal(t, "User story not found", res["message"])
+
+	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
 // IT-006 — GET /api/v1/user-stories/{id}: 500 on repo error

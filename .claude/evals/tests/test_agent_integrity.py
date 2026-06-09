@@ -1,8 +1,7 @@
-"""Structural tests for vibe-commerce agents under .claude/agents/ AND .gemini/agents/.
+"""Structural tests for a-team agents under .claude/agents/.
 
-Validates: presence, frontmatter, name=filename, model matches role matrix
-(Claude only — Gemini model strings vary), tools come from per-platform allowlist,
-and parity (same 6 agents with identical descriptions) between platforms.
+Validates: presence, frontmatter, name=filename, model matches role matrix,
+tools come from the allowlist.
 
 YAML parsing uses pyyaml if available, else a small regex fallback.
 """
@@ -16,8 +15,6 @@ from conftest import (
     CLAUDE_AGENTS_DIR,
     CLAUDE_AGENT_MODELS,
     CLAUDE_TOOL_ALLOWLIST,
-    GEMINI_AGENTS_DIR,
-    GEMINI_TOOL_ALLOWLIST,
     REPO_ROOT,
     REQUIRED_AGENTS,
 )
@@ -78,19 +75,17 @@ def _parse_frontmatter(path):
 
 
 CLAUDE_AGENT_FILES = _list_agent_files(CLAUDE_AGENTS_DIR)
-GEMINI_AGENT_FILES = _list_agent_files(GEMINI_AGENTS_DIR)
 
 
 def _agent_name_from_path(p):
     return os.path.splitext(os.path.basename(p))[0]
 
 
+# -------- directory and presence checks --------
+
+
 def test_claude_agents_dir_exists():
     assert os.path.isdir(CLAUDE_AGENTS_DIR), f"Missing {_short(CLAUDE_AGENTS_DIR)}"
-
-
-def test_gemini_agents_dir_exists():
-    assert os.path.isdir(GEMINI_AGENTS_DIR), f"Missing {_short(GEMINI_AGENTS_DIR)}"
 
 
 def test_claude_has_all_required_agents():
@@ -99,13 +94,7 @@ def test_claude_has_all_required_agents():
     assert not missing, f"Missing Claude agents: {missing}"
 
 
-def test_gemini_has_all_required_agents():
-    got = {_agent_name_from_path(p) for p in GEMINI_AGENT_FILES}
-    missing = REQUIRED_AGENTS - got
-    assert not missing, f"Missing Gemini agents: {missing}"
-
-
-# -------- per-file checks (Claude) --------
+# -------- per-file checks --------
 
 
 @pytest.mark.parametrize(
@@ -149,7 +138,7 @@ def test_claude_model_matches_role_matrix(path):
     expected = CLAUDE_AGENT_MODELS[name]
     assert model == expected, (
         f"{_short(path)} declares model '{model}', "
-        f"CLAUDE.md role matrix requires '{expected}' for {name}"
+        f"role matrix requires '{expected}' for {name}"
     )
 
 
@@ -171,86 +160,14 @@ def test_claude_tools_in_allowlist(path):
     )
 
 
-# -------- per-file checks (Gemini) --------
-
-
-@pytest.mark.parametrize(
-    "path", GEMINI_AGENT_FILES, ids=[_short(p) for p in GEMINI_AGENT_FILES]
-)
-def test_gemini_frontmatter_present(path):
-    fm = _parse_frontmatter(path)
-    assert fm is not None, f"{_short(path)} has no parseable frontmatter"
-
-
-@pytest.mark.parametrize(
-    "path", GEMINI_AGENT_FILES, ids=[_short(p) for p in GEMINI_AGENT_FILES]
-)
-def test_gemini_required_fields(path):
-    fm = _parse_frontmatter(path) or {}
-    for key in ("name", "description", "model", "tools"):
-        assert key in fm and fm[key], f"{_short(path)} frontmatter missing `{key}`"
-
-
-@pytest.mark.parametrize(
-    "path", GEMINI_AGENT_FILES, ids=[_short(p) for p in GEMINI_AGENT_FILES]
-)
-def test_gemini_name_matches_filename(path):
-    fm = _parse_frontmatter(path) or {}
-    declared = str(fm.get("name", "")).strip()
-    filename = _agent_name_from_path(path)
-    assert declared == filename, (
-        f"{_short(path)} declares name '{declared}' but filename is '{filename}'"
-    )
-
-
-@pytest.mark.parametrize(
-    "path", GEMINI_AGENT_FILES, ids=[_short(p) for p in GEMINI_AGENT_FILES]
-)
-def test_gemini_tools_in_allowlist(path):
-    fm = _parse_frontmatter(path) or {}
-    tools_raw = fm.get("tools", "")
-    if isinstance(tools_raw, list):
-        tools = [t.strip() for t in tools_raw if t.strip()]
-    else:
-        tools = [t.strip() for t in str(tools_raw).split(",") if t.strip()]
-    assert tools, f"{_short(path)} declares no tools"
-    bad = [t for t in tools if t not in GEMINI_TOOL_ALLOWLIST]
-    assert not bad, (
-        f"{_short(path)} declares unknown Gemini tools: {bad}. "
-        f"Allowed: {sorted(GEMINI_TOOL_ALLOWLIST)}"
-    )
-
-
-# -------- cross-platform parity --------
-
-
-def _description_of(path):
-    fm = _parse_frontmatter(path) or {}
-    return str(fm.get("description", "")).strip()
-
-
-@pytest.mark.parametrize("agent_name", sorted(REQUIRED_AGENTS))
-def test_descriptions_match_across_platforms(agent_name):
-    claude_path = os.path.join(CLAUDE_AGENTS_DIR, f"{agent_name}.md")
-    gemini_path = os.path.join(GEMINI_AGENTS_DIR, f"{agent_name}.md")
-    if not (os.path.isfile(claude_path) and os.path.isfile(gemini_path)):
-        pytest.skip(f"{agent_name} missing from one or both platforms (caught elsewhere)")
-    c_desc = _description_of(claude_path)
-    g_desc = _description_of(gemini_path)
-    assert c_desc == g_desc, (
-        f"Description drift between platforms for '{agent_name}':\n"
-        f"  .claude: {c_desc[:120]}...\n"
-        f"  .gemini: {g_desc[:120]}..."
-    )
+# -------- structural invariants --------
 
 
 def test_worktree_isolation_required_in_phase3_command():
-    """The phase3 orchestrator command must enforce worktree isolation on both
-    platforms — Claude side uses the Agent tool's `isolation: \"worktree\"`,
-    Gemini side uses manual `git worktree add`. If either form goes missing,
-    parallel agents will race on the working tree."""
+    """The phase3 orchestrator command must enforce worktree isolation.
+    Claude side uses the Agent tool's `isolation: "worktree"`. If this goes
+    missing, parallel agents will race on the working tree."""
     claude_phase3 = os.path.join(REPO_ROOT, ".claude", "commands", "phase3.md")
-    gemini_phase3 = os.path.join(REPO_ROOT, ".gemini", "commands", "phase3.toml")
 
     with open(claude_phase3, "r", encoding="utf-8") as f:
         claude_text = f.read()
@@ -263,32 +180,36 @@ def test_worktree_isolation_required_in_phase3_command():
         "(used by the orchestrator to avoid co-picking overlapping tasks)."
     )
 
-    with open(gemini_phase3, "r", encoding="utf-8") as f:
-        gemini_text = f.read()
-    assert "git worktree add" in gemini_text, (
-        ".gemini/commands/phase3.toml must reference `git worktree add` "
-        "(the manual fallback Gemini orchestrators use — sync-gemini.py should "
-        "translate the Claude `isolation:` directive into this manual form)."
-    )
-    assert "Files touched" in gemini_text, (
-        ".gemini/commands/phase3.toml must reference the `Files touched` field. "
-        "Rerun scripts/sync-gemini.py after editing .claude/commands/phase3.md."
-    )
 
-
-def test_tech_lead_template_has_files_touched_section():
-    """tech-lead's task template must include a `## Files touched` section so
+def test_task_template_has_files_touched_section():
+    """The shared task template must include a `## Files touched` section so
     every task declares its file scope — the orchestrator depends on this to
-    avoid co-picking overlapping tasks."""
-    for platform_dir in (CLAUDE_AGENTS_DIR, GEMINI_AGENTS_DIR):
-        path = os.path.join(platform_dir, "tech-lead.md")
-        if not os.path.isfile(path):
-            pytest.skip(f"{_short(path)} missing (caught elsewhere)")
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        assert "## Files touched" in content, (
-            f"{_short(path)} task template must include a `## Files touched` section."
-        )
+    avoid co-picking overlapping tasks. tech-lead-planner authors tasks from
+    this template."""
+    path = os.path.join(REPO_ROOT, ".claude", "refs", "task-template.md")
+    if not os.path.isfile(path):
+        pytest.skip(f"{_short(path)} missing (caught elsewhere)")
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert "## Files touched" in content, (
+        f"{_short(path)} task template must include a `## Files touched` section."
+    )
+    assert "## Architecture extract" in content, (
+        f"{_short(path)} task template must include a `## Architecture extract` "
+        "section so devs implement without opening architecture.md."
+    )
+
+
+def test_planner_references_task_template():
+    """tech-lead-planner must point at the shared task template."""
+    path = os.path.join(CLAUDE_AGENTS_DIR, "tech-lead-planner.md")
+    if not os.path.isfile(path):
+        pytest.skip(f"{_short(path)} missing (caught by required-agents test)")
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    assert ".claude/refs/task-template.md" in content, (
+        f"{_short(path)} must reference .claude/refs/task-template.md."
+    )
 
 
 def test_devs_have_worktree_awareness():
@@ -296,47 +217,39 @@ def test_devs_have_worktree_awareness():
     instructions. If a dev doesn't commit, the harness cleans up the worktree
     and the work is lost."""
     for agent_name in ("be-dev", "fe-dev"):
-        for platform_dir in (CLAUDE_AGENTS_DIR, GEMINI_AGENTS_DIR):
-            path = os.path.join(platform_dir, f"{agent_name}.md")
-            if not os.path.isfile(path):
-                pytest.skip(f"{_short(path)} missing (caught elsewhere)")
-            with open(path, "r", encoding="utf-8") as f:
-                content = f.read()
-            assert "Worktree isolation" in content or "worktree isolation" in content, (
-                f"{_short(path)} must explain worktree isolation to the dev."
-            )
-            assert "git commit" in content or "Commit on the worktree branch" in content, (
-                f"{_short(path)} must instruct the dev to commit before exiting."
-            )
+        path = os.path.join(CLAUDE_AGENTS_DIR, f"{agent_name}.md")
+        if not os.path.isfile(path):
+            pytest.skip(f"{_short(path)} missing (caught elsewhere)")
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        assert "Worktree isolation" in content or "worktree isolation" in content, (
+            f"{_short(path)} must explain worktree isolation to the dev."
+        )
+        assert "git commit" in content or "Commit on the worktree branch" in content, (
+            f"{_short(path)} must instruct the dev to commit before exiting."
+        )
 
 
-def test_tech_lead_references_review_gate_on_both_platforms():
-    """Both .claude/agents/tech-lead.md and .gemini/agents/tech-lead.md must
-    reference scripts/review/run-gate.sh — the gate is mandatory in review mode.
-    If either file loses the reference (drift, accidental rewrite), the test
-    fails so the next sync run can restore it."""
+def test_tech_lead_reviewer_references_review_gate():
+    """tech-lead-reviewer.md must reference scripts/review/run-gate.sh — the
+    REQ-level quality gate (Mode 2) is mandatory."""
     required_phrases = [
         "scripts/review/run-gate.sh",
         "REVIEW GATE",
     ]
-    for platform_dir in (CLAUDE_AGENTS_DIR, GEMINI_AGENTS_DIR):
-        path = os.path.join(platform_dir, "tech-lead.md")
-        if not os.path.isfile(path):
-            pytest.skip(f"{_short(path)} missing (caught by required-agents test)")
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        for phrase in required_phrases:
-            assert phrase in content, (
-                f"{_short(path)} is missing required gate phrase: '{phrase}'. "
-                f"Edit .claude/agents/tech-lead.md and rerun scripts/sync-gemini.py."
-            )
+    path = os.path.join(CLAUDE_AGENTS_DIR, "tech-lead-reviewer.md")
+    if not os.path.isfile(path):
+        pytest.skip(f"{_short(path)} missing (caught by required-agents test)")
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    for phrase in required_phrases:
+        assert phrase in content, (
+            f"{_short(path)} is missing required gate phrase: '{phrase}'."
+        )
 
 
-def test_po_ba_can_ask_user_on_each_platform():
-    """po-ba must be able to ask clarifying questions — flag if Gemini's po-ba
-    tools list lacks any user-input capability. This is informational: it asserts
-    the Claude side has AskUserQuestion, and warns rather than fails if Gemini
-    has no equivalent in its allowlist."""
+def test_po_ba_can_ask_user():
+    """po-ba must be able to ask clarifying questions via AskUserQuestion."""
     claude_path = os.path.join(CLAUDE_AGENTS_DIR, "po-ba.md")
     if os.path.isfile(claude_path):
         fm = _parse_frontmatter(claude_path) or {}
@@ -349,6 +262,3 @@ def test_po_ba_can_ask_user_on_each_platform():
             ".claude/agents/po-ba.md must declare AskUserQuestion — "
             "po-ba's job is to ask clarifying questions before writing stories."
         )
-    # Gemini side intentionally not asserted: the platform's CLI handles user
-    # prompts differently. If/when Gemini gains a tool name for user input,
-    # add it to GEMINI_TOOL_ALLOWLIST and assert here.

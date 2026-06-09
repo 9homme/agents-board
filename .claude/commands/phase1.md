@@ -5,7 +5,7 @@ argument-hint: <raw requirement description>
 
 # /phase1 — Discovery & Design
 
-You are the orchestrator. Run Phase 1 of the vibe-commerce pipeline (see `CLAUDE.md`).
+You are the orchestrator. Run Phase 1 of the a-team pipeline (see `CLAUDE.md`).
 
 ## Input
 

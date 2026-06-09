@@ -1,13 +1,12 @@
-# evals — quality bar for vibe-commerce's skills and agents
+# evals — quality bar for a-team's skills and agents
 
 Mirror of [`claude-skills/eval-workspace/`](../../../claude-skills/eval-workspace/) with an added agent track.
-Symlinked into `.gemini/evals` so one set of files covers both platforms.
 
 ## Two layers
 
 1. **Structural** (`tests/`) — pytest. Fast, deterministic, CI-friendly.
    - `test_skill_integrity.py` — every `SKILL.md` under `.claude/skills/` has frontmatter, an H1, references/scripts exist if cited, no empty files, names are unique.
-   - `test_agent_integrity.py` — every `*.md` under `.claude/agents/` AND `.gemini/agents/` has frontmatter with `name` (= filename), `description`, `model`, `tools`; tools come from the per-platform allowlist; the two platforms stay in parity (same 6 agents, same descriptions, equivalent tool capability); models match the role matrix in `CLAUDE.md` (opus for po-ba / system-architect / tech-lead).
+   - `test_agent_integrity.py` — every `*.md` under `.claude/agents/` has frontmatter with `name` (= filename), `description`, `model`, `tools`; tools come from the allowlist; models match the role matrix in `CLAUDE.md` (opus for po-ba / system-architect / tech-lead-planner / tech-lead-reviewer). Also asserts the shared task template has `## Files touched` + `## Architecture extract`, and tech-lead-reviewer references the review gate.
 
 2. **Behavioral** (`iteration-N/`) — JSON fixtures hand-graded into `grading-results.md`. Same shape as `claude-skills`.
    - `skill_evals.json` — one or more prompts per skill, with `expected_output` written as graded assertions, not as a model answer.

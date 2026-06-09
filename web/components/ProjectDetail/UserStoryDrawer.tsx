@@ -58,7 +58,7 @@ export const UserStoryDrawer: React.FC<UserStoryDrawerProps> = ({
       open
       aria-modal="true"
       aria-label={story?.title ?? 'User story detail'}
-      className="fixed inset-y-0 right-0 m-0 w-96 h-full max-h-none bg-white shadow-xl border-l border-gray-200 flex flex-col z-50 p-0"
+      className="static m-0 w-96 h-full max-h-none bg-white shadow-xl border-l border-gray-200 flex flex-col p-0 shrink-0"
     >
       {/* Header with close button — always rendered */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">

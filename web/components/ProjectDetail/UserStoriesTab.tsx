@@ -50,8 +50,8 @@ export const UserStoriesTab: React.FC<UserStoriesTabProps> = ({ projectId }) => 
       aria-labelledby="tab-user-stories"
       className="relative flex h-full"
     >
-      {/* Card list — always mounted */}
-      <div className={`flex-1 p-4 overflow-y-auto${selectedStoryId ? ' pr-0' : ''}`}>
+      {/* Card list — always mounted; flex-1 ensures it shrinks to make room for the in-flow drawer */}
+      <div className="flex-1 p-4 overflow-y-auto">
         <UserStoryCardList
           projectId={projectId}
           onSelect={(storyId, cardEl) => handleSelect(storyId, cardEl)}

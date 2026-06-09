@@ -1,7 +1,7 @@
 # US005 — User story detail + tasks in a side drawer on card click
 
 **Requirement:** REQ007 — User Stories Tab + E2E Quality Gate + Health-Check Fixes
-**Status:** in_signoff
+**Status:** changes_requested
 
 ## Story
 As a user, I want to click a user-story card and see the full story detail together with all of its tasks in a right-side drawer — with the card list still visible behind it — so that I can drill into a story and its breakdown without losing my place in the list.
@@ -82,3 +82,13 @@ As a user, I want to click a user-story card and see the full story detail toget
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-09 — verdict: changes_requested
+- **Spec review:** AC coverage is solid across layers. Happy path (FCT-001 / IT-001 / IT-003 / E2E-001), empty-state (FCT-002 / IT-004), close (FCT-003), switch (FCT-005 / E2E-002), loading (FCT-006), error (FCT-007 / IT-006 / IT-007 / UT-002 / UT-004), keyboard Escape (FCT-004). Two e2e spec-vs-implementation mismatches found:
+  - **E2E-US005-003 (standalone empty-state scenario) is in `US005_e2e_tests.md` but absent from the robot suite** — the suite has only E2E-001 and E2E-002. The empty-state assertion ("No tasks for this story.") was folded into E2E-002 (Story 2 has 0 tasks), so the AC is still proven at e2e (plus FCT-002 + IT-004). But the spec claims 3 e2e cases and the implementation has 2 — the spec and the robot file must agree.
+  - **E2E-US005-002 spec step 4 says "Click the close (X) button"; the robot file closes via Escape (line 83), not the X button.** The X-button close path is therefore only proven at FE unit level (FCT-003), never at e2e. Spec and implementation must agree on which control the e2e scenario exercises.
+- **Result review:** All 11 BE (UT-001..004, IT-001..007) and all FE spec cases (FCT-001..007, verified present and passing in `UserStoryDrawer.test.tsx` / `UserStoriesTab.test.tsx`) pass; no skips. However the **test report's FCT ID table (US005_test_report.md lines 31-43) does not map to the FE spec's IDs** — it relabels cases (e.g. "FCT-002 = renders story title") and invents FCT-008..011, while showing no entry for the spec's E2E-US005-003. The underlying tests are correct and green; the report's ID mapping is inaccurate and must be regenerated against the spec's actual IDs before the next sign-off so the audit trail is trustworthy.
+- **Routed to:**
+  - **tester** — reconcile `US005_e2e_tests.md` with `US005_user_story_detail_and_tasks.robot`: (a) either restore E2E-US005-003 as its own case or update the spec to reflect the consolidation into E2E-002 and renumber; (b) align E2E-US005-002 close-control wording (X button) with the implementation (Escape) — or implement the X-button click in the robot case. No code change required; both AC outcomes already pass.
+  - **orchestrator (report capture)** — regenerate `US005_test_report.md` FE/E2E tables mapped to the spec's real FCT-* / E2E-* IDs (and reflect E2E-003's status) on the next pass.
+  - No dev/task routing — no failing behavior; all behaviors meet their ACs.

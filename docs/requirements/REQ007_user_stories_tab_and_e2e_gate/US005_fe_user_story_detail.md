@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US005
 **Track:** FE
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** US004_fe_user_stories_list.md (BE REST endpoints now merged — see Review pass 6/7)
 **Worked-by:** fe-dev-2026-06-08T09-36-00Z-a4f2
 **Implements:** US005, D-006, Frontend surface (UserStoryDrawer)
@@ -338,6 +338,31 @@ No test files changed — no test asserted CSS classes, and all 174 Jest tests p
 - react-doctor `--diff` score: **92/100** (unchanged from pass 6/7 — no regression).
 
 All previously verified findings (pass 1–7) remain fixed. TDG commit: `refactor: fix drawer fixed-position overlay blocking card click-while-open (US005)`.
+
+### Review pass 8 — 2026-06-09 — verdict: changes_requested
+
+The pass-7 layout/behavior defect (E2E-US005-002: fixed-position drawer overlay intercepting card clicks) is **genuinely FIXED** and verified at the code level. However, this pass surfaces a TDG conformance violation in the authored commit history — the **exact recurrence of pass-1 finding 1** — so the verdict is `changes_requested` (code/history at fault, NOT infra). Per verdict rules, I did NOT run the 3× live e2e: a downstream green cannot turn `changes_requested` into `approved`.
+
+**Pass-7 finding — VERIFIED FIXED (the real defect is gone):**
+- `web/components/ProjectDetail/UserStoryDrawer.tsx:57-61` — drawer is now `<dialog open aria-modal="true" aria-label={...} className="static m-0 w-96 h-full max-h-none ... flex flex-col p-0 shrink-0">`. The `fixed inset-y-0 right-0 ... z-50` classes are gone (grep confirms none of `fixed`/`z-50`/`inset-y` remain on the element). The dialog is an in-flow flex child.
+- `web/components/ProjectDetail/UserStoriesTab.tsx:46-65` — tabpanel is `flex h-full`; the card-list wrapper is `flex-1 p-4 overflow-y-auto` (shrinks to make room) and the drawer is the `w-96 shrink-0` sibling. No `fixed` overlay, so a second card is no longer covered. The `pr-0` conditional is removed. Layout-wise, the click-while-open path is now reachable.
+- Accessibility INTACT (all unchanged): native `<dialog open>` (implicit role=dialog) + `aria-modal="true"` + `aria-label`; document-level Escape handler (`UserStoryDrawer.tsx:38-50`); focus-to-close-button on mount (`:33-36`); focus-return via `triggerRef` on close (`UserStoriesTab.tsx:39-44`). Conforms to D-005.
+
+**Finding 1 (HISTORY AT FAULT — blocking) — re-introduced `refactor: chore:` double-prefixed commit.**
+- Commit `01ef6d8`: `refactor: chore: hand off US005 FE user story detail drawer for review (US005)` (touches only this task file's review log; the FE dev's hand-off commit).
+- The TDG contract requires every commit subject to start with **exactly one** of `red:` / `green:` / `refactor:`. A `refactor: chore:` double prefix is invalid (and a hand-off/chore is not a refactor of a test cycle). This is the **identical** violation raised as pass-1 finding 1 and previously soft-reset away in pass 2; it has reappeared on the rework.
+- **Required change (fe-dev):** re-author commit `01ef6d8` to a single valid prefix (or drop it — a hand-off/status-flip commit is not part of a red→green→refactor cycle; the prior valid pattern was `refactor: set US005 FE in_review (US005)`). The other four US005 FE commits (`92e7146`, `6757b0f`, `f2e9228`, `58dbe7f`) are all single-prefix `refactor: ... (US005)` and are fine. After re-authoring, hand back to `in_review`; re-review will run the 3× live e2e to finalize.
+
+**Everything else verified GREEN this pass:**
+- `npm test -- --watchAll=false --forceExit` → **174 passed, 0 failed** (re-run on this branch).
+- No US004 test deletions (`git diff main --diff-filter=D --name-only -- web/` empty); pass-1 finding 2 stays fixed.
+- No conflict markers in `web/lib`, `web/components`, `web/hooks`.
+- Two-arg `onSelect` contract and strong page assertion (pass-1 findings 3/4) remain fixed.
+- Dev-reported gate evidence (`run-gate.sh fe`/`cross` PASS, `robot --dryrun` 7/7, react-doctor 92/100) is internally consistent; not independently re-run because the history finding already determines the verdict.
+
+**Circuit breaker:** consecutive `changes_requested` streak = **2** (pass 7 + pass 8). Passes 2–6 were `blocked_review_gate` (do not count); pass 1 `changes_requested` is not consecutive with pass 7 (interrupted by five `blocked_review_gate` passes). Breaker NOT tripped. NOTE for orchestrator: a 3rd consecutive `changes_requested` on the next pass would trip the breaker — the remaining finding is a trivial commit re-author, so this should close on the next pass.
+
+Tech-debt: none filed this pass (the one finding is blocking and routed above; no separate non-blocking nit surfaced).
 
 ## Notes
 

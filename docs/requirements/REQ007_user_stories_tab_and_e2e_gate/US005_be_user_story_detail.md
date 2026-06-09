@@ -4,7 +4,7 @@
 **Story:** US005
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US004_be_user_stories_list.md
 **Worked-by:** be-dev-2026-06-09T054300Z-a3f1
 **Implements:** US005, API contract GET /api/v1/user-stories/{id}, GET /api/v1/user-stories/{id}/tasks, D-004
@@ -96,3 +96,38 @@ agent-board/internal/handler/user_story_detail_handler.go:81:  GetUserStoryTasks
 - `taskRepo` injected via `SetTaskRepo(repo.TaskRepository)` setter on `UserStoryHandler` — avoids creating a separate handler type and keeps main.go simple.
 
 ## Review log
+
+### Review pass 1 — verdict: approved (Mode 1, tech-lead-reviewer)
+- **Date:** 2026-06-09
+- **Branch reviewed:** agent/us005be
+
+**Tests run (verified, not just dev-claimed):**
+- `go vet ./...` → clean (No issues found)
+- `go test ./...` → 333 passed in 10 packages, clean
+- Coverage `user_story_detail_handler.go`: SetTaskRepo 100.0%, GetUserStory 100.0%, GetUserStoryTasks 100.0% (≥80% ✓); module total 90.9%
+
+**Test contract:** all required IDs implemented and passing — UT-001, UT-002, UT-003, UT-004, IT-001..IT-007, plus extra IT-005b (story-existence-check 500 path).
+
+**Architecture conformance (against task `## Architecture extract`):**
+- `GET /api/v1/user-stories/:id` 200 → bare 7-field object, NO `taskCount` (IT-001 asserts `Len(res,7)` + absence of taskCount). 404 `{NOT_FOUND, "User story not found"}` (IT-002/UT-001). 500 `{INTERNAL_ERROR, "Internal server error"}` (IT-006/UT-002). ✓
+- `GET /api/v1/user-stories/:id/tasks` 200 → `{"tasks":[...]}` with `userStoryId` field; empty case returns `{"tasks":[]}` never null (IT-004 asserts `"tasks":[]`). 404 (IT-005/UT-003), 500 (IT-007/UT-004/IT-005b). ✓
+- Routes wired in `cmd/api-server/main.go` exactly as specified.
+
+**Error-branch exhaustiveness (anti-happy-path):** every `return` site in `user_story_detail_handler.go` maps to a spec ID — GetUserStory: NotFound(UT-001,IT-002)/generic(UT-002,IT-006)/success(IT-001); GetUserStoryTasks: ListTasks-NotFound(UT-003)/ListTasks-generic(UT-004,IT-007)/empty+story-NotFound(IT-005)/empty+story-generic(IT-005b)/success(IT-003)/empty+exists(IT-004). No unspecified branches. No SPEC_GAP.
+
+**Scope:** changes confined to the 4 expected files (new handler + test, +1-line `taskRepo` field in user_story_handler.go, +4 lines route/wiring in main.go). No drive-by refactors. No commented-out code or stray TODOs.
+
+**TDG:** all 6 commit subjects use valid `red:`/`green:`/`refactor:` prefixes ending in `(US005)`, ordered red→green→refactor. (Two `refactor:`-labeled commits actually changed behavior/added a test — filed as non-blocking tech-debt; prefixes valid and order correct so not blocking.)
+
+**Gate evidence (carried from `## Notes`, verified consistent):**
+```
+BE gate:    REVIEW GATE: PASS  (gofmt -s, go vet, golangci-lint, go test)
+Cross gate: REVIEW GATE: PASS  (semgrep, gitleaks)
+Coverage:   user_story_detail_handler.go — GetUserStory/GetUserStoryTasks/SetTaskRepo 100.0%
+robot --dryrun tests/e2e/REQ007_*/ → 7 tests, 7 passed, 0 failed
+```
+Live e2e E2E-US005-001/002 failures are the expected FE-drawer (`role=dialog`) dependency gap (US005 FE not yet merged) — per Mode 1 rules these are NOT a gate; live e2e is enforced at Mode 2 once all tasks merge. Not a blocker.
+
+**Tech-debt:** filed 2 non-blocking findings (TDG label drift on 2 commits; Notes "Tests added" list inaccurate — claims IT-004b which does not exist) to REQ007 tech_debt.md.
+
+**Verdict: approved → Status: completed.**

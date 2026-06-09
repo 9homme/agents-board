@@ -1,7 +1,7 @@
 # US005 Test Report
 
-**Timestamp:** 2026-06-09T07:28:25Z
-**Commit:** 1444157 (REQ007 quality gate evidence commit)
+**Timestamp:** 2026-06-09T08:02:00Z
+**Commit:** main (post-tester revision 1 — e2e spec reconciled)
 **Story:** US005 — User story detail and tasks drawer
 
 ---
@@ -30,17 +30,13 @@
 
 | Test ID | Component / Hook | Result |
 |---|---|---|
-| FCT-001 | UserStoriesTab opens drawer on card click | PASS |
-| FCT-002 | UserStoryDrawer renders story title | PASS |
-| FCT-003 | UserStoriesTab switches story on second card click | PASS |
-| FCT-004 | UserStoryDrawer renders task list | PASS |
-| FCT-005 | UserStoriesTab closes drawer on close button | PASS |
-| FCT-006 | UserStoryDrawer shows loading state | PASS |
-| FCT-007 | UserStoryDrawer shows error state | PASS |
-| FCT-008 | useUserStory fetches story detail | PASS |
-| FCT-009 | useUserStory handles error | PASS |
-| FCT-010 | useUserStoryTasks fetches tasks | PASS |
-| FCT-011 | useUserStoryTasks returns empty list | PASS |
+| FCT-001 | UserStoriesTab — clicking card opens drawer; drawer shows detail and 2 tasks | PASS |
+| FCT-002 | UserStoryDrawer — shows "No tasks for this story." when tasks array empty | PASS |
+| FCT-003 | UserStoriesTab — clicking close (X) button unmounts drawer and returns focus | PASS |
+| FCT-004 | UserStoryDrawer — pressing Escape fires onClose callback | PASS |
+| FCT-005 | UserStoriesTab — clicking second card while drawer open triggers new fetches | PASS |
+| FCT-006 | UserStoryDrawer — shows loading spinner while requests are pending | PASS |
+| FCT-007 | UserStoryDrawer — shows "Couldn't load this user story." on API failure; close button present | PASS |
 
 **Summary:** 174 passed, 0 failed (23 suites — includes US004 and US005 FE tests)
 
@@ -51,7 +47,9 @@
 | Test ID | Test Name | Result |
 |---|---|---|
 | E2E-US005-001 | Clicking a card opens detail drawer with tasks | PASS |
-| E2E-US005-002 | Switching stories and closing the drawer | PASS |
+| E2E-US005-002 | Switching stories and closing the drawer (incl. step 3a: empty-state sub-assertion) | PASS |
+
+**Note — E2E-US005-003:** Removed from spec (tester revision 1). Empty-state AC is covered by step 3a of E2E-US005-002 (e2e layer) + FCT-002 (FE component) + IT-004 (BE integration). No standalone test needed.
 
 **Summary:** 2 passed, 0 failed (30 total across full suite — all green × 3 consecutive runs)
 

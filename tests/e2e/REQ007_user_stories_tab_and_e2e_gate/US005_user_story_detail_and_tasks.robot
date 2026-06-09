@@ -1,5 +1,9 @@
 *** Settings ***
 Documentation    E2E tests for US005 — User story detail + tasks in side drawer.
+...                E2E-US005-001: clicking a card opens the drawer with detail + tasks.
+...                E2E-US005-002: switching stories updates the drawer; Story 2 (0 tasks) asserts
+...                the empty-state "No tasks for this story." as a sub-step; Escape closes the drawer.
+...                (Standalone E2E-US005-003 removed — empty-state is a sub-assertion of E2E-002.)
 Library          Browser
 Library          String
 Resource         ../REQ001_agent_board_mcp/mcp_keywords.resource
@@ -60,7 +64,7 @@ E2E-US005-001 Clicking a card opens detail drawer with tasks
     Wait For Elements State    role=heading >> text=US005 Story 2    visible
 
 E2E-US005-002 Switching stories and closing the drawer
-    [Documentation]    Verifies clicking another card updates drawer, and X closes it.
+    [Documentation]    Verifies clicking another card updates drawer; Story 2 (0 tasks) shows empty-state; Escape closes the drawer.
     [Tags]    US005
 
     # Start from a clean state

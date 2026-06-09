@@ -3,7 +3,7 @@
 **Requirement:** REQ007
 **Story:** US005
 **Track:** FE
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** US004_fe_user_stories_list.md (BE REST endpoints now merged — see Review pass 6/7)
 **Worked-by:** fe-dev-2026-06-08T09-36-00Z-a4f2
 **Implements:** US005, D-006, Frontend surface (UserStoryDrawer)

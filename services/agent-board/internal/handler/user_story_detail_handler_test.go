@@ -413,6 +413,39 @@ func TestUserStoryDetailHandler_GetUserStoryTasks_IT005_404StoryMissing(t *testi
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// IT-005b — GET /api/v1/user-stories/{id}/tasks: 500 when story-existence check fails with generic error
+func TestUserStoryDetailHandler_GetUserStoryTasks_IT005b_500StoryCheckError(t *testing.T) {
+	e := echo.New()
+
+	// ListTasks returns empty; GetUserStory returns a generic (non-NotFound) error.
+	taskRepo := &mockTaskRepo{
+		ListTasksFunc: func(ctx context.Context, userStoryID string) ([]*domain.Task, error) {
+			return []*domain.Task{}, nil
+		},
+	}
+	usRepo := &mockUserStoryDetailRepo{
+		GetUserStoryFunc: func(ctx context.Context, id string) (*domain.UserStory, error) {
+			return nil, errors.New("db down")
+		},
+	}
+	projectRepo := &mockProjectRepoForUSHandler{}
+	h := handler.NewUserStoryHandler(usRepo, projectRepo)
+	h.SetTaskRepo(taskRepo)
+
+	e.GET("/api/v1/user-stories/:id/tasks", h.GetUserStoryTasks)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/user-stories/any-id/tasks", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+	assert.Equal(t, "Internal server error", res["message"])
+}
+
 // IT-006 — GET /api/v1/user-stories/{id}: 500 on repo error
 func TestUserStoryDetailHandler_GetUserStory_IT006_500RepoError(t *testing.T) {
 	e := echo.New()

@@ -288,4 +288,66 @@ export const handlers = [
       updatedAt: '2024-01-02T09:30:00Z',
     })
   }),
+
+  // ---------------------------------------------------------------------------
+  // US047 — Requirements hierarchy endpoints
+  // ---------------------------------------------------------------------------
+
+  // §4 GET /api/v1/projects/:pid/requirements — requirements list
+  // Default happy path: one "Default" requirement
+  http.get('*/api/v1/projects/:pid/requirements', ({ params }) => {
+    const pid = typeof params.pid === 'string' ? params.pid : String(params.pid)
+    return HttpResponse.json({
+      requirements: [
+        {
+          id: 'b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f',
+          projectId: pid,
+          name: 'Default',
+          description: '',
+          status: 'draft',
+          createdAt: '2026-06-09T10:00:00Z',
+          updatedAt: '2026-06-09T10:00:00Z',
+        },
+      ],
+    })
+  }),
+
+  // §6 GET /api/v1/projects/:pid/requirements/:rid/user-stories
+  http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories', ({ params }) => {
+    const pid = typeof params.pid === 'string' ? params.pid : String(params.pid)
+    const rid = typeof params.rid === 'string' ? params.rid : String(params.rid)
+    return HttpResponse.json({
+      userStories: [
+        {
+          id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          projectId: pid,
+          requirementId: rid,
+          title: 'Add item to basket',
+          description: '',
+          status: 'in_progress',
+          taskCount: 3,
+          createdAt: '2026-06-02T09:00:00Z',
+          updatedAt: '2026-06-02T09:00:00Z',
+        },
+      ],
+    })
+  }),
+
+  // §10 GET /api/v1/projects/:pid/requirements/:rid/documents
+  http.get('*/api/v1/projects/:pid/requirements/:rid/documents', ({ params }) => {
+    const pid = typeof params.pid === 'string' ? params.pid : String(params.pid)
+    const rid = typeof params.rid === 'string' ? params.rid : String(params.rid)
+    return HttpResponse.json({
+      documents: [
+        {
+          id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          projectId: pid,
+          requirementId: rid,
+          title: 'README',
+          createdAt: '2026-06-02T09:00:00Z',
+          updatedAt: '2026-06-02T09:00:00Z',
+        },
+      ],
+    })
+  }),
 ]

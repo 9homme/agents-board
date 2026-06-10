@@ -12,7 +12,7 @@ interface DocumentsTabProps {
   /** The project id whose documents are being browsed. */
   projectId: string;
   /**
-   * The requirement id that scopes the documents fetch (§10 canonical path).
+   * The requirement id that scopes documents via the §10 canonical path.
    * When provided, fetches from /requirements/:rid/documents.
    * When absent, falls back to the project-scoped endpoint (legacy).
    */
@@ -45,7 +45,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId, requireme
   const router = useRouter();
   const docParam = typeof router.query.doc === 'string' ? router.query.doc : undefined;
 
-  // Requirement-scoped fetch (§10 canonical path) when requirementId is set
+  // Requirement-scoped hook — uses §10 canonical path when requirementId is set
   const {
     documents: reqDocuments,
     loading: reqLoading,

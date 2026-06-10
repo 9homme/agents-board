@@ -7,7 +7,7 @@
  * FCT-047-015 — 500 error → error state
  * FCT-047-016 — AbortController cleanup on unmount
  */
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { http, HttpResponse, delay } from 'msw';
 import { server } from '../test/msw/server';
 import { ApiError } from '../lib/api/client';
@@ -138,6 +138,58 @@ describe('useProjectRequirements', () => {
     expect(result.current.error).not.toBeNull();
     expect(result.current.error).toBeInstanceOf(ApiError);
     expect(result.current.requirements).toHaveLength(0);
+  });
+
+  // skip fetch when projectId is undefined
+  it('skips fetch and sets loading=false when projectId is undefined', async () => {
+    const { useProjectRequirements } = await import('./useProjectRequirements');
+
+    const { result } = renderHook(() => useProjectRequirements(undefined));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.requirements).toHaveLength(0);
+    expect(result.current.error).toBeNull();
+  });
+
+  // refresh re-triggers fetch
+  it('refresh re-triggers the fetch', async () => {
+    const { useProjectRequirements } = await import('./useProjectRequirements');
+
+    let callCount = 0;
+    server.use(
+      http.get('*/api/v1/projects/:pid/requirements', ({ params }) => {
+        callCount++;
+        const pid = typeof params.pid === 'string' ? params.pid : String(params.pid);
+        return HttpResponse.json({
+          requirements: [
+            {
+              id: REQ_ID,
+              projectId: pid,
+              name: 'Default',
+              description: '',
+              status: 'draft',
+              createdAt: '2026-06-09T10:00:00Z',
+              updatedAt: '2026-06-09T10:00:00Z',
+            },
+          ],
+        });
+      })
+    );
+
+    const { result } = renderHook(() => useProjectRequirements(PROJECT_ID));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(callCount).toBe(1);
+
+    act(() => {
+      result.current.refresh();
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(callCount).toBe(2);
   });
 
   // FCT-047-016 — AbortController cleanup on unmount

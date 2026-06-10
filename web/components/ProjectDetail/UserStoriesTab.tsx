@@ -8,7 +8,7 @@ interface UserStoriesTabProps {
   /** The project id whose user stories are being browsed. */
   projectId: string;
   /**
-   * The requirement id that scopes the user stories fetch (§6 canonical path).
+   * The requirement id that scopes user-stories via the §6 canonical path.
    * When provided, fetches from /requirements/:rid/user-stories.
    * When absent, falls back to the project-scoped UserStoryCardList (legacy).
    */

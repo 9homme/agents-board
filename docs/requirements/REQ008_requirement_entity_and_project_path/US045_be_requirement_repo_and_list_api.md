@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US044_be_requirement_schema_migration_domain
 **Worked-by:** be-dev-2026-06-10T00-00-00Z-ad6f
 **Implements:** US045, D-004 (requirements read-only over HTTP), API contract §4 `GET /api/v1/projects/:pid/requirements`
@@ -151,3 +151,36 @@ Coverage per new production file:
 19 tests, 19 passed, 0 failed (robot --dryrun tests/e2e/REQ008_requirement_entity_and_project_path/)
 
 ## Review log
+
+### Review pass 1 — verdict: approved
+
+**Reviewer:** tech-lead-reviewer (Mode 1, BE)
+**Date:** 2026-06-10
+
+**Verification performed:**
+- `go vet ./...` — clean ("No issues found").
+- `go test ./...` (whole service) — 421 passed across 10 packages; no regressions.
+- `go test ./internal/repo/ ./internal/handler/` — 297 passed.
+- Re-ran coverage; matches the dev's pasted numbers exactly.
+
+**Dev gate evidence (verbatim, carried from `## Notes`):**
+- REVIEW GATE: PASS (be services/agent-board)
+- REVIEW GATE: PASS (cross)
+- `internal/repo/requirement_repo.go`: NewRequirementRepo 100%, ListByProject 100%, Create 100%, GetRequirement 0% (exempted — US048 owns tests), Update 75%, isFKViolation 100%; repo pkg total 94.7%
+- `internal/handler/requirement_handler.go`: NewRequirementHandler 100%, ListProjectRequirements 86.7%; handler pkg total 96.8%
+- Robot dryrun: 19 tests, 19 passed, 0 failed (`tests/e2e/REQ008_requirement_entity_and_project_path/`)
+
+**Coverage independently confirmed (re-run):** ListByProject 100%, Create 100%, isFKViolation 100%, GetRequirement 0.0% (pre-declared exemption, US048-owned — accepted), Update 75.0%, ListProjectRequirements 86.7%. Every in-scope production function ≥80%.
+
+**Checklist:**
+- Architecture conformance — PASS. §4 200 shape exact (camelCase `requirements` key, item fields `id/projectId/name/description/status/createdAt/updatedAt`); error envelopes exact (`NOT_FOUND`/"Project not found", `INTERNAL_ERROR`/"Failed to fetch requirements"); timestamps via `.Format("2006-01-02T15:04:05Z")`; route registered as `:pid`; `ListByProject` returns non-nil slice (`make([]domain.Requirement, 0)`); `Create` FK violation (23503) → `ErrProjectNotFound`. main.go flat routes untouched (US048 scope respected).
+- Test contract — PASS. All assigned IDs implemented and passing: UT-045-001..012, UT-045-049, IT-045-001..004. (MCP/project-create IDs in the spec belong to sibling US045 tasks — out of scope here.)
+- Exhaustiveness (anti-happy-path) — PASS. `ListByProject` 3 error branches (Query / Scan / rows.Err) ↔ UT-045-003/004/005; ctx-cancel ↔ UT-045-049; empty→[] ↔ UT-045-006. `Create` 2 branches (Scan, FK) ↔ UT-045-008/009. Handler 404 + 500 branches ↔ IT-045-003 + UT-045-001. `GetRequirement` error branch intentionally deferred to US048 (exempted).
+- TDD honesty — PASS. Tests assert behavior/exact JSON, no weakened specs.
+- Scope — PASS. Changes confined to the declared `## Files touched`.
+- TDG conformance — PASS. Substantive commits ordered red (76fa231) → green (ef28274) → refactor (77339a4), all tagged `(US045)`. Handoff commit drift (`feat(...) [in_review]`) is a known non-blocking convention issue — filed as tech-debt #16 (recurrence of #4/#14).
+- Regressions — none; full suite green.
+
+**Findings:** No blocking issues.
+
+**Tech-debt filed:** #15 (`isFKViolation` substring-match brittleness, `requirement_repo.go:187`), #16 (TDG handoff-commit prefix drift, recurrence of #4/#14).

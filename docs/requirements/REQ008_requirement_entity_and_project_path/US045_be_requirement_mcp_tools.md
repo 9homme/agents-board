@@ -4,9 +4,9 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** US045_be_requirement_repo_and_list_api
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-11T06-20-00Z-a4f2
 **Implements:** US045, D-004 (MCP-only create), D-007 (MCP-only update), API contract §5 (`create_requirement`/`list_requirements`/`update_requirement`), §12 (`create_user_story` BREAKING), §13 (`create_document` BREAKING)
 
 ## Goal

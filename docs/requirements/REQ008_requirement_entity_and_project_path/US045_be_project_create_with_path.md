@@ -4,9 +4,9 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** US045_be_requirement_repo_and_list_api
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-11T06-20-00Z-a3f1
 **Implements:** US045, D-3 (path validation), D-3b (path uniqueness), D-006 (path required), D-008 (MCP create_project requires path), API contract §1/§2 (projects gain `path`), §3 (`POST /api/v1/projects`)
 
 ## Goal

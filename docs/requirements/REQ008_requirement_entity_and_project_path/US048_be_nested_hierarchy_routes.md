@@ -4,7 +4,7 @@
 **Story:** US048
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_progress
+**Status:** completed
 **Blocked by:** US044_be_requirement_schema_migration_domain
 **Worked-by:** be-dev-2026-06-10T12:28:00Z-a3f1
 **Implements:** US048, D-009 (full canonical hierarchy; flat routes removed), API contracts §6–§11, Breaking-changes (B) removed-routes table
@@ -212,4 +212,91 @@ The dev must make these tests pass:
 
 ## Notes
 
+### Files touched
+- `services/agent-board/cmd/api-server/main.go` — removed 5 flat routes (`/projects/:id/user-stories`, `/projects/:id/documents`, `/user-stories/:id`, `/user-stories/:id/tasks`, `/documents/:id`); added 6 hierarchy routes (§6–§11); wired `SetRequirementRepo` on both handlers. (`tasks/:id`, `requirements/:rid/user-stories`, `requirements/:rid/documents` were not present in live main.go — no-op removes per architecture note.)
+- `services/agent-board/internal/handler/user_story_handler.go` — added `requirementRepo` field, `SetRequirementRepo`, `checkRequirementChain` helper, `ListRequirementUserStories`, `GetRequirementUserStory`, `GetRequirementUserStoryTasks`, `GetRequirementTask`; added `RequirementID` to `userStoryListItem`
+- `services/agent-board/internal/handler/user_story_detail_handler.go` — added `RequirementID` to `userStoryDetailResponse`; updated `GetUserStory` response mapping
+- `services/agent-board/internal/handler/document_handler.go` — added `requirementRepo` field, `SetRequirementRepo`, `checkDocumentRequirementChain` helper, `ListRequirementDocuments`, `GetRequirementDocument`; added `RequirementID` to `documentListItem`
+- `services/agent-board/internal/handler/document_tools.go` — added `RequirementID` to `DocumentResponse` and `mapDocumentToResponse`
+- `services/agent-board/internal/handler/requirement_handler.go` — no changes; `GetRequirement` was already present in repo (US045)
+- `services/agent-board/internal/repo/user_story_repo.go` — added `ListByRequirement` to interface and `UserStoryRepo`; updated `GetUserStory` SELECT to include `requirement_id`
+- `services/agent-board/internal/repo/document_repo.go` — added `ListByRequirement` to interface and `documentRepo`; updated `GetDocument` SELECT to include `requirement_id`
+- `services/agent-board/internal/handler/hierarchy_handler_test.go` — new test file, 478 test cases covering all UT-048-* and IT-048-* IDs
+- `services/agent-board/internal/repo/hierarchy_repo_test.go` — new test file for `ListByRequirement` and updated `GetUserStory`/`GetDocument` queries
+- `services/agent-board/internal/repo/document_repo_test.go` — updated `TestDocumentRepo_GetDocument` and `TestDocumentRepo_GetDocument_GenericError` for new `requirement_id` column in SELECT
+- `services/agent-board/internal/repo/user_story_repo_test.go` — updated `TestUserStoryRepo_GetUserStory` for new `requirement_id` column in SELECT
+- `services/agent-board/internal/handler/user_story_detail_handler_test.go` — updated 4 sqlmock queries and the IT-001 field-count assertion for new `requirement_id` column
+- `services/agent-board/internal/handler/audit_tools_test.go` — added `ListByRequirement` stub to `auditTestUserStoryRepo` to satisfy updated interface
+
+### Tests added
+- 478 total tests (up from 421 at start); 57 new tests across handler and repo packages
+- All UT-048-001 through UT-048-016 and IT-048-001 through IT-048-031 covered
+
+### Track field note
+The `taskResponse` struct does NOT include a `track` field (the existing struct lacks it, architecture §8/§9 note says keep body byte-for-byte identical). UT-048-015 asserts `requirementId` is absent from task items — no `track` assertion in the test spec's actual assertions, only in the example body. No `ARCHITECTURE_TEST_CONFLICT` raised.
+
+### Coverage (per modified production file)
+- `user_story_handler.go` — all new methods ≥80%: `ListRequirementUserStories` 100%, `GetRequirementUserStory` 100%, `GetRequirementUserStoryTasks` 81.8%, `GetRequirementTask` 95.8%, `checkRequirementChain` 100%
+- `document_handler.go` — `ListRequirementDocuments` 100%, `GetRequirementDocument` 100%, `checkDocumentRequirementChain` 84.6%
+- `user_story_detail_handler.go` — `GetUserStory` 100%, `GetUserStoryTasks` 100%
+- `repo/user_story_repo.go` — `ListByRequirement` 80%, `GetUserStory` 100%
+- `repo/document_repo.go` — `ListByRequirement` 80%, `GetDocument` 100%
+- `cmd/api-server/main.go` — `run` 37% (pre-existing; requires live DB; covered by existing coverage exemption for startup wiring)
+
+### Review gate evidence
+```
+REVIEW GATE: PASS  (be services/agent-board)
+REVIEW GATE: PASS  (cross)
+```
+
+### robot --dryrun output
+```
+REQ008 requirement entity and project path  |  PASS  |
+19 tests, 19 passed, 0 failed
+```
+(US048 suite: 3 tests, 3 passed, 0 failed)
+
 ## Review log
+
+### Review pass 1 — verdict: approved
+
+**Reviewer:** tech-lead-reviewer (Mode 1) · 2026-06-11
+
+**Tests run (verified, not trusted):**
+- `go vet ./...` → clean (No issues found).
+- `go test ./...` → 478 passed across 10 packages, 0 failures.
+
+**Dev gate evidence (verbatim from `## Notes`, verified internally consistent):**
+```
+REVIEW GATE: PASS  (be services/agent-board)
+REVIEW GATE: PASS  (cross)
+```
+```
+REQ008 requirement entity and project path  |  PASS  |
+19 tests, 19 passed, 0 failed
+```
+
+**Coverage (re-measured per modified production file — all ≥80%):**
+- `user_story_handler.go`: `checkRequirementChain` 100%, `ListRequirementUserStories` 100%, `GetRequirementUserStory` 100%, `GetRequirementUserStoryTasks` 81.8%, `GetRequirementTask` 95.8%, `SetRequirementRepo` 100%.
+- `document_handler.go`: `checkDocumentRequirementChain` 84.6%, `ListRequirementDocuments` 100%, `GetRequirementDocument` 100%, `SetRequirementRepo` 100%.
+- `user_story_detail_handler.go`: `GetUserStory` 100%.
+- `document_tools.go`: `mapDocumentToResponse` 100%.
+- `repo/user_story_repo.go`: `ListByRequirement` 80%, `GetUserStory` 100%.
+- `repo/document_repo.go`: `ListByRequirement` 80%, `GetDocument` 100%.
+- Dev's pasted coverage numbers match my measurements.
+
+**Architecture conformance (against `## Architecture extract` §6–§11 + D-009):**
+- `main.go`: 5 live flat routes removed (`/projects/:id/user-stories`, `/projects/:id/documents`, `/user-stories/:id`, `/user-stories/:id/tasks`, `/documents/:id`); the other 3 listed routes were not registered (no-op per architecture note). §4 `GET /api/v1/projects/:pid/requirements` KEPT. 6 hierarchy routes added with exact params `:pid/:rid/:usid/:tid/:docid`.
+- Ownership chains top-down per §6–§11: requirement→project, story→requirement+project, task→story, document→requirement+project. Every mismatch and `ErrNotFound` collapses to the resource's 404 envelope (no cross-resource leakage). 404/500 codes + messages match the contract verbatim.
+- `requirementId` added to `userStoryListItem`, `userStoryDetailResponse`, `documentListItem`, `DocumentResponse`. Task shape (`taskResponse`) unchanged — no `track` field added (correct per the §8/§9 byte-for-byte caveat; no test asserts `track`, so `ARCHITECTURE_TEST_CONFLICT` correctly NOT raised). Domain structs + `UserStoryWithCount` carry `RequirementID`; SELECTs + Scan targets updated.
+- Repos: `ListByRequirement` added to both interfaces + impls with `rows.Err()` guards and wrapped errors; correct ORDER BY (stories `created_at DESC`, documents `updated_at DESC, id DESC`).
+
+**Test contract:** all UT-048-001..016 and IT-048-001..031 implemented and passing (verified by ID enumeration; IT-048-025..031 named with underscores in func names). Anti-happy-path: chain-guard 404 permutations, child not-found, and 500 paths all covered; measured coverage confirms branches are exercised.
+
+**TDD honesty / TDG:** red (test-only) → green → refactor → refactor, every subject ends with `(US048)`, order correct. Red commit changed only `*_test.go` files.
+
+**Scope:** changes stay within declared files. `document_tools.go` (hosts `DocumentResponse` for §11) and `audit_tools_test.go` (interface-stub for the changed repo interface) are legitimate in-scope consequences, not drive-by refactors.
+
+**Tech-debt:** one row filed — #20 (removed-route tests assert against a local mirror router rather than the production route registration; non-blocking, removal verified by diff + Mode 2 e2e).
+
+**Verdict: approved → Status: completed.**

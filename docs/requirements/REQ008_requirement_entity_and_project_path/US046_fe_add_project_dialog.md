@@ -3,7 +3,7 @@
 **Requirement:** REQ008
 **Story:** US046
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** fe-dev-2026-06-10-a9a6
 **Implements:** US046, D-005 (plain text path input, no autocomplete), D-006 (name + path required), FE-surface rows `web/pages/index.tsx`, `AddProjectDialog`, `useCreateProject`, `web/lib/api/projects.ts createProject`, API contract §3 `POST /api/v1/projects`
@@ -176,3 +176,34 @@ All files ≥ 80% on Stmts, Funcs, Lines. Branch coverage dips on useCreateProje
 - `REVIEW GATE: PASS` (cross)
 
 ## Review log
+
+### Review pass 1 — verdict: approved (Mode 1, FE)
+**Reviewer:** tech-lead-reviewer  **Date:** 2026-06-10
+
+**Checks run (verifier, not full gate):**
+- `npm run typecheck` → clean (tsc --noEmit, no errors).
+- `npm test -- --watchAll=false` → **25 suites passed, 203 tests passed, 0 failed**.
+
+**Dev gate evidence (verbatim, carried from `## Notes`):**
+- `REVIEW GATE: PASS` (fe)
+- `REVIEW GATE: PASS` (cross)
+- react-doctor `--diff`: `100 / 100 Great` — no new errors/warnings introduced by the diff.
+- `robot --dryrun`: `3 tests, 3 passed, 0 failed`.
+- Coverage (files in `## Files touched`): AddProjectDialog.tsx 95.65/90.9/100/97.56; useCreateProject.ts 95.12/66.66/100/95; useProjects.ts 100/50/100/100; projects.ts 100/100/100/100; index.tsx 100/100/100/100. All ≥80% on Stmts/Funcs/Lines — no exemption needed.
+
+**Architecture conformance (§3 POST /api/v1/projects):**
+- Request body `{ name, path }` (+ optional `description`) — matches contract; `createProject` POSTs `JSON.stringify(req)`, `fetchClient` sets `Content-Type: application/json`. ✓ (FCT-046-021)
+- 201 response includes `path: string` — `Project.path` added to `types.ts:6`; returned typed. ✓ (FCT-046-022)
+- 400 `VALIDATION_ERROR` / 409 `DUPLICATE_PATH` branched on `ApiError.code` in `useCreateProject` and surfaced inline. ✓ (FCT-046-013/014/019, 022b/022c)
+- Path input is plain `<input type="text">` with `autoComplete="off"`, no suggestion/autocomplete API (D-005). ✓ (FCT-046-003)
+- Name auto-fills from basename (`AddProjectDialog.tsx:5-7,88-90`), sticky-off via `autoFillEnabledRef` after manual name edit (line 93-96) (D-006). ✓ (FCT-046-004/005)
+- Submit disabled until both non-blank + `!isSubmitting` (`AddProjectDialog.tsx:53`); double-submit guarded at button and in hook via `statusRef` (`useCreateProject.ts:51`). ✓ (FCT-046-006..011)
+- CSR-only: no `getServerSideProps`/`getStaticProps`/`getInitialProps`/API routes; all backend calls via `web/lib/api/`. ✓
+
+**Test contract / exhaustiveness:** All spec FCT-046-001..026 implemented and passing; dev added 022b/022c covering the client-side 400/409 `ApiError` branches. Production error/state branches each map to a test ID. The useCreateProject branch dip (66%) is the unreachable defensive `new Error('Failed to create project')` fallback for non-Error throws — acceptable; Stmts/Funcs/Lines all ≥95%. **No spec gap.**
+
+**Scope:** US046 commits touch only `web/`, the task doc, the FE spec, and the e2e robot file — verified via `git show --name-only` on `(US046)` commits. No `services/` changes. `useProjects.ts` `refetch()` addition is in-scope (listed in Scope In, line 111). ✓
+
+**Tech-debt:** 1 row filed (#14) — TDG handoff-commit drift (`feat(...)`/`[in_review]` + `refactor: chore:` double-prefix); non-blocking, substantive red→green→refactor commits all conform and are correctly ordered.
+
+**Verdict: approved → Status: completed.**

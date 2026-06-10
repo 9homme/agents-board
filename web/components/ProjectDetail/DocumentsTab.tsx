@@ -3,18 +3,28 @@ import { useRouter } from 'next/router';
 import { DocumentSidebar } from './DocumentSidebar';
 import { DocumentPreviewer } from './DocumentPreviewer';
 import { useProjectDocuments } from '../../hooks/useProjectDocuments';
+import { useRequirementDocuments } from '../../hooks/useRequirementDocuments';
 import { useDocument } from '../../hooks/useDocument';
 import { ApiError } from '../../lib/api/client';
+import { DocumentListItem } from '../../lib/api/types';
 
 interface DocumentsTabProps {
   /** The project id whose documents are being browsed. */
   projectId: string;
+  /**
+   * The requirement id that scopes the documents fetch (§10 canonical path).
+   * When provided, fetches from /requirements/:rid/documents.
+   * When absent, falls back to the project-scoped endpoint (legacy).
+   */
+  requirementId?: string;
 }
 
 /**
  * DocumentsTab component.
  *
  * Orchestrates DocumentSidebar + DocumentPreviewer for the Documents tab.
+ * When `requirementId` is provided, fetches from the canonical §10 path:
+ *   GET /api/v1/projects/{projectId}/requirements/{requirementId}/documents
  *
  * State strategy (architecture §11.3):
  * - URL `?doc=` is the source of truth for the selected document.
@@ -31,18 +41,36 @@ interface DocumentsTabProps {
  * The component passes `key={selectedDocId}` to DocumentPreviewer so US003's
  * mermaid mount/unmount cleanup works without further changes here.
  */
-export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId }) => {
+export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId, requirementId }) => {
   const router = useRouter();
   const docParam = typeof router.query.doc === 'string' ? router.query.doc : undefined;
 
+  // Requirement-scoped fetch (§10 canonical path) when requirementId is set
   const {
-    data: listData,
-    isLoading: listLoading,
-    error: listError,
-    refetch: refetchList,
-  } = useProjectDocuments(projectId);
+    documents: reqDocuments,
+    loading: reqLoading,
+    error: reqError,
+    refresh: reqRefresh,
+  } = useRequirementDocuments(
+    requirementId !== undefined ? projectId : undefined,
+    requirementId
+  );
 
-  const documents = listData?.documents ?? null;
+  // Legacy project-scoped fetch when no requirementId
+  const {
+    data: legacyListData,
+    isLoading: legacyListLoading,
+    error: legacyListError,
+    refetch: legacyRefetch,
+  } = useProjectDocuments(requirementId === undefined ? projectId : undefined);
+
+  // Unify the two data sources
+  const listLoading = requirementId !== undefined ? reqLoading : legacyListLoading;
+  const listError = requirementId !== undefined ? reqError : legacyListError;
+  const documents: DocumentListItem[] | null = requirementId !== undefined
+    ? reqDocuments
+    : (legacyListData?.documents ?? null);
+  const refetchList = requirementId !== undefined ? reqRefresh : legacyRefetch;
 
   // Determine the selected document id:
   // - If docParam is set and is in the list → use it.
@@ -60,8 +88,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId }) => {
     docInList === undefined;
 
   // Render-time selection: when docParam is absent, fall back to the first document.
-  // No router.replace on initial load — the URL stays bare until the user clicks a
-  // sidebar item. Architecture §11.3.2 + §11.3.3 (OQ-6: bare URL is acceptable).
   const selectedDocId = isBogusDeepLink ? undefined : (docParam ?? documents?.[0]?.id);
 
   // Fetch the selected document (only when we have a valid, non-bogus id)
@@ -83,9 +109,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId }) => {
     );
   };
 
-  // Determine isNotFound for the previewer:
-  // - Bogus deep-link (id not in list).
-  // - Or useDocument returned 404 (doc was valid per list but the detail endpoint returned 404).
+  // Determine isNotFound for the previewer
   const isContentNotFound =
     isBogusDeepLink ||
     (docError instanceof ApiError && docError.code === 'NOT_FOUND');
@@ -173,15 +197,19 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId }) => {
     );
   }
 
+  // Add requirementId data attribute to sidebar items for FCT-047-026 assertability
+  const docsWithRequirementId = documents ?? [];
+
   return (
     <div
       role="tabpanel"
       id="tabpanel-documents"
       aria-labelledby="tab-documents"
       className="flex h-full"
+      data-requirement-id={requirementId}
     >
       <DocumentSidebar
-        documents={documents ?? []}
+        documents={docsWithRequirementId}
         selectedId={selectedDocId}
         onSelect={handleSelectDoc}
       />

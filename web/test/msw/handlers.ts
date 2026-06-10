@@ -334,18 +334,27 @@ export const handlers = [
   }),
 
   // §10 GET /api/v1/projects/:pid/requirements/:rid/documents
+  // Returns the two-document fixture so existing page tests still see Architecture/Onboarding.
   http.get('*/api/v1/projects/:pid/requirements/:rid/documents', ({ params }) => {
     const pid = typeof params.pid === 'string' ? params.pid : String(params.pid)
     const rid = typeof params.rid === 'string' ? params.rid : String(params.rid)
     return HttpResponse.json({
       documents: [
         {
-          id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          id: 'd111aaaa-1111-1111-1111-111111111111',
           projectId: pid,
           requirementId: rid,
-          title: 'README',
-          createdAt: '2026-06-02T09:00:00Z',
-          updatedAt: '2026-06-02T09:00:00Z',
+          title: 'Architecture overview',
+          createdAt: '2026-05-18T08:30:00Z',
+          updatedAt: '2026-05-20T09:45:00Z',
+        },
+        {
+          id: 'd222bbbb-2222-2222-2222-222222222222',
+          projectId: pid,
+          requirementId: rid,
+          title: 'Onboarding guide',
+          createdAt: '2026-05-15T11:00:00Z',
+          updatedAt: '2026-05-19T16:20:00Z',
         },
       ],
     })

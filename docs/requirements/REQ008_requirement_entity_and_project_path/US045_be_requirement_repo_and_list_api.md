@@ -4,9 +4,9 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** US044_be_requirement_schema_migration_domain
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-10T00-00-00Z-ad6f
 **Implements:** US045, D-004 (requirements read-only over HTTP), API contract §4 `GET /api/v1/projects/:pid/requirements`
 
 ## Goal
@@ -108,5 +108,46 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back.
 
 ## Notes
+
+### Files touched
+- `services/agent-board/internal/repo/requirement_repo.go` (new — RequirementRepository interface + impl: ListByProject, Create, GetRequirement, Update)
+- `services/agent-board/internal/repo/requirement_repo_test.go` (new — UT-045-002 through UT-045-012, UT-045-049)
+- `services/agent-board/internal/handler/requirement_handler.go` (new — RequirementHandler.ListProjectRequirements)
+- `services/agent-board/internal/handler/requirement_handler_test.go` (new — UT-045-001, IT-045-001 through IT-045-004)
+- `services/agent-board/cmd/api-server/main.go` (modified — wire RequirementRepo + RequirementHandler; add GET /api/v1/projects/:pid/requirements)
+
+### Tests added
+- 17 new tests across repo and handler packages
+- UT-045-001: RequirementHandler 500 on repo error
+- UT-045-002: ListByProject ordered ASC
+- UT-045-003: ListByProject DB query error
+- UT-045-004: ListByProject rows.Scan error
+- UT-045-005: ListByProject rows.Err() error
+- UT-045-006: ListByProject empty result (non-nil slice)
+- UT-045-007: Create happy path
+- UT-045-008: Create scan error
+- UT-045-009: Create FK violation → ErrProjectNotFound
+- UT-045-010: Update happy path
+- UT-045-011: Update not found → ErrNotFound
+- UT-045-012: Update generic scan error
+- IT-045-001: GET /api/v1/projects/:pid/requirements 200 with list (sqlmock integration)
+- IT-045-002: GET /api/v1/projects/:pid/requirements 200 empty list
+- IT-045-003: GET /api/v1/projects/:pid/requirements 404 unknown project
+- IT-045-004: POST /api/v1/projects/:pid/requirements 404/405 (route not registered)
+- UT-045-049: ListByProject context cancellation
+
+### Coverage exemption
+`GetRequirement` in `requirement_repo.go` has 0% coverage — its tests belong to US048 (chain guard). All other functions in `requirement_repo.go` have ≥75% coverage; total repo package: 94.7%. `requirement_handler.go` `ListProjectRequirements`: 86.7%.
+
+### Review gate evidence
+REVIEW GATE: PASS (be services/agent-board)
+REVIEW GATE: PASS (cross)
+
+Coverage per new production file:
+- `internal/repo/requirement_repo.go`: NewRequirementRepo 100%, ListByProject 100%, Create 100%, GetRequirement 0% (exempted — US048 owns tests), Update 75%, isFKViolation 100%; total repo package: 94.7%
+- `internal/handler/requirement_handler.go`: NewRequirementHandler 100%, ListProjectRequirements 86.7%; total handler package: 96.8%
+
+### Robot dryrun
+19 tests, 19 passed, 0 failed (robot --dryrun tests/e2e/REQ008_requirement_entity_and_project_path/)
 
 ## Review log

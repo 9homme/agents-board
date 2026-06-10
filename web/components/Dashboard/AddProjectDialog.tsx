@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useCreateProject } from '../../hooks/useCreateProject';
 
 /** Derive the basename from a path string (no trailing slash, no Node.js path module). */
@@ -46,11 +46,19 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
 
   const { createProject, status, error, reset } = useCreateProject();
 
-  const dialogRef = useRef<HTMLDivElement>(null);
   const firstFocusableRef = useRef<HTMLInputElement>(null);
 
   const isSubmitting = status === 'submitting';
   const canSubmit = name.trim().length > 0 && path.trim().length > 0 && !isSubmitting;
+
+  /** Reset form state and notify parent to close. */
+  const handleClose = useCallback(() => {
+    reset();
+    setPath('');
+    setName('');
+    setAutoFillEnabled(true);
+    onClose();
+  }, [reset, onClose]);
 
   // Focus the first input when dialog opens; return focus to trigger on close.
   useEffect(() => {
@@ -71,16 +79,7 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  function handleClose() {
-    reset();
-    setPath('');
-    setName('');
-    setAutoFillEnabled(true);
-    onClose();
-  }
+  }, [open, handleClose]);
 
   function handlePathChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newPath = e.target.value;
@@ -115,7 +114,6 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-project-dialog-title"
-      ref={dialogRef}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">

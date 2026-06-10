@@ -4,7 +4,7 @@
 **Story:** US049
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** be-dev-20260610T000000Z-af21
 **Implements:** US049, architecture scope item "`blocked_review_gate` task status (US049)" (Revision 8)
@@ -126,3 +126,53 @@ REVIEW GATE: PASS  (cross)
 No production changes to `task_tools.go` were required — the handler already delegates status validation to `IsValidTransition`. Once the domain constant and transitions were in place, all MCP handler tests passed without further handler changes, exactly as the architecture extract specified.
 
 ## Review log
+
+### Review pass 1 — verdict: approved
+
+**Reviewer:** tech-lead-reviewer (Mode 1 — Task Code Review)
+**Date:** 2026-06-10
+
+**Unit tests (re-run by reviewer):**
+- `go vet ./...` — clean (no issues).
+- `go test ./internal/domain/...` — PASS (70 tests).
+- `go test ./internal/handler/... -run BlockedReviewGate` — 5/5 PASS (UT-049-010/011/012, IT-049-001/002).
+- `go test ./...` (full agent-board module) — all packages `ok`, no regressions.
+
+**Coverage (re-verified):**
+- `status_machine.go` Task `IsValidTransition`: **85.7%** (≥80% threshold; matches dev's claim).
+- `status_machine.go` `NewTask`: 100.0%.
+- domain package total: 90.5%.
+
+**Architecture conformance (vs `## Architecture extract`):**
+- `TaskStatusBlockedReviewGate = "blocked_review_gate"` constant present with doc comment (`status_machine.go:24-28`). ✓
+- `in_review → blocked_review_gate` valid (`status_machine.go:49`). ✓
+- `changes_requested → blocked_review_gate` valid (`status_machine.go:51`). ✓
+- Terminal: `blocked_review_gate` added to terminal-states case → `false` for all targets (`status_machine.go:52`). ✓
+- Illegal transitions remain `false`: pending/in_progress/completed/blocked_circuit_breaker → blocked_review_gate (verified by UT-049-005/006/007/008 + full matrix). ✓
+- Existing transitions unchanged — full 40+ entry matrix (UT-049-009) passes; legacy `TestTask_IsValidTransition` suite still green. ✓
+- UserStory state machine untouched. ✓
+
+**Test contract:** all 13 spec IDs implemented and passing — UT-049-001..009 (domain), UT-049-010..012 + IT-049-001..002 (handler). ✓
+
+**Exhaustiveness (anti-happy-path):** every branch of `Task.IsValidTransition` (pending, in_progress, in_review, changes_requested, terminal trio, default) is covered by a named spec ID; the table-driven matrix exercises all from/to pairs incl. empty/unknown targets via the default branch. No untested branch → no spec gap.
+
+**Scope:** only `status_machine.go`, `status_machine_test.go`, `task_tools_test.go` modified. No DB migration (migrations dir unchanged: only pre-existing 000001-000003). No `task_tools.go` production change (handler already delegates to `IsValidTransition`, as the extract predicted). No drive-by refactors. ✓
+
+**TDG commit convention:** red → green → green → refactor, all `(US049)` tagged:
+- `red: test spec for TaskStatusBlockedReviewGate constant and full transition matrix (US049)`
+- `green: add TaskStatusBlockedReviewGate constant and transitions to domain state machine (US049)`
+- `green: add MCP update_task handler tests for blocked_review_gate accept/reject/terminal (US049)`
+- `refactor: chore: hand off be_blocked_review_gate_status for review (US049)`
+
+**Gate evidence (verbatim, carried from `## Notes`):**
+```
+REVIEW GATE: PASS  (be services/agent-board)
+REVIEW GATE: PASS  (cross)
+```
+Robot dryrun: `19 tests, 19 passed, 0 failed`.
+
+Evidence present, internally consistent, no FAIL lines, coverage above threshold, dryrun present. Mode 1 does NOT run live e2e — deferred to Mode 2 REQ Quality Gate.
+
+**Tech-debt:** none filed this pass. The implementation is a minimal, faithful mirror of the `blocked_circuit_breaker` treatment with no smells worth recording.
+
+**Verdict: approved** → `Status: completed`.

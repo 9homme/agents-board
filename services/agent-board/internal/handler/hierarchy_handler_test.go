@@ -42,10 +42,10 @@ func (m *mockRequirementRepoHierarchy) ListByProject(ctx context.Context, projec
 // mockUserStoryHierarchyRepo supports hierarchy methods.
 type mockUserStoryHierarchyRepo struct {
 	repo.UserStoryRepository
-	GetUserStoryFunc            func(ctx context.Context, id string) (*domain.UserStory, error)
-	ListByRequirementFunc       func(ctx context.Context, requirementID string) ([]*repo.UserStoryWithCount, error)
+	GetUserStoryFunc                      func(ctx context.Context, id string) (*domain.UserStory, error)
+	ListByRequirementFunc                 func(ctx context.Context, requirementID string) ([]*repo.UserStoryWithCount, error)
 	ListUserStoriesWithTaskCountCallCount int
-	GetUserStoryCallCount                int
+	GetUserStoryCallCount                 int
 }
 
 func (m *mockUserStoryHierarchyRepo) GetUserStory(ctx context.Context, id string) (*domain.UserStory, error) {
@@ -71,9 +71,9 @@ func (m *mockUserStoryHierarchyRepo) ListUserStoriesWithTaskCount(ctx context.Co
 // mockTaskHierarchyRepo supports GetTask and ListTasks for hierarchy tests.
 type mockTaskHierarchyRepo struct {
 	repo.TaskRepository
-	GetTaskFunc   func(ctx context.Context, id string) (*domain.Task, error)
-	ListTasksFunc func(ctx context.Context, userStoryID string) ([]*domain.Task, error)
-	GetTaskCallCount  int
+	GetTaskFunc        func(ctx context.Context, id string) (*domain.Task, error)
+	ListTasksFunc      func(ctx context.Context, userStoryID string) ([]*domain.Task, error)
+	GetTaskCallCount   int
 	ListTasksCallCount int
 }
 
@@ -96,10 +96,10 @@ func (m *mockTaskHierarchyRepo) ListTasks(ctx context.Context, userStoryID strin
 // mockDocumentHierarchyRepo supports hierarchy methods.
 type mockDocumentHierarchyRepo struct {
 	repo.DocumentRepository
-	GetDocumentFunc         func(ctx context.Context, id string) (*domain.Document, error)
-	ListByRequirementFunc   func(ctx context.Context, requirementID string) ([]*domain.Document, error)
-	GetDocumentCallCount    int
-	ListByReqCallCount      int
+	GetDocumentFunc       func(ctx context.Context, id string) (*domain.Document, error)
+	ListByRequirementFunc func(ctx context.Context, requirementID string) ([]*domain.Document, error)
+	GetDocumentCallCount  int
+	ListByReqCallCount    int
 }
 
 func (m *mockDocumentHierarchyRepo) GetDocument(ctx context.Context, id string) (*domain.Document, error) {
@@ -192,36 +192,6 @@ func validDocument() *domain.Document {
 		CreatedAt:     ts,
 		UpdatedAt:     ts,
 	}
-}
-
-// buildHierarchyRouter creates an Echo instance with all 6 hierarchy routes registered.
-// It requires a *handler.UserStoryHandler and *handler.DocumentHandler.
-func buildHierarchyRouter(usHandler *handler.UserStoryHandler, docHandler *handler.DocumentHandler) *echo.Echo {
-	e := echo.New()
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories", usHandler.ListRequirementUserStories)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid", usHandler.GetRequirementUserStory)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks", usHandler.GetRequirementUserStoryTasks)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks/:tid", usHandler.GetRequirementTask)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/documents", docHandler.ListRequirementDocuments)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/documents/:docid", docHandler.GetRequirementDocument)
-	return e
-}
-
-// buildFullRouter creates an Echo instance with new hierarchy routes AND excludes old flat routes.
-func buildFullRouter(usHandler *handler.UserStoryHandler, docHandler *handler.DocumentHandler, reqHandler *handler.RequirementHandler) *echo.Echo {
-	e := echo.New()
-	// Hierarchy routes (new)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories", usHandler.ListRequirementUserStories)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid", usHandler.GetRequirementUserStory)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks", usHandler.GetRequirementUserStoryTasks)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks/:tid", usHandler.GetRequirementTask)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/documents", docHandler.ListRequirementDocuments)
-	e.GET("/api/v1/projects/:pid/requirements/:rid/documents/:docid", docHandler.GetRequirementDocument)
-	// Requirements list (kept from US045)
-	e.GET("/api/v1/projects/:pid/requirements", reqHandler.ListProjectRequirements)
-	// NOTE: flat routes /projects/:id/user-stories, /projects/:id/documents,
-	// /user-stories/:id, /user-stories/:id/tasks, /documents/:id are NOT registered.
-	return e
 }
 
 // ---------------------------------------------------------------------------

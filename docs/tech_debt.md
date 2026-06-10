@@ -21,6 +21,7 @@ Single backlog. `tech-lead-reviewer` appends one row to the **Open** table befor
 | 11 | 2026-06-09 | `services/agent-board/cmd/api-server/main.go` | 47.5% func coverage; no `## Coverage exemption` filed on US004/US005 BE tasks | Add standing exemption boilerplate for `cmd/*/main.go` to the BE task template | REQ007/US004+US005 |
 | 12 | 2026-06-09 | `web/package.json` | 2 npm audit advisories (1 high, 1 moderate) in `next`/`postcss` transitive chain | Schedule `next` major bump as hardening task | REQ007 |
 | 13 | 2026-06-03 | REQ001–REQ004 robot specs | Specs first validated live in REQ005; similar latent issues may remain | Re-audit REQ001-004 robot specs for live-stack correctness | REQ001-004 |
+| 14 | 2026-06-10 | US046 git history (handoff commit `feat(REQ008/US046): ... [in_review]`) | TDG drift — handoff/status-flip commit uses `feat(...)` prefix + `[in_review]` suffix instead of `red:/green:/refactor:` + `(US046)`; also a `refactor: chore:` double-prefix (recurrence of #4). Substantive TDD commits (red→green→refactor) all conform and are correctly ordered. | Squash handoff commits on merge, or adopt `refactor: chore: ... (US<NNN>)` handoff convention per #4 | REQ008/US046 |
 
 ---
 

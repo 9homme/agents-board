@@ -1923,3 +1923,130 @@ func TestHierarchy_IT048_031_IntermediateRouteReqDocumentsRemoved(t *testing.T) 
 	assert.True(t, rec.Code == http.StatusNotFound || rec.Code == http.StatusMethodNotAllowed,
 		"intermediate route must return 404 or 405, got %d", rec.Code)
 }
+
+// ---------------------------------------------------------------------------
+// Coverage gap: checkDocumentRequirementChain 500 on generic DB error
+// ---------------------------------------------------------------------------
+
+func TestHierarchy_CoverageGap_DocChainGuard_500_GenericError(t *testing.T) {
+	reqRepo := &mockRequirementRepoHierarchy{
+		GetRequirementFunc: func(ctx context.Context, id string) (*domain.Requirement, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	docRepo := &mockDocumentHierarchyRepo{}
+
+	h := handler.NewDocumentHandler(docRepo, &mockProjectRepoForHandler{})
+	h.SetRequirementRepo(reqRepo)
+
+	e := echo.New()
+	e.GET("/api/v1/projects/:pid/requirements/:rid/documents", h.ListRequirementDocuments)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/projects/"+hPID+"/requirements/"+hRID+"/documents", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+	assert.Equal(t, "Failed to fetch documents", res["message"])
+}
+
+// ---------------------------------------------------------------------------
+// Coverage gap: GetRequirementUserStoryTasks 500 from checkRequirementChain generic error
+// ---------------------------------------------------------------------------
+
+func TestHierarchy_CoverageGap_TaskList_500_ChainGenericError(t *testing.T) {
+	reqRepo := &mockRequirementRepoHierarchy{
+		GetRequirementFunc: func(ctx context.Context, id string) (*domain.Requirement, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	usRepo := &mockUserStoryHierarchyRepo{}
+	taskRepo := &mockTaskHierarchyRepo{}
+
+	h := handler.NewUserStoryHandler(usRepo, &mockProjectRepoForUSHandler{})
+	h.SetRequirementRepo(reqRepo)
+	h.SetTaskRepo(taskRepo)
+
+	e := echo.New()
+	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks", h.GetRequirementUserStoryTasks)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/projects/"+hPID+"/requirements/"+hRID+"/user-stories/"+hUSID+"/tasks", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+}
+
+// ---------------------------------------------------------------------------
+// Coverage gap: GetRequirementTask 500 from checkRequirementChain generic error
+// ---------------------------------------------------------------------------
+
+func TestHierarchy_CoverageGap_GetTask_500_ChainGenericError(t *testing.T) {
+	reqRepo := &mockRequirementRepoHierarchy{
+		GetRequirementFunc: func(ctx context.Context, id string) (*domain.Requirement, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	usRepo := &mockUserStoryHierarchyRepo{}
+	taskRepo := &mockTaskHierarchyRepo{}
+
+	h := handler.NewUserStoryHandler(usRepo, &mockProjectRepoForUSHandler{})
+	h.SetRequirementRepo(reqRepo)
+	h.SetTaskRepo(taskRepo)
+
+	e := echo.New()
+	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks/:tid", h.GetRequirementTask)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/projects/"+hPID+"/requirements/"+hRID+"/user-stories/"+hUSID+"/tasks/"+hTID, nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+}
+
+// ---------------------------------------------------------------------------
+// Coverage gap: GetRequirementTask 500 from GetUserStory generic error
+// ---------------------------------------------------------------------------
+
+func TestHierarchy_CoverageGap_GetTask_500_StoryGenericError(t *testing.T) {
+	reqRepo := &mockRequirementRepoHierarchy{
+		GetRequirementFunc: func(ctx context.Context, id string) (*domain.Requirement, error) {
+			return validRequirement(), nil
+		},
+	}
+	usRepo := &mockUserStoryHierarchyRepo{
+		GetUserStoryFunc: func(ctx context.Context, id string) (*domain.UserStory, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	taskRepo := &mockTaskHierarchyRepo{}
+
+	h := handler.NewUserStoryHandler(usRepo, &mockProjectRepoForUSHandler{})
+	h.SetRequirementRepo(reqRepo)
+	h.SetTaskRepo(taskRepo)
+
+	e := echo.New()
+	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks/:tid", h.GetRequirementTask)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/projects/"+hPID+"/requirements/"+hRID+"/user-stories/"+hUSID+"/tasks/"+hTID, nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+}

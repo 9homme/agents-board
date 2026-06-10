@@ -1,0 +1,112 @@
+# US045/be_requirement_repo_and_list_api
+
+**Requirement:** REQ008
+**Story:** US045
+**Track:** BE
+**Service:** services/agent-board
+**Status:** pending
+**Blocked by:** US044_be_requirement_schema_migration_domain
+**Worked-by:**
+**Implements:** US045, D-004 (requirements read-only over HTTP), API contract §4 `GET /api/v1/projects/:pid/requirements`
+
+## Goal
+Add a `RequirementRepository` (List by project, Create — shared by the HTTP list and the MCP tools) and the HTTP `GET /api/v1/projects/:pid/requirements` read endpoint, wired into `api-server`.
+
+## Scope
+- **In:**
+  - New `internal/repo/requirement_repo.go` — `RequirementRepository` interface + impl: `ListByProject(ctx, projectID)` and `Create(ctx, *domain.Requirement)`. (The same repo is reused by the MCP-tools task; this task creates it.)
+  - New `internal/handler/requirement_handler.go` — `RequirementHandler.ListProjectRequirements` (GET only). Verifies the project exists (404 if not).
+  - Register `GET /api/v1/projects/:pid/requirements` in `cmd/api-server/main.go` (add only — do NOT touch the flat routes; that is US048).
+- **Out:**
+  - MCP tools `create_requirement`/`list_requirements`/`update_requirement` (US045 `be_requirement_mcp_tools`).
+  - Project create / path validation (US045 `be_project_create_with_path`).
+  - Removing/adding nested hierarchy routes (US048).
+
+## Files touched (estimated, exclusive)
+- `services/agent-board/internal/repo/requirement_repo.go` (new)
+- `services/agent-board/internal/repo/requirement_repo_test.go` (new)
+- `services/agent-board/internal/handler/requirement_handler.go` (new)
+- `services/agent-board/internal/handler/requirement_handler_test.go` (new)
+- `services/agent-board/cmd/api-server/main.go` (modify — add ONE route + wire `RequirementRepo`/`RequirementHandler`)
+
+**Shared-file note:** `cmd/api-server/main.go` is also edited by US048 (route removal/addition) and US045 `be_project_create_with_path` (POST route). These three BE tasks all touch `main.go`. They are independent in logic but collide on this one file — the orchestrator should sequence them or accept a small merge. Each adds/removes distinct lines; keep edits minimal and localized. The `RequirementRepository` type created here is consumed by the MCP-tools task — that task is NOT blocked on this one structurally, but if both create `requirement_repo.go` they collide; **this task is the single writer of `requirement_repo.go`**, the MCP-tools task imports it.
+
+## Architecture extract
+
+### Decision D-004 — Requirement create via MCP only; HTTP API is read-only for requirements
+No `POST /api/v1/projects/:id/requirements` HTTP endpoint. Web reads via `GET /api/v1/projects/:id/requirements`. Web is view-only for requirements.
+
+### Conventions (match existing service)
+- Base prefix `/api/v1`. JSON bodies.
+- **Error envelope (shared):** `{ "code": "string", "message": "string" }`. Validation → `VALIDATION_ERROR`; not-found → `NOT_FOUND`; internal → `INTERNAL_ERROR`.
+- Timestamps ISO-8601 UTC formatted `2006-01-02T15:04:05Z`.
+- List endpoints wrap arrays in a named key and are **never** `null` (always `[]`).
+- No auth headers.
+
+### Contract §4 — GET /api/v1/projects/:pid/requirements — list requirements for a project
+- **Path params:** `pid` — project UUID. **Query params:** none. **Request body:** none.
+- **200 OK** — ordered by `createdAt` ASC (deterministic):
+```json
+{
+  "requirements": [
+    {
+      "id": "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f",
+      "projectId": "11111111-1111-1111-1111-111111111111",
+      "name": "Default",
+      "description": "",
+      "status": "draft",
+      "createdAt": "2026-06-09T10:00:00Z",
+      "updatedAt": "2026-06-09T10:00:00Z"
+    }
+  ]
+}
+```
+Field types: `id` string(uuid); `projectId` string(uuid); `name` string(non-empty); `description` string (MAY be ""); `status` enum `"draft"|"in_progress"|"done"`; `createdAt`/`updatedAt` string(ISO-8601 UTC). Empty project → `{ "requirements": [] }`.
+- **404 Not Found** — project does not exist: `{ "code": "NOT_FOUND", "message": "Project not found" }`
+- **500** : `{ "code": "INTERNAL_ERROR", "message": "Failed to fetch requirements" }`
+
+### Data model (already created by US044 — read only here)
+```sql
+CREATE TABLE requirements (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name        VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    status      VARCHAR(50) NOT NULL DEFAULT 'draft'
+                CHECK (status IN ('draft', 'in_progress', 'done')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_requirements_project_id ON requirements(project_id);
+```
+`domain.Requirement` already exists (US044): `ID, ProjectID, Name, Description, Status string`; `CreatedAt, UpdatedAt time.Time`.
+
+### Existing patterns to mirror
+- Project-existence check: `UserStoryHandler.GetProjectUserStories` (`internal/handler/user_story_handler.go`) verifies the project via `projectRepo.GetProject` → 404 on `repo.ErrNotFound`, 500 otherwise, then lists.
+- Repo `ListByProject` query: `SELECT id, project_id, name, description, status, created_at, updated_at FROM requirements WHERE project_id = $1 ORDER BY created_at ASC`. Return `[]*domain.Requirement{}` (never nil).
+- `Create` query (used by the MCP-tools task): `INSERT INTO requirements (project_id, name, description, status) VALUES ($1,$2,$3,$4) RETURNING id, created_at, updated_at`.
+- Response mapping: format times with `.Format("2006-01-02T15:04:05Z")`; emit `requirements` key via `map[string]interface{}` like the existing list handlers.
+
+## Test contract
+The dev must make these tests pass:
+- (Track: BE) from `US045_be_unit_tests.md`: the UT/IT IDs covering — `RequirementRepository.ListByProject` (ordered ASC, empty → `[]`); HTTP §4 list 200 happy path; §4 404 for unknown project; §4 500 on repo error. (The `Create` repo method is exercised by the MCP-tools task's tests; include a direct repo test here for `Create` if the spec assigns it to this task.)
+- If new cases are needed beyond the spec, write them and flag back to tester.
+
+## Implementation notes
+- `RequirementHandler` takes `repo.RequirementRepository` + `repo.ProjectRepository` (for the existence check), mirroring `UserStoryHandler`.
+- Wire in `main.go`: `requirementRepo := repo.NewRequirementRepo(db)`; `requirementHandler := handler.NewRequirementHandler(requirementRepo, projectRepo)`; `e.GET("/api/v1/projects/:pid/requirements", requirementHandler.ListProjectRequirements)`. Use `:pid` as the path param name (US048 uses `:pid` consistently).
+- Do NOT log full filesystem paths (not relevant here, but keep the no-PII logging convention).
+
+## Definition of done
+- All listed tests green.
+- `go vet ./...` and `go test ./...` clean inside `services/agent-board`.
+- Coverage ≥80% on each new/modified production `.go` file in `## Files touched`, or a written `## Coverage exemption`.
+- No new public exports without a doc comment.
+- Code matches the `## Architecture extract` (exact §4 JSON, exact error envelopes).
+- Review gate green (BE + cross; paste `REVIEW GATE: PASS` into `## Notes`).
+- `robot --dryrun tests/e2e/REQ008_*/` parses (paste output into `## Notes`).
+- Dev set status to `in_review` and reported back.
+
+## Notes
+
+## Review log

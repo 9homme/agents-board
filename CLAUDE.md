@@ -50,6 +50,8 @@ a-team/
 │       ├── US001_fe_add_item_button.md       ← tech-lead-planner: Track: FE
 │       ├── US001_test_report.md              ← orchestrator: captured `go test` + Jest + Robot output
 │       └── US002_*.md ...
+├── docs/system_architecture.md                ← living system-wide contract (all HTTP endpoints, MCP tools, DB schema, domain types); owned and updated by system-architect after each human approval
+├── docs/product_vision.md                     ← product vision + control-tower capabilities; read by po-ba and system-architect at Phase 1 start; shapes all architectural decisions
 ├── docs/tech_debt.md                          ← single tech-debt backlog (Open + Resolved tables); tech-lead-reviewer appends one row before `approved`
 ├── .claude/refs/                              ← shared reference docs (task-template.md, review-gate.md, circuit-breaker.md)
 └── .claude/{agents,commands,skills}/
@@ -57,6 +59,7 @@ a-team/
 
 Naming rules:
 - `REQ[ID]` is zero-padded 3-digit (`REQ001`).
+- `US[ID]` is a globally unique zero-padded 3-digit ID across ALL requirements (not per-REQ). `po-ba` picks the next available by scanning existing `US*.md` files in `docs/requirements/`.
 - `[requirement_name]`, `[story_name]`, `[task_name]` are `snake_case`.
 - BE task names are conventionally `be_<thing>`; FE task names `fe_<thing>` (purely visual — the `Track:` field is authoritative).
 

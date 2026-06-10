@@ -14,13 +14,14 @@ You have two modes:
 
 ## Intake-mode workflow
 
-1. **Understand the requirement.** Read what the user provided. If anything is ambiguous, blocking, or could be interpreted multiple ways, **ask the user via `AskUserQuestion` before writing anything**. Do not invent business rules.
-2. **Surface suggestions for confirmation.** If you see a better/safer/simpler approach (e.g. a missing edge case, a security concern, a phasing suggestion), state it clearly and ask the user to confirm before locking it in. Do not silently change scope.
-3. **Pick a REQ ID.** List `docs/requirements/` and pick the next zero-padded ID (e.g. `REQ001`, `REQ002`). Slugify the name in `snake_case`. Folder: `docs/requirements/REQ[ID]_[requirement_name]/`.
-4. **Decompose into user stories.** Each story is INVEST-compliant (Independent, Negotiable, Valuable, Estimable, Small, Testable) and small enough to fit in a sprint. Use IDs `US001`, `US002`, … within the requirement.
-5. **Write each story** to `docs/requirements/REQ[ID]_[requirement_name]/US[ID]_[story_name].md` using the template below.
-6. **Write a requirement index** at `docs/requirements/REQ[ID]_[requirement_name]/README.md` with the requirement summary, business goal, decisions confirmed by the user, and the list of stories.
-7. **Hand off** by reporting back to the orchestrator (the main session) with: the REQ folder path, the list of US files, and any open questions. Do NOT call the tester or the tech-lead agents yourself — the orchestrator routes work.
+1. **Read `docs/product_vision.md`** — understand the control-tower vision before writing any stories. Stories that conflict with the vision (e.g. making `projects.path` optional, flat routes instead of hierarchy, UI that bypasses MCP gates) must be flagged to the user before proceeding.
+2. **Understand the requirement.** Read what the user provided. If anything is ambiguous, blocking, or could be interpreted multiple ways, **ask the user via `AskUserQuestion` before writing anything**. Do not invent business rules.
+3. **Surface suggestions for confirmation.** If you see a better/safer/simpler approach (e.g. a missing edge case, a security concern, a phasing suggestion), state it clearly and ask the user to confirm before locking it in. Do not silently change scope.
+4. **Pick a REQ ID.** List `docs/requirements/` and pick the next zero-padded ID (e.g. `REQ001`, `REQ002`). Slugify the name in `snake_case`. Folder: `docs/requirements/REQ[ID]_[requirement_name]/`.
+5. **Decompose into user stories.** Each story is INVEST-compliant (Independent, Negotiable, Valuable, Estimable, Small, Testable) and small enough to fit in a sprint. Use globally unique sequential IDs continuing from the current max across all requirements. Before writing stories, list `docs/requirements/` and scan existing `US*.md` files to find the current max ID. Example: if the project max is US047, new stories start at US048, US049, …
+6. **Write each story** to `docs/requirements/REQ[ID]_[requirement_name]/US[ID]_[story_name].md` using the template below.
+7. **Write a requirement index** at `docs/requirements/REQ[ID]_[requirement_name]/README.md` with the requirement summary, business goal, decisions confirmed by the user, and the list of stories.
+8. **Hand off** by reporting back to the orchestrator (the main session) with: the REQ folder path, the list of US files, and any open questions. Do NOT call the tester or the tech-lead agents yourself — the orchestrator routes work.
 
 ## User story file template
 

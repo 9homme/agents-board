@@ -84,6 +84,9 @@ func run() error {
 	userStoryHandler := handler.NewUserStoryHandler(userStoryRepo, projectRepo)
 	userStoryHandler.SetTaskRepo(taskRepo)
 
+	requirementRepo := repo.NewRequirementRepo(db)
+	requirementHandler := handler.NewRequirementHandler(requirementRepo, projectRepo)
+
 	e.GET("/api/v1/projects", projectHandler.GetProjects)
 	e.GET("/api/v1/projects/:id", projectHandler.GetProject)
 	e.GET("/api/v1/projects/:id/documents", documentHandler.ListProjectDocuments)
@@ -91,6 +94,7 @@ func run() error {
 	e.GET("/api/v1/projects/:id/user-stories", userStoryHandler.GetProjectUserStories)
 	e.GET("/api/v1/user-stories/:id", userStoryHandler.GetUserStory)
 	e.GET("/api/v1/user-stories/:id/tasks", userStoryHandler.GetUserStoryTasks)
+	e.GET("/api/v1/projects/:pid/requirements", requirementHandler.ListProjectRequirements)
 
 	// Start server
 	port := os.Getenv("PORT")

@@ -881,6 +881,117 @@ func TestListUserStoriesTool_RepoError(t *testing.T) {
 	assert.True(t, errors.Is(returnedErr, mockErr), "expected passthrough error, got: %v", returnedErr)
 }
 
+// -----------------------------------------------------------------------
+// US045 BREAKING CHANGE tests — create_user_story now requires requirement_id
+// -----------------------------------------------------------------------
+
+// UT-045-039 — MCP create_user_story now includes requirement_id in INSERT
+func TestCreateUserStoryTool_WithRequirementID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{} // used for membership check
+	mockUSRepo := &MockUserStoryRepo{}
+	now := time.Now()
+
+	projectID := "11111111-1111-1111-1111-111111111111"
+	requirementID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
+
+	// GetRequirement returns a requirement belonging to the same project
+	mockReqRepo.GetRequirementFunc = func(_ context.Context, id string) (*domain.Requirement, error) {
+		return &domain.Requirement{
+			ID:        id,
+			ProjectID: projectID,
+			Name:      "REQ",
+			Status:    "draft",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil
+	}
+
+	mockUSRepo.CreateUserStoryFunc = func(_ context.Context, u *domain.UserStory) (*domain.UserStory, error) {
+		assert.Equal(t, requirementID, u.RequirementID, "RequirementID must be set on INSERT")
+		return &domain.UserStory{
+			ID:            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+			ProjectID:     u.ProjectID,
+			RequirementID: u.RequirementID,
+			Title:         u.Title,
+			Description:   u.Description,
+			Status:        u.Status,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}, nil
+	}
+
+	handler.RegisterUserStoryTools(registry, mockUSRepo, mockReqRepo)
+
+	args := json.RawMessage(`{"projectId":"11111111-1111-1111-1111-111111111111","requirement_id":"b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f","title":"Add item to basket"}`)
+	tool, ok := registry.GetTool("create_user_story")
+	require.True(t, ok)
+
+	res, err := tool(context.Background(), args)
+	require.NoError(t, err)
+
+	b, err := json.Marshal(res)
+	require.NoError(t, err)
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(b, &m))
+	assert.Equal(t, requirementID, m["requirementId"])
+	assert.Equal(t, projectID, m["projectId"])
+	assert.Equal(t, "Add item to basket", m["title"])
+}
+
+// UT-045-040 — MCP create_user_story — missing requirement_id returns tool error
+func TestCreateUserStoryTool_MissingRequirementID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{}
+	mockUSRepo := &MockUserStoryRepo{}
+
+	handler.RegisterUserStoryTools(registry, mockUSRepo, mockReqRepo)
+
+	tool, ok := registry.GetTool("create_user_story")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"projectId":"proj-1","title":"Story"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requirement_id")
+}
+
+// UT-045-041 — MCP create_user_story — requirement does not belong to project returns tool error
+func TestCreateUserStoryTool_RequirementNotInProject(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{}
+	mockUSRepo := &MockUserStoryRepo{}
+	now := time.Now()
+
+	// requirement belongs to a DIFFERENT project
+	mockReqRepo.GetRequirementFunc = func(_ context.Context, id string) (*domain.Requirement, error) {
+		return &domain.Requirement{
+			ID:        id,
+			ProjectID: "different-project-id",
+			Name:      "REQ",
+			Status:    "draft",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil
+	}
+
+	called := false
+	mockUSRepo.CreateUserStoryFunc = func(_ context.Context, _ *domain.UserStory) (*domain.UserStory, error) {
+		called = true
+		return nil, errors.New("should not be called")
+	}
+
+	handler.RegisterUserStoryTools(registry, mockUSRepo, mockReqRepo)
+
+	args := json.RawMessage(`{"projectId":"proj-1","requirement_id":"req-belongs-to-other","title":"Story"}`)
+	tool, ok := registry.GetTool("create_user_story")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), args)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requirement does not belong to project")
+	assert.False(t, called, "repo must NOT be called when requirement doesn't belong to project")
+}
+
 // UT-027
 func TestListUserStoriesTool_EmptySliceReturnsEmptyArray(t *testing.T) {
 	registry := mcp.NewToolRegistry()

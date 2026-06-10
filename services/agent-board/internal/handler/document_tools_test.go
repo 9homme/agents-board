@@ -552,6 +552,114 @@ func TestListDocumentsTool_RepoError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to list documents:")
 }
 
+// -----------------------------------------------------------------------
+// US045 BREAKING CHANGE tests — create_document now requires requirement_id
+// -----------------------------------------------------------------------
+
+// UT-045-042 — MCP create_document now includes requirement_id in INSERT
+func TestCreateDocumentTool_WithRequirementID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{}
+	mockDocRepo := &MockDocumentRepo{}
+	now := time.Now()
+
+	projectID := "11111111-1111-1111-1111-111111111111"
+	requirementID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
+
+	mockReqRepo.GetRequirementFunc = func(_ context.Context, id string) (*domain.Requirement, error) {
+		return &domain.Requirement{
+			ID:        id,
+			ProjectID: projectID,
+			Name:      "REQ",
+			Status:    "draft",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil
+	}
+
+	mockDocRepo.CreateDocumentFunc = func(_ context.Context, d *domain.Document) (*domain.Document, error) {
+		assert.Equal(t, requirementID, d.RequirementID, "RequirementID must be set on INSERT")
+		return &domain.Document{
+			ID:            "cccccccc-cccc-cccc-cccc-cccccccccccc",
+			ProjectID:     d.ProjectID,
+			RequirementID: d.RequirementID,
+			Title:         d.Title,
+			Content:       d.Content,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}, nil
+	}
+
+	handler.RegisterDocumentTools(registry, mockDocRepo, mockReqRepo)
+
+	args := json.RawMessage(`{"projectId":"11111111-1111-1111-1111-111111111111","requirement_id":"b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f","title":"README","content":"# README\n..."}`)
+	tool, ok := registry.GetTool("create_document")
+	require.True(t, ok)
+
+	res, err := tool(context.Background(), args)
+	require.NoError(t, err)
+
+	b, err := json.Marshal(res)
+	require.NoError(t, err)
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(b, &m))
+	assert.Equal(t, requirementID, m["requirementId"])
+	assert.Equal(t, projectID, m["projectId"])
+	assert.Equal(t, "README", m["title"])
+}
+
+// UT-045-043 — MCP create_document — missing requirement_id returns tool error
+func TestCreateDocumentTool_MissingRequirementID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{}
+	mockDocRepo := &MockDocumentRepo{}
+
+	handler.RegisterDocumentTools(registry, mockDocRepo, mockReqRepo)
+
+	tool, ok := registry.GetTool("create_document")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"projectId":"proj-1","title":"Doc"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requirement_id")
+}
+
+// UT-045-044 — MCP create_document — requirement not in project returns tool error
+func TestCreateDocumentTool_RequirementNotInProject(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{}
+	mockDocRepo := &MockDocumentRepo{}
+	now := time.Now()
+
+	mockReqRepo.GetRequirementFunc = func(_ context.Context, id string) (*domain.Requirement, error) {
+		return &domain.Requirement{
+			ID:        id,
+			ProjectID: "different-project-id",
+			Name:      "REQ",
+			Status:    "draft",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil
+	}
+
+	called := false
+	mockDocRepo.CreateDocumentFunc = func(_ context.Context, _ *domain.Document) (*domain.Document, error) {
+		called = true
+		return nil, errors.New("should not be called")
+	}
+
+	handler.RegisterDocumentTools(registry, mockDocRepo, mockReqRepo)
+
+	args := json.RawMessage(`{"projectId":"proj-1","requirement_id":"req-belongs-to-other","title":"Doc"}`)
+	tool, ok := registry.GetTool("create_document")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), args)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requirement does not belong to project")
+	assert.False(t, called)
+}
+
 // UT-020 — TestListDocumentsTool_EmptySliceReturnsEmptyDocumentsArray
 func TestListDocumentsTool_EmptySliceReturnsEmptyDocumentsArray(t *testing.T) {
 	registry := mcp.NewToolRegistry()

@@ -15,6 +15,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// errInvalidPathForTest is a sentinel used in UT-045-047 to simulate ErrInvalidPath.
+var errInvalidPathForTest = errors.New("path does not exist or is not a directory")
+
+// MockPathValidator is a hand-written mock for PathValidator.
+type MockPathValidator struct {
+	ValidatePathFunc func(path string) error
+}
+
+func (m *MockPathValidator) ValidatePath(path string) error {
+	if m.ValidatePathFunc != nil {
+		return m.ValidatePathFunc(path)
+	}
+	return nil
+}
+
 // MockProjectRepo is a hand-written mock for repo.ProjectRepository.
 // Each method delegates to its corresponding Func field; if the field is nil the method no-ops.
 type MockProjectRepo struct {
@@ -773,6 +788,117 @@ func TestProjectTools_DeleteProject(t *testing.T) {
 	err = json.Unmarshal(resStr, &res)
 	assert.NoError(t, err)
 	assert.Equal(t, true, res["success"])
+}
+
+// -----------------------------------------------------------------------
+// US045 tests — create_project now requires path (D-008)
+// -----------------------------------------------------------------------
+
+// UT-045-045 — MCP create_project now requires path
+func TestHandleCreateProject_WithPath(t *testing.T) {
+	now := time.Now()
+	registry := mcp.NewToolRegistry()
+	mockValidator := &MockPathValidator{}
+	mockRepo := &MockProjectRepo{}
+
+	mockValidator.ValidatePathFunc = func(path string) error {
+		assert.NotEmpty(t, path)
+		return nil
+	}
+
+	mockRepo.CreateProjectFunc = func(_ context.Context, p *domain.Project) (*domain.Project, error) {
+		assert.NotEmpty(t, p.Path, "Path must be passed to repo")
+		return &domain.Project{
+			ID:        "proj-1",
+			Name:      p.Name,
+			Path:      p.Path,
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil
+	}
+
+	RegisterProjectTools(registry, mockRepo, mockValidator)
+
+	tool, ok := registry.GetTool("create_project")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"name":"Test Project","path":"/tmp/testdir"}`))
+	require.NoError(t, err)
+
+	b, _ := json.Marshal(result)
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(b, &m))
+	assert.Equal(t, "/tmp/testdir", m["path"])
+}
+
+// UT-045-046 — MCP create_project — missing path returns tool error
+func TestHandleCreateProject_MissingPath(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockValidator := &MockPathValidator{}
+	mockRepo := &MockProjectRepo{}
+
+	validatorCalled := false
+	mockValidator.ValidatePathFunc = func(_ string) error {
+		validatorCalled = true
+		return nil
+	}
+
+	RegisterProjectTools(registry, mockRepo, mockValidator)
+
+	tool, ok := registry.GetTool("create_project")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"name":"Test Project"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "path")
+	assert.False(t, validatorCalled, "ValidatePath must NOT be called when path is missing")
+}
+
+// UT-045-047 — MCP create_project — invalid path (not a directory) returns tool error
+func TestHandleCreateProject_InvalidPath(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockValidator := &MockPathValidator{}
+	mockRepo := &MockProjectRepo{}
+
+	mockValidator.ValidatePathFunc = func(_ string) error {
+		return errInvalidPathForTest
+	}
+
+	repoCalled := false
+	mockRepo.CreateProjectFunc = func(_ context.Context, _ *domain.Project) (*domain.Project, error) {
+		repoCalled = true
+		return nil, nil
+	}
+
+	RegisterProjectTools(registry, mockRepo, mockValidator)
+
+	tool, ok := registry.GetTool("create_project")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"name":"Test Project","path":"/not/a/dir"}`))
+	require.Error(t, err)
+	assert.False(t, repoCalled, "repo must NOT be called on invalid path")
+}
+
+// UT-045-048 — MCP create_project — duplicate path returns tool error
+func TestHandleCreateProject_DuplicatePath(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockValidator := &MockPathValidator{}
+	mockRepo := &MockProjectRepo{}
+
+	mockValidator.ValidatePathFunc = func(_ string) error { return nil }
+	mockRepo.CreateProjectFunc = func(_ context.Context, _ *domain.Project) (*domain.Project, error) {
+		return nil, repo.ErrDuplicatePath
+	}
+
+	RegisterProjectTools(registry, mockRepo, mockValidator)
+
+	tool, ok := registry.GetTool("create_project")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"name":"Test Project","path":"/already/taken"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "path already")
 }
 
 // TestProjectTools_ListProjects tests the happy path of list_projects.

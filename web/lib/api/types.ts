@@ -2,8 +2,17 @@ export interface Project {
   id: string;
   name: string;
   description: string;
+  /** Local filesystem path for the project (required, validated server-side). */
+  path: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Request body shape for POST /api/v1/projects (§3). */
+export interface CreateProjectRequest {
+  name: string;
+  description?: string;
+  path: string;
 }
 
 export interface ProjectsResponse {

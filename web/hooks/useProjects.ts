@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchProjects } from '../lib/api/projects';
 import { Project } from '../lib/api/types';
 
 /**
  * Hook to manage loading, data, and error state for fetching projects.
- * @returns An object containing the projects data, isLoading, isError, and error state.
+ * Exposes a `refetch` function to re-trigger the fetch (e.g. after project creation).
+ * @returns An object containing the projects data, isLoading, isError, error, and refetch.
  */
 export const useProjects = () => {
   const [data, setData] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [fetchCount, setFetchCount] = useState(0);
 
   useEffect(() => {
     let mounted = true;
@@ -19,7 +21,7 @@ export const useProjects = () => {
       setIsLoading(true);
       setIsError(false);
       setError(null);
-      
+
       try {
         const response = await fetchProjects();
         if (mounted) {
@@ -42,7 +44,11 @@ export const useProjects = () => {
     return () => {
       mounted = false;
     };
+  }, [fetchCount]);
+
+  const refetch = useCallback(() => {
+    setFetchCount((c) => c + 1);
   }, []);
 
-  return { data, isLoading, isError, error };
+  return { data, isLoading, isError, error, refetch };
 };

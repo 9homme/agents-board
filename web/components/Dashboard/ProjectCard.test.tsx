@@ -40,6 +40,7 @@ const projectFixture: Project = {
   id: 'proj-001',
   name: 'Test Project',
   description: 'A test description',
+  path: '/tmp/test-project',
   createdAt: '2026-05-20T10:00:00Z',
   updatedAt: '2026-05-20T10:00:00Z',
 };

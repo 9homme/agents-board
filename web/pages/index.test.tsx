@@ -158,7 +158,7 @@ describe('Dashboard Page', () => {
       })
     );
 
-    await user.click(screen.getByRole('button', { name: /create|submit|add/i }));
+    await user.click(screen.getByRole('button', { name: /^create project$/i }));
 
     // Dialog should close
     await waitFor(() => {

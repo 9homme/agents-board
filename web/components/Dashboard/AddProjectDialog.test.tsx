@@ -21,6 +21,29 @@ function renderDialog(props: Partial<React.ComponentProps<typeof AddProjectDialo
   return render(<AddProjectDialog {...defaults} {...props} />);
 }
 
+/**
+ * Renders AddProjectDialog inside a stateful wrapper so that onClose/onSuccess
+ * actually toggle the `open` prop, allowing the dialog to unmount from the DOM.
+ * Required for tests that need to assert `queryByRole('dialog')` is null after close.
+ */
+function renderDialogStateful(
+  onSuccess: () => void = noop,
+  triggerRef?: React.RefObject<HTMLButtonElement>
+) {
+  function Wrapper() {
+    const [open, setOpen] = React.useState(true);
+    return (
+      <AddProjectDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        onSuccess={() => { setOpen(false); onSuccess(); }}
+        triggerRef={triggerRef}
+      />
+    );
+  }
+  return render(<Wrapper />);
+}
+
 // ---------------------------------------------------------------------------
 // FCT-046-003 — Path field is a plain text input
 // ---------------------------------------------------------------------------
@@ -170,7 +193,7 @@ describe('FCT-046-010 — loading state while request in flight', () => {
     );
 
     const user = userEvent.setup();
-    renderDialog();
+    renderDialogStateful();
 
     await user.type(screen.getByLabelText(/path/i), '/some/valid/path');
     await user.click(screen.getByRole('button', { name: /create|submit|add/i }));
@@ -184,7 +207,7 @@ describe('FCT-046-010 — loading state while request in flight', () => {
       document.querySelector('[aria-busy="true"]')
     ).toBeTruthy();
 
-    // Resolve to clean up
+    // Resolve the deferred request — dialog should close on success
     act(() => { resolveRequest(); });
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -220,13 +243,13 @@ describe('FCT-046-011 — double-submit is prevented', () => {
     );
 
     const user = userEvent.setup();
-    renderDialog();
+    renderDialogStateful();
 
     await user.type(screen.getByLabelText(/path/i), '/some/valid/path');
 
     const submitBtn = screen.getByRole('button', { name: /create|submit|add/i });
     await user.click(submitBtn);
-    // Try to click again while in flight
+    // Try to click again while in flight (button should be disabled)
     await user.click(submitBtn);
 
     expect(callCount).toBe(1);
@@ -367,24 +390,29 @@ describe('FCT-046-025 — focus returns to trigger on close', () => {
     const user = userEvent.setup();
     const triggerRef = React.createRef<HTMLButtonElement>();
 
-    // Render a trigger button + dialog
-    render(
-      <div>
-        <button ref={triggerRef}>Add Project</button>
-        <AddProjectDialog
-          open={true}
-          onClose={noop}
-          onSuccess={noop}
-          triggerRef={triggerRef as React.RefObject<HTMLButtonElement>}
-        />
-      </div>
-    );
+    // Stateful wrapper so open truly toggles when onClose fires,
+    // allowing the useEffect([open]) focus-return to trigger.
+    function Wrapper() {
+      const [open, setOpen] = React.useState(true);
+      return (
+        <div>
+          <button ref={triggerRef}>Add Project</button>
+          <AddProjectDialog
+            open={open}
+            onClose={() => setOpen(false)}
+            onSuccess={noop}
+            triggerRef={triggerRef as React.RefObject<HTMLButtonElement>}
+          />
+        </div>
+      );
+    }
+    render(<Wrapper />);
 
     // Click Cancel button
     const cancelBtn = screen.getByRole('button', { name: /cancel/i });
     await user.click(cancelBtn);
 
-    // Focus should have moved to the trigger
+    // Focus should have returned to the trigger
     expect(document.activeElement).toBe(triggerRef.current);
   });
 });

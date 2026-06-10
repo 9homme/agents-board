@@ -49,6 +49,7 @@ export const handlers = [
           id: '1',
           name: 'Dashboard Test Project',
           description: 'A minimal beautiful dashboard',
+          path: '/tmp/dashboard-test-project',
           createdAt: '2023-10-25T10:00:00Z',
           updatedAt: '2023-10-25T10:00:00Z',
         },
@@ -66,6 +67,7 @@ export const handlers = [
       id: 'proj-001',
       name: 'E-commerce Website',
       description: 'A new online store for electronics',
+      path: '/tmp/ecommerce-website',
       createdAt: '2026-05-20T10:00:00Z',
       updatedAt: '2026-05-20T10:00:00Z',
     })
@@ -77,6 +79,7 @@ export const handlers = [
       id: 'p1',
       name: 'Project Alpha',
       description: 'A valid project',
+      path: '/tmp/project-alpha',
       createdAt: '2026-05-20T10:00:00Z',
       updatedAt: '2026-05-20T10:00:00Z',
     })

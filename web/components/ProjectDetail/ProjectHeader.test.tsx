@@ -7,6 +7,7 @@ const mockProject: Project = {
   id: 'p1',
   name: 'Project Alpha',
   description: 'Some description',
+  path: '/tmp/project-alpha',
   createdAt: '2026-05-20T10:00:00Z',
   updatedAt: '2026-05-20T10:00:00Z',
 };

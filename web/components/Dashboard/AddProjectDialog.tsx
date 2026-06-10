@@ -42,7 +42,8 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   const [path, setPath] = useState('');
   const [name, setName] = useState('');
   // Once the user manually edits the name field, auto-fill is disabled.
-  const [autoFillEnabled, setAutoFillEnabled] = useState(true);
+  // Stored in a ref (not state) since this control flag never drives rendering.
+  const autoFillEnabledRef = useRef(true);
 
   const { createProject, status, error, reset } = useCreateProject();
 
@@ -56,7 +57,7 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
     reset();
     setPath('');
     setName('');
-    setAutoFillEnabled(true);
+    autoFillEnabledRef.current = true;
     onClose();
   }, [reset, onClose]);
 
@@ -84,13 +85,13 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   function handlePathChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newPath = e.target.value;
     setPath(newPath);
-    if (autoFillEnabled) {
+    if (autoFillEnabledRef.current) {
       setName(basename(newPath));
     }
   }
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setAutoFillEnabled(false); // sticky-off
+    autoFillEnabledRef.current = false; // sticky-off: user took manual control of name
     setName(e.target.value);
   }
 
@@ -110,13 +111,12 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-project-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-    >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <dialog
+        open
+        aria-labelledby="add-project-dialog-title"
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 m-0"
+      >
         <h2
           id="add-project-dialog-title"
           className="text-xl font-semibold text-gray-900 mb-5"
@@ -199,7 +199,7 @@ export const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
             </button>
           </div>
         </form>
-      </div>
+      </dialog>
     </div>
   );
 };

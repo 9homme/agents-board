@@ -4,7 +4,7 @@ import { Project } from '../lib/api/types';
 
 /**
  * Hook to manage loading, data, and error state for fetching projects.
- * Exposes a `refetch` function to re-trigger the fetch (e.g. after project creation).
+ * Exposes a `refetch` function to re-trigger the data load (e.g. after project creation).
  * @returns An object containing the projects data, isLoading, isError, error, and refetch.
  */
 export const useProjects = () => {

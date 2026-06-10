@@ -12,24 +12,26 @@ import (
 	"agent-board/internal/repo"
 )
 
-// DocumentResponse represents the exact JSON shape for a document
+// DocumentResponse represents the exact JSON shape for a document (includes requirementId per §11).
 type DocumentResponse struct {
-	ID        string `json:"id"`
-	ProjectID string `json:"projectId"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	ID            string `json:"id"`
+	ProjectID     string `json:"projectId"`
+	RequirementID string `json:"requirementId"`
+	Title         string `json:"title"`
+	Content       string `json:"content"`
+	CreatedAt     string `json:"createdAt"`
+	UpdatedAt     string `json:"updatedAt"`
 }
 
 func mapDocumentToResponse(d *domain.Document) DocumentResponse {
 	return DocumentResponse{
-		ID:        d.ID,
-		ProjectID: d.ProjectID,
-		Title:     d.Title,
-		Content:   d.Content,
-		CreatedAt: d.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: d.UpdatedAt.Format(time.RFC3339),
+		ID:            d.ID,
+		ProjectID:     d.ProjectID,
+		RequirementID: d.RequirementID,
+		Title:         d.Title,
+		Content:       d.Content,
+		CreatedAt:     d.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:     d.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

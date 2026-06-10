@@ -16,6 +16,8 @@ type DocumentRepository interface {
 	UpdateDocument(ctx context.Context, d *domain.Document) (*domain.Document, error)
 	DeleteDocument(ctx context.Context, id string) error
 	ListDocuments(ctx context.Context, projectID string) ([]*domain.Document, error)
+	// ListByRequirement retrieves all documents for a requirement (metadata-only ordering: updatedAt DESC, id DESC).
+	ListByRequirement(ctx context.Context, requirementID string) ([]*domain.Document, error)
 }
 
 type documentRepo struct {
@@ -47,12 +49,13 @@ func (r *documentRepo) CreateDocument(ctx context.Context, d *domain.Document) (
 }
 
 func (r *documentRepo) GetDocument(ctx context.Context, id string) (*domain.Document, error) {
-	query := `SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE id = $1`
+	query := `SELECT id, project_id, requirement_id, title, content, created_at, updated_at FROM documents WHERE id = $1`
 	var d domain.Document
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&d.ID,
 		&d.ProjectID,
+		&d.RequirementID,
 		&d.Title,
 		&d.Content,
 		&d.CreatedAt,
@@ -111,6 +114,31 @@ func (r *documentRepo) ListDocuments(ctx context.Context, projectID string) ([]*
 	for rows.Next() {
 		var d domain.Document
 		if err := rows.Scan(&d.ID, &d.ProjectID, &d.Title, &d.Content, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan document: %w", err)
+		}
+		documents = append(documents, &d)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating documents: %w", err)
+	}
+
+	return documents, nil
+}
+
+// ListByRequirement retrieves all documents for a requirement ordered by updated_at DESC, id DESC.
+func (r *documentRepo) ListByRequirement(ctx context.Context, requirementID string) ([]*domain.Document, error) {
+	query := `SELECT id, project_id, requirement_id, title, content, created_at, updated_at FROM documents WHERE requirement_id = $1 ORDER BY updated_at DESC, id DESC`
+	rows, err := r.db.QueryContext(ctx, query, requirementID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list documents by requirement: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	documents := make([]*domain.Document, 0)
+	for rows.Next() {
+		var d domain.Document
+		if err := rows.Scan(&d.ID, &d.ProjectID, &d.RequirementID, &d.Title, &d.Content, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan document: %w", err)
 		}
 		documents = append(documents, &d)

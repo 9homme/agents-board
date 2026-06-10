@@ -185,10 +185,10 @@ func TestUserStoryDetailHandler_GetUserStory_IT001_200(t *testing.T) {
 	storyID := "aaaaaaaa-0000-0000-0000-000000000001"
 	projectID := "bbbbbbbb-0000-0000-0000-000000000001"
 
-	mock.ExpectQuery(`SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, project_id, requirement_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
 		WithArgs(storyID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}).
-			AddRow(storyID, projectID, "Story Title", "Story description", "draft", fixedTime, fixedTime))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "requirement_id", "title", "description", "status", "created_at", "updated_at"}).
+			AddRow(storyID, projectID, "", "Story Title", "Story description", "draft", fixedTime, fixedTime))
 
 	usRepo := repo.NewUserStoryRepo(db)
 	projectRepo := &mockProjectRepoForUSHandler{}
@@ -220,8 +220,9 @@ func TestUserStoryDetailHandler_GetUserStory_IT001_200(t *testing.T) {
 	_, hasTaskCount := res["taskCount"]
 	assert.False(t, hasTaskCount, "response must NOT contain taskCount")
 
-	// Exactly 7 fields
-	assert.Len(t, res, 7)
+	// Exactly 8 fields: id, projectId, requirementId, title, description, status, createdAt, updatedAt
+	assert.Len(t, res, 8)
+	assert.Equal(t, "", res["requirementId"], "requirementId must be present (empty string when not set)")
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -234,9 +235,9 @@ func TestUserStoryDetailHandler_GetUserStory_IT002_404(t *testing.T) {
 
 	missingID := "00000000-0000-0000-0000-000000000000"
 
-	mock.ExpectQuery(`SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, project_id, requirement_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
 		WithArgs(missingID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "requirement_id", "title", "description", "status", "created_at", "updated_at"}))
 
 	usRepo := repo.NewUserStoryRepo(db)
 	projectRepo := &mockProjectRepoForUSHandler{}
@@ -337,10 +338,10 @@ func TestUserStoryDetailHandler_GetUserStoryTasks_IT004_EmptyList(t *testing.T) 
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}))
 
 	// Handler must verify story exists when task list is empty.
-	mock.ExpectQuery(`SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, project_id, requirement_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
 		WithArgs(storyID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}).
-			AddRow(storyID, projectID, "Empty Story", "No tasks here", "draft", fixedTime, fixedTime))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "requirement_id", "title", "description", "status", "created_at", "updated_at"}).
+			AddRow(storyID, projectID, "", "Empty Story", "No tasks here", "draft", fixedTime, fixedTime))
 
 	taskRepo := repo.NewTaskRepo(db)
 	usRepo := repo.NewUserStoryRepo(db)
@@ -386,9 +387,9 @@ func TestUserStoryDetailHandler_GetUserStoryTasks_IT005_404StoryMissing(t *testi
 		WillReturnRows(sqlmock.NewRows([]string{"id", "user_story_id", "title", "description", "status", "created_at", "updated_at"}))
 
 	// GetUserStory also finds nothing → ErrNotFound → 404.
-	mock.ExpectQuery(`SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, project_id, requirement_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1`).
 		WithArgs(missingID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "requirement_id", "title", "description", "status", "created_at", "updated_at"}))
 
 	taskRepo := repo.NewTaskRepo(db)
 	usRepo := repo.NewUserStoryRepo(db)

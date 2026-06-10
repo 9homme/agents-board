@@ -10,16 +10,17 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// userStoryDetailResponse is the JSON shape returned by GET /api/v1/user-stories/{id}.
-// taskCount is intentionally omitted — the detail endpoint returns a bare story object.
+// userStoryDetailResponse is the JSON shape returned by GET .../user-stories/{id}.
+// requirementId is included per §7; taskCount is intentionally omitted (bare story object).
 type userStoryDetailResponse struct {
-	ID          string `json:"id"`
-	ProjectID   string `json:"projectId"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
-	CreatedAt   string `json:"createdAt"`
-	UpdatedAt   string `json:"updatedAt"`
+	ID            string `json:"id"`
+	ProjectID     string `json:"projectId"`
+	RequirementID string `json:"requirementId"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	Status        string `json:"status"`
+	CreatedAt     string `json:"createdAt"`
+	UpdatedAt     string `json:"updatedAt"`
 }
 
 // taskResponse is the per-task JSON shape in the GET /api/v1/user-stories/{id}/tasks response.
@@ -61,13 +62,14 @@ func (h *UserStoryHandler) GetUserStory(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, userStoryDetailResponse{
-		ID:          story.ID,
-		ProjectID:   story.ProjectID,
-		Title:       story.Title,
-		Description: story.Description,
-		Status:      story.Status,
-		CreatedAt:   story.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:   story.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		ID:            story.ID,
+		ProjectID:     story.ProjectID,
+		RequirementID: story.RequirementID,
+		Title:         story.Title,
+		Description:   story.Description,
+		Status:        story.Status,
+		CreatedAt:     story.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:     story.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 	})
 }
 

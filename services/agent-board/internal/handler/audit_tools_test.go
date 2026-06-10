@@ -319,6 +319,10 @@ func (m *auditTestUserStoryRepo) ListUserStoriesWithTaskCount(ctx context.Contex
 	return nil, errors.New("not implemented")
 }
 
+func (m *auditTestUserStoryRepo) ListByRequirement(ctx context.Context, requirementID string) ([]*repo.UserStoryWithCount, error) {
+	return nil, errors.New("not implemented")
+}
+
 // IT-004-error: get_task_audit_trail propagates repo errors.
 func TestAuditTools_GetTaskAuditTrail_RepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()

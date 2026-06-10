@@ -287,6 +287,43 @@ func TestProjectRepo_ListProjects_ScanError(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
+// UT-045-015 — ProjectRepository.CreateProject — ErrDuplicatePath (Postgres 23505)
+func TestProjectRepo_CreateProject_ErrDuplicatePath(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	// Simulate a unique-violation on uq_projects_path (SQLSTATE 23505)
+	mock.ExpectQuery(`^INSERT INTO projects`).
+		WillReturnError(errors.New("ERROR: duplicate key value violates unique constraint \"uq_projects_path\" (SQLSTATE 23505)"))
+
+	created, err := r.CreateProject(context.Background(), &domain.Project{Name: "x", Description: "", Path: "/already/taken"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrDuplicatePath)
+	assert.Nil(t, created)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-045-016 — ProjectRepository.CreateProject — generic scan error (not a constraint violation)
+func TestProjectRepo_CreateProject_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectQuery(`^INSERT INTO projects`).
+		WillReturnError(errors.New("generic scan error"))
+
+	created, err := r.CreateProject(context.Background(), &domain.Project{Name: "x", Description: "", Path: "/some/path"})
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrDuplicatePath))
+	assert.Nil(t, created)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // UT-US005-016: ListProjects rows error (P8)
 func TestProjectRepo_ListProjects_RowsErr(t *testing.T) {
 	db, mock, err := sqlmock.New()

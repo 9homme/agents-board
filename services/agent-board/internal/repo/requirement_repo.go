@@ -182,10 +182,8 @@ func (r *requirementRepo) Update(ctx context.Context, id string, patch Requireme
 }
 
 // isFKViolation checks if the error represents a Postgres FK violation (SQLSTATE 23503).
-// It uses string matching since the pq driver is not directly imported here.
+// The caller guarantees err is non-nil; string matching is used since the pq driver
+// is not directly imported in this package.
 func isFKViolation(err error) bool {
-	if err == nil {
-		return false
-	}
 	return strings.Contains(err.Error(), "23503")
 }

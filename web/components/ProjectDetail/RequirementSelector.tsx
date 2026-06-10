@@ -68,7 +68,9 @@ export const RequirementSelector: React.FC<RequirementSelectorProps> = ({
   }
 
   return (
-    <ul
+    /* Use div for listbox role — ul/li are noninteractive semantic HTML elements;
+       the listbox + option roles belong on interactive containers per ARIA spec. */
+    <div
       role="listbox"
       aria-label="Requirements"
       className="flex flex-col gap-1 py-1"
@@ -76,9 +78,12 @@ export const RequirementSelector: React.FC<RequirementSelectorProps> = ({
       {requirements.map((req) => {
         const isSelected = req.id === selectedRequirementId;
         return (
-          <li key={req.id} role="option" aria-selected={isSelected}>
+          <div key={req.id}>
+            {/* role="option" on the button so the listbox/option ARIA tree is correct */}
             <button
               type="button"
+              role="option"
+              aria-selected={isSelected}
               onClick={() => onSelect(req.id)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
@@ -103,9 +108,9 @@ export const RequirementSelector: React.FC<RequirementSelectorProps> = ({
                 {req.status}
               </span>
             </button>
-          </li>
+          </div>
         );
       })}
-    </ul>
+    </div>
   );
 };

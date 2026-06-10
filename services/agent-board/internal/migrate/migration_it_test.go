@@ -141,7 +141,7 @@ func TestIT044_001_RequirementsTableExistsPostMigration(t *testing.T) {
 
 	// Table exists — check columns
 	type colInfo struct {
-		dataType  string
+		dataType   string
 		isNullable string
 	}
 	cols := map[string]colInfo{}

@@ -23,6 +23,23 @@ const TWO_DOCUMENT_LIST = [
 
 export const handlers = [
   // ---------------------------------------------------------------------------
+  // POST /api/v1/projects — create a project (§3 happy path)
+  // ---------------------------------------------------------------------------
+  http.post('*/api/v1/projects', () => {
+    return HttpResponse.json(
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        name: 'agents-board',
+        description: '',
+        path: '/Users/me/workspace/agents-board',
+        createdAt: '2026-06-09T11:00:00Z',
+        updatedAt: '2026-06-09T11:00:00Z',
+      },
+      { status: 201 }
+    )
+  }),
+
+  // ---------------------------------------------------------------------------
   // GET /api/v1/projects — list all projects
   // ---------------------------------------------------------------------------
   http.get('*/api/v1/projects', () => {
@@ -32,6 +49,7 @@ export const handlers = [
           id: '1',
           name: 'Dashboard Test Project',
           description: 'A minimal beautiful dashboard',
+          path: '/tmp/dashboard-test-project',
           createdAt: '2023-10-25T10:00:00Z',
           updatedAt: '2023-10-25T10:00:00Z',
         },
@@ -49,6 +67,7 @@ export const handlers = [
       id: 'proj-001',
       name: 'E-commerce Website',
       description: 'A new online store for electronics',
+      path: '/tmp/ecommerce-website',
       createdAt: '2026-05-20T10:00:00Z',
       updatedAt: '2026-05-20T10:00:00Z',
     })
@@ -60,6 +79,7 @@ export const handlers = [
       id: 'p1',
       name: 'Project Alpha',
       description: 'A valid project',
+      path: '/tmp/project-alpha',
       createdAt: '2026-05-20T10:00:00Z',
       updatedAt: '2026-05-20T10:00:00Z',
     })

@@ -4,7 +4,7 @@
 **Story:** US044
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** completed
 **Blocked by:** none
 **Worked-by:**
 **Implements:** US044, D-1 (REQ placement), D-2 (zero-loss migration), D-3b (path uniqueness), D-006 (path required), data-model migration `000003_requirement_entity`, domain types `Requirement`/`Project.Path`/`UserStory.RequirementID`/`Document.RequirementID`
@@ -175,4 +175,75 @@ The dev must make these tests pass:
 
 ## Notes
 
+> **Note (tech-lead-reviewer):** The dev's original `## Notes` gate evidence was
+> lost when the Phase 1+2 scaffolding merge (`bb98317`) overwrote this task file's
+> metadata after the dev's implementation commits (`124c991`/`25d9efd`/`4ff567e`/
+> `42f33e6`/`2b7b0ba`/`9da322e`/`a7318af`) had already landed. Because the pasted
+> text was a merge casualty (not a dev omission), the reviewer re-ran every gate
+> dimension first-hand on the integrated branch and recorded the verbatim output
+> below before approving.
+
+REVIEW GATE: PASS  (BE · services/agent-board)
+```
+== BE gate · services/agent-board ==
+  PASS  gofmt -s (no diff)
+  PASS  go vet ./...
+  PASS  golangci-lint run ./...
+  PASS  go test ./...
+WARN  gosec (skipped — not installed)
+WARN  govulncheck (skipped — not installed)
+REVIEW GATE: PASS
+```
+
+REVIEW GATE: PASS  (cross)
+```
+== Cross-cutting · repo ==
+  PASS  semgrep (owasp/golang/typescript)
+  PASS  gitleaks (no secrets)
+REVIEW GATE: PASS
+```
+
+Unit/integration suite: `go vet ./...` clean; `go test ./...` → 404 passed, 0 failed.
+IT-044-001..010 executed against real local Postgres (10 passed, 0 skipped).
+
+Coverage (per-file / per-package):
+- `internal/domain/requirement.go` `NewRequirement` — 100.0%
+- `internal/domain` package — 90.5%
+- `internal/migrate` package — 92.9%
+(struct-only files project.go/user_story.go/document.go have no executable statements)
+
+robot --dryrun tests/e2e/REQ008_*/  →  19 tests, 19 passed, 0 failed (parse OK)
+
 ## Review log
+
+### Review pass 1 — verdict: approved
+
+**Reviewer:** tech-lead-reviewer (Mode 1 — Task Code Review). Date: 2026-06-10.
+
+**Gate evidence (re-verified first-hand — see `## Notes`):**
+- BE gate: `REVIEW GATE: PASS`; cross gate: `REVIEW GATE: PASS`.
+- `go vet ./...` clean; `go test ./...` → 404 passed, 0 failed.
+- Coverage: `requirement.go::NewRequirement` 100%; domain pkg 90.5%; migrate pkg 92.9% (all ≥80%).
+- `robot --dryrun tests/e2e/REQ008_*/` → 19 tests, 0 failed (parse OK).
+
+**Test contract — all 16 IDs implemented and passing:**
+- Unit: UT-044-001..006 in `internal/domain/requirement_test.go` (status default + enum completeness, full `Requirement` struct, `UserStory.RequirementID`, `Document.RequirementID`, `Project.Path`).
+- Integration: IT-044-001..010 in `internal/migrate/migration_it_test.go`, all run against a real Postgres (not skipped): table+columns+FK CASCADE+CHECK+index, `requirement_id` NOT NULL on both children with NULL-insert rejection, Default-per-project backfill (incl. childless P3), zero-data-loss re-parenting of stories+documents, `projects.path` TEXT NOT NULL + UNIQUE, duplicate-path 23505 rejection, down-migration reversal, no-orphan row-count invariant.
+
+**Architecture conformance:** PASS. Domain types match the extract field-for-field with exact JSON tags (`id`/`projectId`/`name`/`description`/`status`/`createdAt`/`updatedAt`; `path`; `requirementId`). Migration produces the required schema; runner embeds only `*.up.sql` so `.down.sql` is documentation-only as designed.
+
+**Justified deviation from "verbatim" migration SQL (NOT a defect):** the extract's `ALTER TABLE projects ADD COLUMN path TEXT NOT NULL DEFAULT '';` + `UNIQUE (path)` would throw a 23505 unique-violation whenever 2+ projects pre-exist (every existing row gets `''`). The dev correctly substituted the canonical safe pattern: add nullable → backfill each row with its `id::text` (guaranteed-unique placeholder) → `SET NOT NULL` → add UNIQUE. This is a correctness fix, verified by IT-044-007/008. Filed as tech-debt #14 (fix the extract, not the code).
+
+**Test-spec exhaustiveness (anti-happy-path):** migration is declarative SQL inside a single transaction in the runner; error paths (constraint violations) are positively exercised — NULL `requirement_id` rejection (IT-044-002/003) and duplicate-path 23505 (IT-044-008). `NewRequirement` is a straight-line constructor with no branches. No uncovered error branch ⇒ no spec gap on coverage grounds.
+
+**TDD honesty:** PASS. Commit history shows red-before-green per track: `124c991 red:` → `25d9efd green:` → `4ff567e refactor:` (domain); `42f33e6 red:` → `2b7b0ba green:` → `9da322e refactor:` (migration). Tests assert behavior/schema, not implementation accidents.
+
+**Scope:** PASS. Diff touches only the 6 declared files + the two test files. No handler/repo/MCP/HTTP/route code touched.
+
+**TDG conformance:** PASS. Every subject starts `red:`/`green:`/`refactor:` and ends `(US044)`; order is red→green→refactor within each track. (`refactor: chore:` double-prefix on the handoff commit is cosmetic drift already tracked as tech-debt #4.)
+
+**Quality:** No commented-out code, no unowned TODOs, no log spam. Doc comments present on the new public exports (`Requirement`, `NewRequirement`, status constants).
+
+**Tech-debt filed this pass:** #14 (extract's broken verbatim path SQL), #15 (`US044_be_unit_tests.md` UT-044-004 lists a non-existent `TaskCount` field), #16 (IT-044-* skip rather than fail when no Postgres — CI must provision a DB).
+
+**Verdict: approved → Status: completed.**

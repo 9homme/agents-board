@@ -4,9 +4,9 @@
 **Story:** US044
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** pending
 **Blocked by:** none
-**Worked-by:** be-dev-2026-06-10T0515Z-a2ef
+**Worked-by:**
 **Implements:** US044, D-1 (REQ placement), D-2 (zero-loss migration), D-3b (path uniqueness), D-006 (path required), data-model migration `000003_requirement_entity`, domain types `Requirement`/`Project.Path`/`UserStory.RequirementID`/`Document.RequirementID`
 
 ## Goal
@@ -174,47 +174,5 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back.
 
 ## Notes
-
-### Files touched
-- `services/agent-board/migrations/000003_requirement_entity.up.sql` (new)
-- `services/agent-board/migrations/000003_requirement_entity.down.sql` (new, documentation-only)
-- `services/agent-board/internal/domain/requirement.go` (new)
-- `services/agent-board/internal/domain/project.go` (modified — added `Path string`)
-- `services/agent-board/internal/domain/user_story.go` (modified — added `RequirementID string`)
-- `services/agent-board/internal/domain/document.go` (modified — added `RequirementID string`)
-- `services/agent-board/internal/domain/requirement_test.go` (new — UT-044-001..006)
-- `services/agent-board/internal/migrate/migration_it_test.go` (new — IT-044-001..010)
-
-### Tests added
-- UT-044-001 through UT-044-006: domain package unit tests (6 tests)
-- IT-044-001 through IT-044-010: migrate package integration tests against real Postgres (10 tests)
-- Full suite: 349 tests passing (10 packages)
-
-### Coverage (new/modified production files)
-- `internal/domain/requirement.go`: 100% (NewRequirement fully exercised)
-- `internal/domain/*.go` package total: 90.5%
-- `internal/migrate/migrate.go`: 92.9%
-- All above 80% threshold. No coverage exemptions needed.
-
-### Review gate evidence
-- `REVIEW GATE: PASS` — BE gate (`scripts/review/run-gate.sh be services/agent-board`): gofmt, go vet, golangci-lint, go test all PASS
-- `REVIEW GATE: PASS` — Cross gate (`scripts/review/run-gate.sh cross`): semgrep (OWASP), gitleaks all PASS
-
-### Robot dryrun
-`robot --dryrun tests/e2e/REQ008_requirement_entity_and_project_path/` → 19 tests, 19 passed, 0 failed
-
-### Architecture deviation note
-The migration SQL deviates from the architecture extract's literal `DEFAULT ''` approach for `projects.path`. The verbatim spec uses:
-```sql
-ALTER TABLE projects ADD COLUMN path TEXT NOT NULL DEFAULT '';
-ALTER TABLE projects ADD CONSTRAINT uq_projects_path UNIQUE (path);
-```
-This would fail when multiple existing projects all default to `''` (unique constraint violation). The implemented approach instead:
-1. Adds the column as nullable (`TEXT`)
-2. Backfills `path = id::text` (each project's own UUID — guaranteed unique)
-3. Sets `NOT NULL`
-4. Adds the `UNIQUE` constraint
-
-The semantics are identical (NOT NULL, UNIQUE enforced), and the test spec (IT-044-004 inserts 3 projects then runs the migration) requires this to work. This is flagged for tester awareness — not a spec gap requiring route to system-architect, as the intent (unique non-null path) is fully preserved.
 
 ## Review log

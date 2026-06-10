@@ -130,3 +130,133 @@ func TestNewUserStory_EnforceInitialState(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+// --- US049 tests ---
+
+// UT-049-001 — TaskStatusBlockedReviewGate constant has value "blocked_review_gate"
+func TestTaskStatusBlockedReviewGate_ConstantValue(t *testing.T) {
+	assert.Equal(t, "blocked_review_gate", domain.TaskStatusBlockedReviewGate)
+}
+
+// UT-049-002 — IsValidTransition("blocked_review_gate") from in_review returns true
+func TestTask_IsValidTransition_InReview_To_BlockedReviewGate(t *testing.T) {
+	task := &domain.Task{Status: domain.TaskStatusInReview}
+	assert.True(t, task.IsValidTransition(domain.TaskStatusBlockedReviewGate))
+}
+
+// UT-049-003 — IsValidTransition("blocked_review_gate") from changes_requested returns true
+func TestTask_IsValidTransition_ChangesRequested_To_BlockedReviewGate(t *testing.T) {
+	task := &domain.Task{Status: domain.TaskStatusChangesRequested}
+	assert.True(t, task.IsValidTransition(domain.TaskStatusBlockedReviewGate))
+}
+
+// UT-049-004 — IsValidTransition from blocked_review_gate to any status returns false (terminal)
+func TestTask_IsValidTransition_BlockedReviewGate_IsTerminal(t *testing.T) {
+	task := &domain.Task{Status: domain.TaskStatusBlockedReviewGate}
+	targets := []string{
+		"pending",
+		"in_progress",
+		"in_review",
+		"completed",
+		"changes_requested",
+		"blocked_review_gate", // self
+		"blocked_circuit_breaker",
+		"",
+		"unknown_status",
+	}
+	for _, target := range targets {
+		assert.False(t, task.IsValidTransition(target), "expected false for blocked_review_gate → %q", target)
+	}
+}
+
+// UT-049-005 — Cannot reach blocked_review_gate from pending
+func TestTask_IsValidTransition_Pending_To_BlockedReviewGate_False(t *testing.T) {
+	task := &domain.Task{Status: domain.TaskStatusPending}
+	assert.False(t, task.IsValidTransition(domain.TaskStatusBlockedReviewGate))
+}
+
+// UT-049-006 — Cannot reach blocked_review_gate from in_progress
+func TestTask_IsValidTransition_InProgress_To_BlockedReviewGate_False(t *testing.T) {
+	task := &domain.Task{Status: domain.TaskStatusInProgress}
+	assert.False(t, task.IsValidTransition(domain.TaskStatusBlockedReviewGate))
+}
+
+// UT-049-007 — Cannot reach blocked_review_gate from completed
+func TestTask_IsValidTransition_Completed_To_BlockedReviewGate_False(t *testing.T) {
+	task := &domain.Task{Status: domain.TaskStatusCompleted}
+	assert.False(t, task.IsValidTransition(domain.TaskStatusBlockedReviewGate))
+}
+
+// UT-049-008 — Cannot reach blocked_review_gate from blocked_circuit_breaker
+func TestTask_IsValidTransition_BlockedCircuitBreaker_To_BlockedReviewGate_False(t *testing.T) {
+	task := &domain.Task{Status: domain.TaskStatusBlockedCircuitBreaker}
+	assert.False(t, task.IsValidTransition(domain.TaskStatusBlockedReviewGate))
+}
+
+// UT-049-009 — Full transition matrix table-driven test (no regression)
+func TestTask_IsValidTransition_FullMatrix(t *testing.T) {
+	type testCase struct {
+		from     string
+		to       string
+		expected bool
+	}
+	cases := []testCase{
+		// pending
+		{domain.TaskStatusPending, domain.TaskStatusInProgress, true},
+		{domain.TaskStatusPending, domain.TaskStatusInReview, false},
+		{domain.TaskStatusPending, domain.TaskStatusCompleted, false},
+		{domain.TaskStatusPending, domain.TaskStatusChangesRequested, false},
+		{domain.TaskStatusPending, domain.TaskStatusBlockedCircuitBreaker, false},
+		{domain.TaskStatusPending, domain.TaskStatusBlockedReviewGate, false},
+		// in_progress
+		{domain.TaskStatusInProgress, domain.TaskStatusInReview, true},
+		{domain.TaskStatusInProgress, domain.TaskStatusPending, false},
+		{domain.TaskStatusInProgress, domain.TaskStatusCompleted, false},
+		{domain.TaskStatusInProgress, domain.TaskStatusBlockedReviewGate, false},
+		// in_review
+		{domain.TaskStatusInReview, domain.TaskStatusCompleted, true},
+		{domain.TaskStatusInReview, domain.TaskStatusChangesRequested, true},
+		{domain.TaskStatusInReview, domain.TaskStatusBlockedReviewGate, true},
+		{domain.TaskStatusInReview, domain.TaskStatusInProgress, false},
+		{domain.TaskStatusInReview, domain.TaskStatusPending, false},
+		{domain.TaskStatusInReview, domain.TaskStatusBlockedCircuitBreaker, false},
+		// changes_requested
+		{domain.TaskStatusChangesRequested, domain.TaskStatusInProgress, true},
+		{domain.TaskStatusChangesRequested, domain.TaskStatusInReview, true},
+		{domain.TaskStatusChangesRequested, domain.TaskStatusCompleted, true},
+		{domain.TaskStatusChangesRequested, domain.TaskStatusBlockedCircuitBreaker, true},
+		{domain.TaskStatusChangesRequested, domain.TaskStatusBlockedReviewGate, true},
+		{domain.TaskStatusChangesRequested, domain.TaskStatusPending, false},
+		// completed (terminal)
+		{domain.TaskStatusCompleted, domain.TaskStatusInProgress, false},
+		{domain.TaskStatusCompleted, domain.TaskStatusInReview, false},
+		{domain.TaskStatusCompleted, domain.TaskStatusBlockedReviewGate, false},
+		{domain.TaskStatusCompleted, domain.TaskStatusPending, false},
+		{domain.TaskStatusCompleted, domain.TaskStatusChangesRequested, false},
+		{domain.TaskStatusCompleted, domain.TaskStatusBlockedCircuitBreaker, false},
+		// blocked_circuit_breaker (terminal)
+		{domain.TaskStatusBlockedCircuitBreaker, domain.TaskStatusInProgress, false},
+		{domain.TaskStatusBlockedCircuitBreaker, domain.TaskStatusInReview, false},
+		{domain.TaskStatusBlockedCircuitBreaker, domain.TaskStatusCompleted, false},
+		{domain.TaskStatusBlockedCircuitBreaker, domain.TaskStatusChangesRequested, false},
+		{domain.TaskStatusBlockedCircuitBreaker, domain.TaskStatusPending, false},
+		{domain.TaskStatusBlockedCircuitBreaker, domain.TaskStatusBlockedReviewGate, false},
+		// blocked_review_gate (terminal)
+		{domain.TaskStatusBlockedReviewGate, domain.TaskStatusInProgress, false},
+		{domain.TaskStatusBlockedReviewGate, domain.TaskStatusInReview, false},
+		{domain.TaskStatusBlockedReviewGate, domain.TaskStatusCompleted, false},
+		{domain.TaskStatusBlockedReviewGate, domain.TaskStatusChangesRequested, false},
+		{domain.TaskStatusBlockedReviewGate, domain.TaskStatusPending, false},
+		{domain.TaskStatusBlockedReviewGate, domain.TaskStatusBlockedCircuitBreaker, false},
+		{domain.TaskStatusBlockedReviewGate, domain.TaskStatusBlockedReviewGate, false},
+	}
+
+	for _, tc := range cases {
+		tc := tc // capture range variable
+		t.Run(tc.from+"→"+tc.to, func(t *testing.T) {
+			task := &domain.Task{Status: tc.from}
+			got := task.IsValidTransition(tc.to)
+			assert.Equal(t, tc.expected, got, "from=%q to=%q", tc.from, tc.to)
+		})
+	}
+}

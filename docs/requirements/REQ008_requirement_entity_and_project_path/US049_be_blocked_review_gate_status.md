@@ -4,9 +4,9 @@
 **Story:** US049
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_review
 **Blocked by:** none
-**Worked-by:**
+**Worked-by:** be-dev-20260610T000000Z-af21
 **Implements:** US049, architecture scope item "`blocked_review_gate` task status (US049)" (Revision 8)
 
 ## Goal
@@ -96,5 +96,33 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back.
 
 ## Notes
+
+### Files touched
+- `services/agent-board/internal/domain/status_machine.go` — added `TaskStatusBlockedReviewGate = "blocked_review_gate"` constant (with doc comment); added `blocked_review_gate` as valid target in `in_review` and `changes_requested` switch cases; added `TaskStatusBlockedReviewGate` to the terminal-states case.
+- `services/agent-board/internal/domain/status_machine_test.go` — added UT-049-001 through UT-049-009 (constant value, individual valid/invalid transitions, full table-driven regression matrix with 40 entries).
+- `services/agent-board/internal/handler/task_tools_test.go` — added UT-049-010, UT-049-011, UT-049-012 (MCP accept from in_review/changes_requested, reject from pending) and IT-049-001, IT-049-002 (persistence and terminal-state enforcement via mock repo).
+
+### Tests added
+- Domain: 50 new test cases (UT-049-001 through UT-049-009, including 40-entry table-driven matrix). Total domain: 64 passing.
+- Handler: 5 new test functions (UT-049-010/011/012 + IT-049-001/002). Total suite: 388 passing.
+
+### Coverage
+- `status_machine.go` `IsValidTransition` (Task): **85.7%** — above 80% threshold.
+- `status_machine.go` `NewTask`: 100%.
+
+### Review gate evidence
+```
+REVIEW GATE: PASS  (be services/agent-board)
+REVIEW GATE: PASS  (cross)
+```
+
+### Robot dryrun
+```
+19 tests, 19 passed, 0 failed
+```
+(`robot --dryrun tests/e2e/REQ008_requirement_entity_and_project_path/`)
+
+### Implementation notes
+No production changes to `task_tools.go` were required — the handler already delegates status validation to `IsValidTransition`. Once the domain constant and transitions were in place, all MCP handler tests passed without further handler changes, exactly as the architecture extract specified.
 
 ## Review log

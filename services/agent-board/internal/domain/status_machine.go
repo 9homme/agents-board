@@ -21,6 +21,11 @@ const (
 	TaskStatusChangesRequested      = "changes_requested"
 	TaskStatusCompleted             = "completed"
 	TaskStatusBlockedCircuitBreaker = "blocked_circuit_breaker"
+	// TaskStatusBlockedReviewGate is a terminal state reached when the review-gate
+	// tool fails. It is distinct from blocked_circuit_breaker (code-review failure).
+	// Valid transitions in: in_review → blocked_review_gate and changes_requested → blocked_review_gate.
+	// No transitions out.
+	TaskStatusBlockedReviewGate = "blocked_review_gate"
 )
 
 // UserStory Statuses
@@ -41,11 +46,11 @@ func (t *Task) IsValidTransition(newStatus string) bool {
 	case TaskStatusInProgress:
 		return newStatus == TaskStatusInReview
 	case TaskStatusInReview:
-		return newStatus == TaskStatusCompleted || newStatus == TaskStatusChangesRequested
+		return newStatus == TaskStatusCompleted || newStatus == TaskStatusChangesRequested || newStatus == TaskStatusBlockedReviewGate
 	case TaskStatusChangesRequested:
-		return newStatus == TaskStatusInProgress || newStatus == TaskStatusInReview || newStatus == TaskStatusCompleted || newStatus == TaskStatusBlockedCircuitBreaker
-	case TaskStatusCompleted, TaskStatusBlockedCircuitBreaker:
-		return false // Terminal states (assuming no transitions out of completed)
+		return newStatus == TaskStatusInProgress || newStatus == TaskStatusInReview || newStatus == TaskStatusCompleted || newStatus == TaskStatusBlockedCircuitBreaker || newStatus == TaskStatusBlockedReviewGate
+	case TaskStatusCompleted, TaskStatusBlockedCircuitBreaker, TaskStatusBlockedReviewGate:
+		return false // Terminal states
 	default:
 		return false
 	}

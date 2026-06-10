@@ -6,10 +6,10 @@
 
 ## Scope
 - **In:**
-  - **US001** — `services/agent-board` api-server auto-applies `.up.sql` migrations at boot, before listening, idempotently, aborting startup on failure.
-  - **US002** — `Makefile` `e2e-up` mcp-server probe bounded with `--max-time 5`; `e2e-seed` becomes data-only (migration step removed). `docs/tech_debt.md` line 113 marked resolved.
-  - **US003** — `.github/workflows/e2e.yml` GitHub Actions workflow: `pull_request → main` runs the full Robot e2e suite, blocks merge on failure, always uploads artifacts, always tears down.
-  - **US004 / US005** — three new read-only REST endpoints on api-server exposing user stories and tasks, plus the FE User Stories tab (card list + right-side detail drawer with tasks).
+  - **US039** — `services/agent-board` api-server auto-applies `.up.sql` migrations at boot, before listening, idempotently, aborting startup on failure.
+  - **US040** — `Makefile` `e2e-up` mcp-server probe bounded with `--max-time 5`; `e2e-seed` becomes data-only (migration step removed). `docs/tech_debt.md` line 113 marked resolved.
+  - **US041** — `.github/workflows/e2e.yml` GitHub Actions workflow: `pull_request → main` runs the full Robot e2e suite, blocks merge on failure, always uploads artifacts, always tears down.
+  - **US042 / US043** — three new read-only REST endpoints on api-server exposing user stories and tasks, plus the FE User Stories tab (card list + right-side detail drawer with tasks).
 - **Out:**
   - No `/healthz` / readiness endpoint (D-001 REVISED supersedes the original healthz story).
   - No down-migrations / rollback at startup (`.up.sql` only).
@@ -18,13 +18,13 @@
   - No filtering / sorting / search / pagination (D-008).
   - No deep-link/URL for a selected story (in-tab selection state only — D-006).
   - No branch-protection "required check" toggle (repo-admin action in GitHub settings, external dependency).
-  - No compose-level `healthcheck:` rewrite (US002 targets the Makefile probe loops only).
+  - No compose-level `healthcheck:` rewrite (US040 targets the Makefile probe loops only).
   - No mcp-server changes beyond the Makefile probe (no new mcp endpoint).
 
 ## Service topology
 | Service | New / Modified | Responsibility | Inter-service calls |
 |---|---|---|---|
-| `services/agent-board` (api-server binary) | modified | Boot-time DB migrations (US001); new read-only REST endpoints for user stories + tasks (US004/US005) | none (talks only to Postgres) |
+| `services/agent-board` (api-server binary) | modified | Boot-time DB migrations (US039); new read-only REST endpoints for user stories + tasks (US042/US043) | none (talks only to Postgres) |
 | `services/agent-board` (mcp-server binary) | unchanged | MCP SSE/tools — untouched by this requirement | none |
 | Postgres | existing | Single shared DB for the agent-board module | — |
 | GitHub Actions (CI) | new | PR-to-main e2e quality gate orchestrating the compose stack + Robot suite via Makefile targets | drives `docker compose` + `make` |
@@ -50,9 +50,9 @@ The route file `web/pages/projects/[id].tsx` changes in exactly one place: it pa
 
 ## Data flow
 
-Two representative flows: (A) boot-time migrations (US001), (B) the card-list-then-drawer FE flow (US004/US005).
+Two representative flows: (A) boot-time migrations (US039), (B) the card-list-then-drawer FE flow (US042/US043).
 
-### A. Migration at startup (US001)
+### A. Migration at startup (US039)
 ```mermaid
 sequenceDiagram
     participant Boot as api-server run()
@@ -74,7 +74,7 @@ sequenceDiagram
     Boot->>Boot: e.Start(":8080")  (only reached if all migrations succeeded)
 ```
 
-### B. Card list → drawer (US004 + US005)
+### B. Card list → drawer (US042 + US043)
 ```mermaid
 sequenceDiagram
     participant U as User (web)
@@ -278,32 +278,32 @@ GROUP BY us.id
 ORDER BY us.created_at DESC;
 ```
 
-## US002 — Makefile changes (exact)
+## US040 — Makefile changes (exact)
 
 Two edits to `Makefile`, no behavioural change to the web/api probes:
 
-1. **mcp-server probe bounded.** The current `e2e-up` mcp loop (lines ~49-53) already has a fallback that bounds the curl, but the **first** curl in the `until` (`curl -sf http://localhost:8081/sse`) is **unbounded** and can hang on the SSE stream. Add `--max-time 5` to that curl (and keep treating an accepted HTTP status as healthy, per US002 AC — health is "connection established / accepted status", not "clean exit"). The bounded form:
+1. **mcp-server probe bounded.** The current `e2e-up` mcp loop (lines ~49-53) already has a fallback that bounds the curl, but the **first** curl in the `until` (`curl -sf http://localhost:8081/sse`) is **unbounded** and can hang on the SSE stream. Add `--max-time 5` to that curl (and keep treating an accepted HTTP status as healthy, per US040 AC — health is "connection established / accepted status", not "clean exit"). The bounded form:
    ```make
    @i=0; until curl -sf --max-time 5 http://localhost:8081/sse >/dev/null 2>&1 || \
        curl -s --max-time 5 -o /dev/null -w "%{http_code}" http://localhost:8081/sse 2>&1 | grep -qE "^(200|405|404)$$"; do \
    ```
-2. **`e2e-seed` becomes data-only.** Remove the migration loop (current lines ~60-63) from `e2e-seed`; keep only the seed loop over `$(SEEDS_DIR)/*.sql`. Update the target's `##` help text from "Apply migrations then seed fixtures" to "Seed data fixtures (migrations now run at api-server startup)". Migrations are applied by the api-server at boot (US001), so by the time `e2e-seed` runs (after `e2e-up` gates the api-server healthy) the schema already exists.
+2. **`e2e-seed` becomes data-only.** Remove the migration loop (current lines ~60-63) from `e2e-seed`; keep only the seed loop over `$(SEEDS_DIR)/*.sql`. Update the target's `##` help text from "Apply migrations then seed fixtures" to "Seed data fixtures (migrations now run at api-server startup)". Migrations are applied by the api-server at boot (US039), so by the time `e2e-seed` runs (after `e2e-up` gates the api-server healthy) the schema already exists.
 
-The api-server probe target (`GET /api/v1/projects`) and the web probe (`GET http://localhost:3000/`) are **unchanged** (US002 AC: no regression to the web probe; api poll stays as-is and now works because of US001).
+The api-server probe target (`GET /api/v1/projects`) and the web probe (`GET http://localhost:3000/`) are **unchanged** (US040 AC: no regression to the web probe; api poll stays as-is and now works because of US039).
 
 > **Dependency note for `e2e-seed` after the split:** `e2e-seed` writes to the DB via `psql "$(PG_CONN)"` against the host-published Postgres port (`localhost:15432`). It depends on the api-server having already run migrations. Since `e2e-up` blocks until `GET /api/v1/projects` returns 200 (which is only true after migrations completed), the natural `make e2e-up && make e2e-seed` ordering is safe. The `dev-migrate` / `dev-seed` native targets are **out of scope** for this requirement and remain unchanged (they target a different DB/port and a non-container flow); a follow-up may retire `dev-migrate` once migrations-at-startup proves out, but that is not part of REQ007.
 
-> **tech_debt.md:** line 113 (the REQ006/US012 deferred fix) is marked resolved by US002 per the story note; the dev/tech-lead handles that one-line edit.
+> **tech_debt.md:** line 113 (the REQ006/US012 deferred fix) is marked resolved by US040 per the story note; the dev/tech-lead handles that one-line edit.
 
-## US003 — GitHub Actions workflow (shape)
+## US041 — GitHub Actions workflow (shape)
 
 - **File:** `.github/workflows/e2e.yml` (the `.github/` directory does not yet exist — it is created by this story).
 - **Trigger:** `on: pull_request:` with `branches: [main]` only. No `push`. (D-003)
 - **Runner:** `ubuntu-latest` (Docker + `docker compose` preinstalled).
 - **Single job, steps in order:**
   1. `actions/checkout@v4`.
-  2. Bring the stack up via the Makefile family (`make e2e-up`, which runs `docker compose up -d` then the health-gated probe loops fixed in US002). The runner must have `psql` available for `make e2e-seed` and Python/Robot for `make e2e-run` — install via `actions/setup-python` + `pip install` of the Robot toolchain, plus the postgres client (apt) — OR drive everything through containers; tech-lead/tester pick the simplest path that keeps CI and local in lockstep (README note). The architecture mandates: **reuse the Makefile targets, do not duplicate their commands inline.**
-  3. `make e2e-seed` (data-only after US002).
+  2. Bring the stack up via the Makefile family (`make e2e-up`, which runs `docker compose up -d` then the health-gated probe loops fixed in US040). The runner must have `psql` available for `make e2e-seed` and Python/Robot for `make e2e-run` — install via `actions/setup-python` + `pip install` of the Robot toolchain, plus the postgres client (apt) — OR drive everything through containers; tech-lead/tester pick the simplest path that keeps CI and local in lockstep (README note). The architecture mandates: **reuse the Makefile targets, do not duplicate their commands inline.**
+  3. `make e2e-seed` (data-only after US040).
   4. `make e2e-run` (runs all `tests/e2e/REQ*/` Robot suites; no `REQ`/`US` narrowing → full suite).
   5. **Upload artifacts** — `actions/upload-artifact@v4` with `if: always()`, uploading `tests/e2e/results/output.xml`, `log.html`, `report.html`.
   6. **Teardown** — `make e2e-down` with `if: always()`.
@@ -319,7 +319,7 @@ The api-server probe target (`GET /api/v1/projects`) and the web probe (`GET htt
   - *Shell out to psql / a sidecar init container:* impossible/awkward — distroless has no psql; an init container adds compose complexity and a second source of truth for migration ordering.
   - *A third-party migration library (golang-migrate, goose):* heavier dependency for two tiny migrations; the embed + bookkeeping approach is ~60 lines, dependency-free, and fully testable against a throwaway Postgres. (Re-evaluate if migration count grows large or down-migrations become needed.)
   - *Rely on `CREATE TABLE IF NOT EXISTS` in the SQL instead of a tracking table:* the existing `.up.sql` files use bare `CREATE TABLE`; rewriting them is riskier and still doesn't give a clean "already applied" signal for future data-mutating migrations. The tracking table generalises better.
-- **Consequences:** A new `schema_migrations` table appears in every DB. The migration files become compile-time embedded — adding a migration requires a rebuild (acceptable; the Dockerfile already rebuilds from full source). The `e2e-seed`/`dev-migrate` psql-based migration steps become redundant for the api-server path (US002 removes the `e2e-seed` one). Integration tests need a real/throwaway Postgres (tester already flagged this).
+- **Consequences:** A new `schema_migrations` table appears in every DB. The migration files become compile-time embedded — adding a migration requires a rebuild (acceptable; the Dockerfile already rebuilds from full source). The `e2e-seed`/`dev-migrate` psql-based migration steps become redundant for the api-server path (US040 removes the `e2e-seed` one). Integration tests need a real/throwaway Postgres (tester already flagged this).
 
 ### D-002 — Embed migrations from a package whose directory can see `migrations/`
 - **Context:** `//go:embed` can only embed files at or below the embedding `.go` file's directory. The migration files live at `services/agent-board/migrations/`.
@@ -334,7 +334,7 @@ The api-server probe target (`GET /api/v1/projects`) and the web probe (`GET htt
 - **Consequences:** First-ever boot against a DB that already has tables (e.g. one previously migrated by the old `e2e-seed` psql step) would attempt to re-run `000001` because `schema_migrations` is empty → "table already exists" error. **Mitigation / open question OQ-1:** for clean e2e/CI runs this never happens (fresh volume each time via `e2e-down -v`). For pre-existing dev DBs, the operator starts from a fresh DB or the runner backfills `schema_migrations` — flagged as an open question for the human.
 
 ### D-004 — Three separate read-only endpoints; tasks fetched separately from story detail
-- **Context:** US004 needs a list with `taskCount` + full description; US005 needs single-story detail and the story's tasks.
+- **Context:** US042 needs a list with `taskCount` + full description; US043 needs single-story detail and the story's tasks.
 - **Decision:** `GET /projects/{id}/user-stories` (wrapped list with `taskCount`), `GET /user-stories/{id}` (bare object, no tasks embedded), `GET /user-stories/{id}/tasks` (wrapped list). The drawer issues the detail + tasks calls in parallel.
 - **Alternatives rejected:**
   - *Embed tasks in the detail response:* couples two concerns, breaks the bare-object convention for single resources, and forces a single larger payload even when only detail is needed. Two small parallel requests keep each endpoint single-purpose and let the FE show partial loading.
@@ -357,14 +357,14 @@ The api-server probe target (`GET /api/v1/projects`) and the web probe (`GET htt
 
 ## Risks & open questions
 - **OQ-1 (human) — pre-existing dev DB + bookkeeping backfill (D-003 consequence):** If an operator points the new migrations-at-startup api-server at a DB that already has the application tables but no `schema_migrations` row, boot will fail re-running `000001` ("table already exists"). For e2e/CI this never occurs (fresh volume). For local/dev DBs migrated by the old psql path, do we (a) require a fresh DB, (b) have the runner detect existing tables and backfill `schema_migrations`, or (c) accept the failure and document "drop and recreate"? Recommendation: (a) for this requirement (simplest, matches CI), document the reset. Please confirm.
-- **OQ-2 (human) — CI toolchain path for Robot (US003):** install Python+Robot+psql on the runner and reuse `make e2e-seed`/`e2e-run` (keeps Makefile as single source of truth, my recommendation), OR run Robot from a container. Confirm the install-on-runner approach is acceptable, or state a preference.
+- **OQ-2 (human) — CI toolchain path for Robot (US041):** install Python+Robot+psql on the runner and reuse `make e2e-seed`/`e2e-run` (keeps Makefile as single source of truth, my recommendation), OR run Robot from a container. Confirm the install-on-runner approach is acceptable, or state a preference.
 - **Risk — `//go:embed` path placement (D-002):** if be-dev places the embed declaration wrong, the build fails fast (compile error) — low risk, caught immediately. Mitigation: the constraint (embed `*.up.sql` only, lexical order, exclude `.down.sql`) is fixed here; placement is the dev's choice.
-- **Risk — e2e fixtures need user stories + tasks (US004/US005 e2e):** the current baseline seed (`REQ000_baseline.sql`) seeds a project + documents but **no user stories or tasks**. The new User Stories e2e suite will need seed rows. This is a tester concern (a new seed file under `tests/e2e/data/seeds/`), flagged here so the tester designs fixtures matching the contract. Not an architecture blocker.
-- **Risk — branch protection not auto-enabled (US003):** the workflow alone does not block merges until a repo admin marks the check required. Documented as an external dependency; surface to the human at rollout.
+- **Risk — e2e fixtures need user stories + tasks (US042/US043 e2e):** the current baseline seed (`REQ000_baseline.sql`) seeds a project + documents but **no user stories or tasks**. The new User Stories e2e suite will need seed rows. This is a tester concern (a new seed file under `tests/e2e/data/seeds/`), flagged here so the tester designs fixtures matching the contract. Not an architecture blocker.
+- **Risk — branch protection not auto-enabled (US041):** the workflow alone does not block merges until a repo admin marks the check required. Documented as an external dependency; surface to the human at rollout.
 
 ## Approval log
 ### Revision 1 — 2026-06-07 — author: system-architect
-- Initial draft covering US001–US005: migrations-at-startup (embed + `schema_migrations` table), Makefile mcp `--max-time` + data-only `e2e-seed`, GitHub Actions PR-to-main e2e gate, and three new read-only REST endpoints (exact JSON contracts) plus the FE card-list + side-drawer design. Decisions D-001–D-005 recorded; open questions OQ-1 (bookkeeping backfill) and OQ-2 (CI Robot toolchain) raised for the human.
+- Initial draft covering US039–US043: migrations-at-startup (embed + `schema_migrations` table), Makefile mcp `--max-time` + data-only `e2e-seed`, GitHub Actions PR-to-main e2e gate, and three new read-only REST endpoints (exact JSON contracts) plus the FE card-list + side-drawer design. Decisions D-001–D-005 recorded; open questions OQ-1 (bookkeeping backfill) and OQ-2 (CI Robot toolchain) raised for the human.
 
 ### Revision 2 — 2026-06-08 — driver: human approval
 - Approved by human at 2026-06-08T00:00:00Z.

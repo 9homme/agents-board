@@ -4,9 +4,9 @@
 **Story:** US048
 **Track:** BE
 **Service:** services/agent-board
-**Status:** pending
+**Status:** in_progress
 **Blocked by:** US044_be_requirement_schema_migration_domain
-**Worked-by:**
+**Worked-by:** be-dev-2026-06-10T12:28:00Z-a3f1
 **Implements:** US048, D-009 (full canonical hierarchy; flat routes removed), API contracts §6–§11, Breaking-changes (B) removed-routes table
 
 ## Goal

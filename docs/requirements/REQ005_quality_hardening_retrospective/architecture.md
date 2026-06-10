@@ -4,7 +4,7 @@
 **Approved-by:** _(set by orchestrator at re-approval time — Revision 4 reopened)_
 **Approved-at:** _(set by orchestrator at re-approval time — Revision 4 reopened)_
 
-> ⚠️ **Revision 4 — 2026-06-03 — reopened by orchestrator + human.** US008's first live exercise (after the original `approved` verdict) surfaced five real defects that contradict §2, §6.2, and §6.3 as originally written. The contradictions are documented as deprecation notes inline and as new D-015..D-019 entries in §9; see §15 Revision 4 entry for the full diff and rationale. Frontmatter flipped back to `pending_approval` per the playbook (orchestrator never auto-approves architecture revisions).
+> ⚠️ **Revision 4 — 2026-06-03 — reopened by orchestrator + human.** US022's first live exercise (after the original `approved` verdict) surfaced five real defects that contradict §2, §6.2, and §6.3 as originally written. The contradictions are documented as deprecation notes inline and as new D-015..D-019 entries in §9; see §15 Revision 4 entry for the full diff and rationale. Frontmatter flipped back to `pending_approval` per the playbook (orchestrator never auto-approves architecture revisions).
 
 ---
 
@@ -13,23 +13,23 @@
 This is an architecture document for a **quality-hardening / dev-experience retrospective**. It is intentionally light on the usual sections (no new endpoints, no new pages, no new microservices, no data-model changes). The substance is in:
 
 - **§2 File-level touch map** — what changes where, per story.
-- **§3 Signal-cancellable lifecycle context contract** (US004) — the one new shared BE pattern.
-- **§4 AbortController hook contract** (US006) — the one FE pattern being harmonised.
-- **§5 Test backfill matrix** (US005) — the 16 test names and their target branches.
-- **§6 e2e stack-up shape** (US008) — `docker-compose.yml` + Makefile + seed contract.
-- **§7 Worktree origin contract** (US009) — path choice + fallback wording.
+- **§3 Signal-cancellable lifecycle context contract** (US018) — the one new shared BE pattern.
+- **§4 AbortController hook contract** (US020) — the one FE pattern being harmonised.
+- **§5 Test backfill matrix** (US019) — the 16 test names and their target branches.
+- **§6 e2e stack-up shape** (US022) — `docker-compose.yml` + Makefile + seed contract.
+- **§7 Worktree origin contract** (US023) — path choice + fallback wording.
 - **§9 Decisions** — restated D-001 through D-007 with verdicts + the new D-008..D-014.
 - **§10 Open-question resolutions** — Q1/Q2/Q3 from po-ba's README answered.
-- **§11 React-Doctor regression fixes** (US010) — MermaidDiagram ref-attach path, `useDocument` reducer contract, `DocumentsTab` render-time selection contract, and US006↔US010 ordering.
+- **§11 React-Doctor regression fixes** (US024) — MermaidDiagram ref-attach path, `useDocument` reducer contract, `DocumentsTab` render-time selection contract, and US020↔US024 ordering.
 
 ### 0.1 Executive summary (one-screen scan for re-approval)
 
-This revision (rev 2, 2026-06-02) folds in **US010 — React-Doctor baseline regression fixes** per README D-008. Headline calls the human needs to confirm:
+This revision (rev 2, 2026-06-02) folds in **US024 — React-Doctor baseline regression fixes** per README D-008. Headline calls the human needs to confirm:
 
 1. **MermaidDiagram fix path = ref-attach (NOT DOMPurify + suppression).** `react-doctor/no-danger` fires on the `dangerouslySetInnerHTML` token regardless of sanitisation, so DOMPurify alone does not clear the rule — it would require an inline lint suppression and still leaves an XSS-shaped construct. Ref-attach (parse `svg` via `DOMParser`, append `<svg>` node to a `ref`'d wrapper inside `useEffect`) clears the rule cleanly, adds zero dependencies, and is straightforward under React 18 strict mode. See §11.1 for the exact `useEffect` shape.
 2. **`useDocument` reducer contract is frozen here.** State `{ data, isLoading, error }`, actions `FETCH_STARTED | FETCH_SUCCEEDED | FETCH_FAILED | ABORTED`. The hook's **public return shape stays `{ data, isLoading, error, refetch }`** so existing Jest consumers and `DocumentsTab` keep compiling. See §11.2.
 3. **`DocumentsTab` drops the auto-select `useEffect` entirely.** The current effect's redirect intent is replicated at render time as `selectedDocId = docParam ?? documents[0]?.id`; the user-click URL write continues to live in `handleSelectDoc` (already exists). Empty-state placeholder remains the existing "No documents yet" / "This project has no documents yet". No `ARCHITECTURE_GAP_FOUND` needed — the sibling click handler already exists. See §11.3.
-4. **US006 ⇄ US010 ordering: US006 lands first, US010 adds `Depends-on: US006`.** Landing the AbortController + signal-thread pattern first keeps US010's diff smaller; the reducer action set already names `ABORTED` so the merge is mechanical. See §11.4.
+4. **US020 ⇄ US024 ordering: US020 lands first, US024 adds `Depends-on: US020`.** Landing the AbortController + signal-thread pattern first keeps US024's diff smaller; the reducer action set already names `ABORTED` so the merge is mechanical. See §11.4.
 5. **No new product behaviour; visual parity required.** Mermaid output, document loading observable transitions, and tab navigation are byte-for-byte identical to today. See §11.5 for the test-time guarantees that catch regressions.
 
 New open question OQ-5 (§13.2) asks the human to confirm the ref-attach default over DOMPurify+suppression.
@@ -44,9 +44,9 @@ This requirement closes nine discrete tech-debt items raised by the REQ004 quali
 
 In-scope changes, grouped:
 
-- **A. Quality-gate must-fix** (US001, US002, US003) — edits to `scripts/review/run-gate.sh` and `scripts/review/README.md` only.
-- **B. Code-level tech debt** (US004, US005, US006, US007) — two Go `main.go` files, two Go repo `_test.go` files, three FE hooks + two FE API client files, one `package.json` + lockfile.
-- **C. Workflow / harness** (US008, US009) — new top-level `docker-compose.yml`, new top-level `Makefile`, new `services/agent-board/Dockerfile`, optional new `web/Dockerfile`, new `tests/e2e/data/seeds/` directory, `tests/e2e/README.md` runbook, and either harness-side worktree origin fix OR a canonical-path-policy block appended to all six agent-definition files.
+- **A. Quality-gate must-fix** (US015, US016, US017) — edits to `scripts/review/run-gate.sh` and `scripts/review/README.md` only.
+- **B. Code-level tech debt** (US018, US019, US020, US021) — two Go `main.go` files, two Go repo `_test.go` files, three FE hooks + two FE API client files, one `package.json` + lockfile.
+- **C. Workflow / harness** (US022, US023) — new top-level `docker-compose.yml`, new top-level `Makefile`, new `services/agent-board/Dockerfile`, optional new `web/Dockerfile`, new `tests/e2e/data/seeds/` directory, `tests/e2e/README.md` runbook, and either harness-side worktree origin fix OR a canonical-path-policy block appended to all six agent-definition files.
 
 ### 1.2 Out of scope (anti-scope)
 
@@ -54,14 +54,14 @@ Restating from po-ba README so the architect / tech-lead / devs share one bounda
 
 - **No new endpoints.** The existing REQ001–REQ004 API surface (the four `/api/v1/projects*` and `/api/v1/documents*` routes; the MCP `/sse` + `/message` routes) is unchanged in path, request shape, response shape, and status codes. **§8 API-contract impact is therefore N/A.**
 - **No new pages or hooks beyond the harmonisation.** `useProjects` keeps its `mounted`-flag implementation (only its underlying `fetchProjects` gains a `signal?` param for API-uniformity).
-- **No production code change in `services/agent-board/internal/repo/`.** US005 is test-only.
-- **No CI runner hookup, no cloud test environment, no rewriting existing `.robot` files.** US008 delivers a local-Docker stack; CI is a follow-up REQ.
+- **No production code change in `services/agent-board/internal/repo/`.** US019 is test-only.
+- **No CI runner hookup, no cloud test environment, no rewriting existing `.robot` files.** US022 delivers a local-Docker stack; CI is a follow-up REQ.
 - **No new shared `useFetch<T>` extraction.** Per D-005, copy the AbortController pattern three times rather than invent a new abstraction in the same story.
 - **No MSW leak root-cause investigation.** Per D-001 the `--forceExit` flag is the must-fix; the actual leak hunt is deferred (see §10 Q1 — recommended deferral to REQ006).
 - **No `--detectOpenHandles` in the production gate.** That flag belongs in the leak-hunt story when it lands.
 - **No sweep of `context.Background()` in test files.** Tests legitimately use it for sqlmock / httptest setup (D-003).
-- **No graceful HTTP shutdown wiring.** US004 only fixes the boot-time DB ping (see D-009).
-- **No migration mechanism change.** US008 reuses `psql -f` on raw migration SQL (D-010); replacing with `golang-migrate` is a future REQ.
+- **No graceful HTTP shutdown wiring.** US018 only fixes the boot-time DB ping (see D-009).
+- **No migration mechanism change.** US022 reuses `psql -f` on raw migration SQL (D-010); replacing with `golang-migrate` is a future REQ.
 
 ---
 
@@ -69,26 +69,26 @@ Restating from po-ba README so the architect / tech-lead / devs share one bounda
 
 This is the authoritative list of files each story touches. Tech-lead uses this to scope tasks; devs use it to know whether they're in their lane. **Paths in bold are NEW files; the rest are edits.**
 
-### US001 — `printf "--"` bug
+### US015 — `printf "--"` bug
 
 | File | Change |
 |---|---|
 | `scripts/review/run-gate.sh` | Edit `printf` at line 58 (in `run_check`) and line 71 (in `run_check_warn`) — prefix format string with `-- ` so `printf` does not parse a leading `--` as an option. |
 
-### US002 — `--forceExit` on FE Jest
+### US016 — `--forceExit` on FE Jest
 
 | File | Change |
 |---|---|
 | `scripts/review/run-gate.sh` | Edit line 116 (`run_check "npm test (--watchAll=false)" ...`) to pass `--forceExit` after `--watchAll=false`. |
 
-### US003 — Soft-warn missing `gosec` / `govulncheck`
+### US017 — Soft-warn missing `gosec` / `govulncheck`
 
 | File | Change |
 |---|---|
 | `scripts/review/run-gate.sh` | In `gate_be()`: replace `require_tool gosec ...` and `require_tool govulncheck ...` with inline `command -v` checks. If missing, print one WARN line (consistent with `run_check_warn` output prefix), DO NOT call the corresponding `run_check`. `require_tool go` and `require_tool golangci-lint` remain hard. (See §9 D-011 for helper-naming guidance.) |
 | `scripts/review/README.md` | Add a "Soft-warn vs. hard-required" subsection under "What it runs" listing which tools are hard (go, golangci-lint, npm, semgrep, gitleaks) vs soft-warn (gosec, govulncheck) and the install one-liners for the soft-warn pair. |
 
-### US004 — Signal-cancellable DB-ping context
+### US018 — Signal-cancellable DB-ping context
 
 | File | Change |
 |---|---|
@@ -97,14 +97,14 @@ This is the authoritative list of files each story touches. Tech-lead uses this 
 
 NOTE: We do NOT extract a shared `internal/lifecycle/` helper in this REQ (D-008). Two short copies are cheaper than introducing a new internal package + its tests for nine lines of glue.
 
-### US005 — Repo error-branch tests
+### US019 — Repo error-branch tests
 
 | File | Change |
 |---|---|
 | `services/agent-board/internal/repo/document_repo_test.go` | Add 8 test functions (names in §5). Test-only; no edits to `document_repo.go`. |
 | `services/agent-board/internal/repo/project_repo_test.go` | Add 8 test functions (names in §5). Test-only; no edits to `project_repo.go`. |
 
-### US006 — Harmonise FE hooks on AbortController
+### US020 — Harmonise FE hooks on AbortController
 
 | File | Change |
 |---|---|
@@ -117,14 +117,14 @@ NOTE: We do NOT extract a shared `internal/lifecycle/` helper in this REQ (D-008
 | `web/hooks/useProjects.ts` | No structural change. `fetchProjects()` call site may pass `undefined` or omit `signal` — both work. |
 | `web/hooks/useProject.test.ts`, `useProjectDocuments.test.ts` | Tester (Phase 2) will add abort-semantics test cases — story-level additions, no rewrites of existing assertions. |
 
-### US007 — Move `@testing-library/dom` to devDependencies
+### US021 — Move `@testing-library/dom` to devDependencies
 
 | File | Change |
 |---|---|
 | `web/package.json` | Delete the `@testing-library/dom: "^10.4.1"` line from `dependencies`; add identical line to `devDependencies` (keep alphabetical sort within the block). |
 | `web/package-lock.json` | Regenerate via `cd web && npm install` after the package.json edit. Verify diff is limited to the move + any incidental peer rewiring; if diff is large, investigate before committing. |
 
-### US008 — Live e2e stack-up
+### US022 — Live e2e stack-up
 
 | File | Change |
 |---|---|
@@ -142,21 +142,21 @@ NOTE: ~~`services/agent-board/cmd/mcp-server` does NOT need to be in the e2e com
 
 **DEPRECATED by Revision 4 / D-015.** Live verification proved this assumption wrong: `api-server` is read-only (4 GET endpoints), so every write-driven test setup goes through MCP tools. REQ001-004 robot suite-setups POST `/message?sessionId=...` to mcp-server for fixture creation; without mcp-server in compose, 15 of 21 pre-existing e2e tests fail with `404`. mcp-server IS in compose as of Revision 4 (port `:8081`, env `DB_URL`, healthcheck-equivalent via Makefile poll). See D-015.
 
-### US010 — React-Doctor baseline regressions (top-3 state/effect + 1 security)
+### US024 — React-Doctor baseline regressions (top-3 state/effect + 1 security)
 
 | File | Change |
 |---|---|
 | `web/components/ProjectDetail/MermaidDiagram.tsx` | Replace the `dangerouslySetInnerHTML` branch (line 130–142, the `renderState.status === 'success'` JSX) with a `ref`-attached wrapper `<div>`. New `useEffect` that runs when `renderState.status === 'success'` parses `svg` via `DOMParser`, extracts the `<svg>` element, clears the wrapper's current children, and appends the parsed node. Removes both the inline `// dangerouslySetInnerHTML is the single sanctioned use` comment (lines 137–138) and the `dangerouslySetInnerHTML` prop itself. NO change to the lazy-load contract, the unique-id contract, the error contract, or the `setRenderState({ status: 'success', svg, ariaLabel })` payload. See §11.1. |
-| `web/hooks/useDocument.ts` | Refactor the 7-`setState` cascade in `useEffect` (lines 50–89) to a single `useReducer` with action types `FETCH_STARTED \| FETCH_SUCCEEDED \| FETCH_FAILED \| ABORTED`. **Public return shape stays `{ data, isLoading, error, refetch }`** — type alias `UseDocumentResult` unchanged. AbortController + `latestIdRef` race-safety preserved verbatim from US006's contract. See §11.2. |
+| `web/hooks/useDocument.ts` | Refactor the 7-`setState` cascade in `useEffect` (lines 50–89) to a single `useReducer` with action types `FETCH_STARTED \| FETCH_SUCCEEDED \| FETCH_FAILED \| ABORTED`. **Public return shape stays `{ data, isLoading, error, refetch }`** — type alias `UseDocumentResult` unchanged. AbortController + `latestIdRef` race-safety preserved verbatim from US020's contract. See §11.2. |
 | `web/components/ProjectDetail/DocumentsTab.tsx` | Delete the auto-select `useEffect` block (lines 63–78) entirely. Replace the `selectedDocId = isBogusDeepLink ? undefined : docParam` line (line 59) with `selectedDocId = isBogusDeepLink ? undefined : (docParam ?? documents?.[0]?.id)`. The render-time fallback preserves the "first item selected on load" UX without any redirect. The existing `handleSelectDoc` click handler (line 88) continues to own the URL write on user interaction; no new handler. **No** sibling escalation needed — `handleSelectDoc` is the existing click-driven counterpart, so user-triggered URL sync is already covered. See §11.3. |
 | `web/package.json` | NO change — ref-attach path adds zero new dependencies. (If a future revision overrides §11.1 to pick DOMPurify, this row becomes `+ "isomorphic-dompurify": "^2.x"` in `dependencies`. Locked OUT for now.) |
 | `web/components/ProjectDetail/MermaidDiagram.test.tsx` | Existing assertion (today reads `container.querySelector('svg')` or similar) continues to work — the rendered DOM still contains an `<svg>` child. Tester adds a new FCT-* assertion in `fe_unit_tests.md` that confirms `container.querySelector('[dangerouslySetInnerHTML]')` is null and that `svg.outerHTML` matches mermaid's output. Test additions only; no rewrites. |
 | `web/hooks/useDocument.test.ts` | Existing assertions on `{ data, isLoading, error, refetch }` continue to pass byte-for-byte (public surface unchanged). Tester MAY add a reducer-level unit assertion that confirms `FETCH_STARTED` clears prior data, `FETCH_SUCCEEDED` commits, `FETCH_FAILED` records error, and `ABORTED` is a no-op on state. No existing assertions weakened. |
-| `web/components/ProjectDetail/DocumentsTab.test.tsx` | Existing assertion that "when `?doc=` is absent and the list is non-empty, the first item is selected" continues to pass — selection is now render-time rather than effect-driven, but the observable outcome (`DocumentSidebar` receives `selectedId={documents[0].id}`, `DocumentPreviewer` receives `document=…`) is identical. The existing assertion that `router.replace` was called on auto-select **must be relaxed** to "router.replace is called only when the user clicks a sidebar item" — tester updates the spec in `fe_unit_tests.md`. This is the one external test-surface change US010 introduces; it is behaviour-preserving for the user but observable to the test. Document it in the test spec. |
+| `web/components/ProjectDetail/DocumentsTab.test.tsx` | Existing assertion that "when `?doc=` is absent and the list is non-empty, the first item is selected" continues to pass — selection is now render-time rather than effect-driven, but the observable outcome (`DocumentSidebar` receives `selectedId={documents[0].id}`, `DocumentPreviewer` receives `document=…`) is identical. The existing assertion that `router.replace` was called on auto-select **must be relaxed** to "router.replace is called only when the user clicks a sidebar item" — tester updates the spec in `fe_unit_tests.md`. This is the one external test-surface change US024 introduces; it is behaviour-preserving for the user but observable to the test. Document it in the test spec. |
 
-NOTE: US010 is FE-only. No BE files are touched. Tracks: FE.
+NOTE: US024 is FE-only. No BE files are touched. Tracks: FE.
 
-### US009 — Worktrees branch off local `main`
+### US023 — Worktrees branch off local `main`
 
 **Path choice (see §7):** Path (b) — agent-definition documentation fallback. Path (a) is **not reachable from this repo** (the worktree harness lives outside the repo, in the Claude Code runtime layer).
 
@@ -168,12 +168,12 @@ NOTE: US010 is FE-only. No BE files are touched. Tracks: FE.
 | `.claude/agents/tester.md` | Same block. |
 | `.claude/agents/be-dev.md` | Same block. |
 | `.claude/agents/fe-dev.md` | Same block. |
-| `docs/requirements/REQ005_quality_hardening_retrospective/README.md` | Append `### Decision: US009 path = (b)` entry to the Decision log section, stating that path (a) was not reachable and naming the agent files updated. |
+| `docs/requirements/REQ005_quality_hardening_retrospective/README.md` | Append `### Decision: US023 path = (b)` entry to the Decision log section, stating that path (a) was not reachable and naming the agent files updated. |
 | `CLAUDE.md` (= `AGENTS.md`) | Optional one-sentence pointer under "Orchestrator cheat sheet": "Sub-agent worktrees may branch off stale `origin/main`; agents follow the canonical-path edit policy in their own definition files when touching `docs/requirements/`, `tests/e2e/`, `.claude/agents/`, or `CLAUDE.md`/`AGENTS.md`." Tech-lead decides whether to add (low-priority documentation gloss). |
 
 ---
 
-## 3. Signal-cancellable lifecycle context contract (US004)
+## 3. Signal-cancellable lifecycle context contract (US018)
 
 ### 3.1 Goals
 
@@ -195,7 +195,7 @@ Per D-013, hard-code `5 * time.Second`. Rationale:
 
 - Audit data shows pings against a healthy local Postgres complete in <100 ms.
 - A 5-s ceiling catches a stuck network handshake well before any reasonable orchestrator's health-check grace period.
-- An env-var (`DB_PING_TIMEOUT_SECONDS`) is **optional** per US004 notes; we leave it out for now. If ops later wants tuning, adding `os.Getenv("DB_PING_TIMEOUT_SECONDS")` + `strconv.Atoi` with a 5-s fallback is a trivial follow-up that does NOT require an architecture revision.
+- An env-var (`DB_PING_TIMEOUT_SECONDS`) is **optional** per US018 notes; we leave it out for now. If ops later wants tuning, adding `os.Getenv("DB_PING_TIMEOUT_SECONDS")` + `strconv.Atoi` with a 5-s fallback is a trivial follow-up that does NOT require an architecture revision.
 
 Marker: a `// TODO(REQ005): make configurable if ops needs it` comment goes on the timeout literal.
 
@@ -258,7 +258,7 @@ The signal-handler unit test pattern: in a `t.Run` subtest, declare a `ctx, stop
 
 ---
 
-## 4. AbortController hook contract (US006)
+## 4. AbortController hook contract (US020)
 
 ### 4.1 Reference implementation
 
@@ -266,7 +266,7 @@ The signal-handler unit test pattern: in a `t.Run` subtest, declare a `ctx, stop
 
 ### 4.2 `lib/api/` function signatures (frozen)
 
-After US006, every `lib/api/` fetcher has uniform signature shape:
+After US020, every `lib/api/` fetcher has uniform signature shape:
 
 ```ts
 // web/lib/api/projects.ts
@@ -293,7 +293,7 @@ export const fetchDocument = (
 
 `signal` is always the **last** positional parameter and always **optional**. Existing callers that omit it continue to compile.
 
-### 4.3 Hook contract — `useProject(id)` after US006
+### 4.3 Hook contract — `useProject(id)` after US020
 
 ```ts
 export interface UseProjectResult {
@@ -355,7 +355,7 @@ export const useProject = (id: string | undefined): UseProjectResult => {
 };
 ```
 
-### 4.4 Hook contract — `useProjectDocuments(projectId)` after US006
+### 4.4 Hook contract — `useProjectDocuments(projectId)` after US020
 
 Identical pattern, with the existing `refetch()` machinery preserved:
 
@@ -433,9 +433,9 @@ export const useProjectDocuments = (
 
 ---
 
-## 5. Test backfill matrix (US005)
+## 5. Test backfill matrix (US019)
 
-The audit specifies 14 backfill tests. Per po-ba D-004 and US005 AC, we land **16 functions** (the Update method is split into `_NotFound` + `_GenericError` on both repos, mirroring the source code's two error branches). Names are **verbatim** as the audit and US005 AC list them.
+The audit specifies 14 backfill tests. Per po-ba D-004 and US019 AC, we land **16 functions** (the Update method is split into `_NotFound` + `_GenericError` on both repos, mirroring the source code's two error branches). Names are **verbatim** as the audit and US019 AC list them.
 
 ### 5.1 `services/agent-board/internal/repo/document_repo_test.go` — 8 new
 
@@ -465,7 +465,7 @@ The audit specifies 14 backfill tests. Per po-ba D-004 and US005 AC, we land **1
 
 ### 5.3 Per-test assertions (uniform across all 16)
 
-For each test, the assertions REQUIRED by US005 AC:
+For each test, the assertions REQUIRED by US019 AC:
 
 1. The returned error is non-nil.
 2. For `_NotFound`: `errors.Is(err, repo.ErrNotFound)` is **true**.
@@ -481,13 +481,13 @@ For each test, the assertions REQUIRED by US005 AC:
 
 ### 5.5 No production-code edits
 
-Asserted via `git diff` review at code-review time. If a test reveals an actual bug (e.g. a missing `rows.Err()` check), the dev raises `ARCHITECTURE_GAP_FOUND` and we open a new story. Do not silently fix in US005.
+Asserted via `git diff` review at code-review time. If a test reveals an actual bug (e.g. a missing `rows.Err()` check), the dev raises `ARCHITECTURE_GAP_FOUND` and we open a new story. Do not silently fix in US019.
 
 ---
 
-## 6. e2e stack-up shape (US008)
+## 6. e2e stack-up shape (US022)
 
-### 6.1 Directory layout after US008
+### 6.1 Directory layout after US022
 
 ```
 /                                  (repo root)
@@ -611,7 +611,7 @@ e2e-seed:                        ## apply migrations then seed fixtures (idempot
 	  psql "$(PG_CONN)" -v ON_ERROR_STOP=1 -f $$f; \
 	done
 
-e2e-run:                         ## run Robot suites (REQ=REQ001 US=US001 narrows)
+e2e-run:                         ## run Robot suites (REQ=REQ001 US=US015 narrows)
 	@mkdir -p tests/e2e/results
 	@INCLUDE_FLAGS=""; \
 	if [ -n "$(US)" ]; then INCLUDE_FLAGS="--include $(US)"; fi; \
@@ -632,7 +632,7 @@ e2e-logs:                        ## stream container logs
 
 ### 6.4 Migrations runner
 
-Per D-010 the first iteration uses raw `psql -f` against each `*.up.sql` file in lex order. Pros: no new tool dependency, transparent. Cons: any future migration that uses `\` psql meta-commands or has multi-statement edge cases will need switching to `golang-migrate` — that is its own follow-up and not blocked by US008.
+Per D-010 the first iteration uses raw `psql -f` against each `*.up.sql` file in lex order. Pros: no new tool dependency, transparent. Cons: any future migration that uses `\` psql meta-commands or has multi-statement edge cases will need switching to `golang-migrate` — that is its own follow-up and not blocked by US022.
 
 ### 6.5 Seed fixtures contract
 
@@ -643,7 +643,7 @@ Per D-010 the first iteration uses raw `psql -f` against each `*.up.sql` file in
 
 ### 6.6 Robot invocation pattern
 
-Existing `.robot` files under `tests/e2e/REQ00x_*/` are unchanged. They tag tests with the US ID (e.g. `[Tags]    US001    smoke`). `make e2e-run REQ=REQ001 US=US001` translates to `robot --include US001 tests/e2e/REQ001_*/`. `make e2e-run REQ=REQ001` runs all stories in REQ001.
+Existing `.robot` files under `tests/e2e/REQ00x_*/` are unchanged. They tag tests with the US ID (e.g. `[Tags]    US015    smoke`). `make e2e-run REQ=REQ001 US=US015` translates to `robot --include US015 tests/e2e/REQ001_*/`. `make e2e-run REQ=REQ001` runs all stories in REQ001.
 
 Suites that today reach `http://localhost:3000` and `http://localhost:8080` continue to work because the compose stack publishes both on `127.0.0.1` at those exact ports.
 
@@ -655,11 +655,11 @@ Suites that today reach `http://localhost:3000` and `http://localhost:8080` cont
 
 ---
 
-## 7. Worktree origin contract (US009)
+## 7. Worktree origin contract (US023)
 
 ### 7.1 Path choice: **Path (b) — agent-definition documentation fallback**
 
-**Verdict: Path (a) is NOT reachable from this repo.** The worktree-creation harness is part of the Claude Code runtime / orchestrator layer; this repo cannot edit it. Therefore US009 ships path (b) only.
+**Verdict: Path (a) is NOT reachable from this repo.** The worktree-creation harness is part of the Claude Code runtime / orchestrator layer; this repo cannot edit it. Therefore US023 ships path (b) only.
 
 Rationale:
 
@@ -671,7 +671,7 @@ If a future change makes path (a) reachable, that becomes its own one-line REQ.
 
 ### 7.2 Canonical-path edit policy block (path b deliverable)
 
-The following block is appended verbatim to **all six** agent-definition files listed in §2 US009 row. Identical wording across files (a copy-paste-able block — that uniformity is intentional and is enforceable by a future lint check).
+The following block is appended verbatim to **all six** agent-definition files listed in §2 US023 row. Identical wording across files (a copy-paste-able block — that uniformity is intentional and is enforceable by a future lint check).
 
 ```markdown
 ## Canonical-path edit policy (worktree workaround)
@@ -694,7 +694,7 @@ Do NOT `git add` the worktree-local copies of these files. The orchestrator
 runs `git status` after each phase and surfaces any worktree-local hits on the
 above paths as a routing error.
 
-This policy is REQ005 / US009 fallback documentation. When the harness is fixed
+This policy is REQ005 / US023 fallback documentation. When the harness is fixed
 to branch off local `main`, this block becomes obsolete and can be removed in
 the same change.
 ```
@@ -704,18 +704,18 @@ the same change.
 The block to append to `docs/requirements/REQ005_quality_hardening_retrospective/README.md` under the existing "Decision log" section:
 
 ```markdown
-### Decision: US009 path = (b)
+### Decision: US023 path = (b)
 
 Path (a) (harness fix to branch off local `main`) was determined NOT reachable
 from this repo by the system-architect on 2026-06-01: the worktree-creation
 harness lives in the Claude Code runtime layer outside the working tree, and
-no `git worktree add` invocation exists in the repo. US009 therefore ships
+no `git worktree add` invocation exists in the repo. US023 therefore ships
 path (b) only: the canonical-path edit policy block is appended verbatim to
 all six agent definition files (`.claude/agents/{po-ba,system-architect,
 tech-lead,tester,be-dev,fe-dev}.md`).
 ```
 
-### 7.4 Out of scope for US009
+### 7.4 Out of scope for US023
 
 - Cleaning up old `.claude/worktrees/` directories.
 - A "worktree freshness" linter or pre-commit hook (path (a) territory).
@@ -733,7 +733,7 @@ tech-lead,tester,be-dev,fe-dev}.md`).
 - `GET /api/v1/documents/{id}`
 - MCP `/sse`, `/message`
 
-A code-review check at tech-lead's gate (US004 / US006 reviews) confirms that handler / response-encoding code paths are NOT touched.
+A code-review check at tech-lead's gate (US018 / US020 reviews) confirms that handler / response-encoding code paths are NOT touched.
 
 ---
 
@@ -743,60 +743,60 @@ A code-review check at tech-lead's gate (US004 / US006 reviews) confirms that ha
 
 | ID | Story | Decision | Verdict | Notes |
 |---|---|---|---|---|
-| **D-001** | US002 | `--forceExit` immediately; real MSW leak hunt deferred to a separate story | **ACCEPT** | See §10 Q1 — recommend defer to REQ006, not a US010 in REQ005. |
-| **D-002** | US003 | Soft-warn `run_check_warn` pattern; `gosec` ruleset covered by `golangci-lint`; README documents substitution | **ACCEPT** | See §9 D-011 for helper-shape guidance. |
-| **D-003** | US004 | Only the two production `context.Background()` sites are touched; tests legitimately use it | **ACCEPT** | |
-| **D-004** | US005 | 14 backfill tests (16 functions when Update is split into NotFound + GenericError) per audit §4.4 shopping list | **ACCEPT** | See §5 matrix. |
-| **D-005** | US006 | All three hooks use AbortController + signal-thread pattern; `fetchProject` gains `signal?` param; no new shared `useFetch<T>` extraction | **ACCEPT** | See §4 contract. |
-| **D-006** | US008 | `docker-compose.yml` at repo root; Makefile targets `e2e-up`/`e2e-down`/`e2e-seed`/`e2e-run`/`e2e`/`e2e-logs`; SQL fixtures under `tests/e2e/data/seeds/`; runbook in `tests/e2e/README.md` | **ACCEPT** | See §6. |
-| **D-007** | US009 | Two acceptance paths; (a) harness preferred, (b) agent-definition fallback | **ACCEPT then path (b) chosen** | Path (a) not reachable from repo — see §7.1. |
+| **D-001** | US016 | `--forceExit` immediately; real MSW leak hunt deferred to a separate story | **ACCEPT** | See §10 Q1 — recommend defer to REQ006, not a US024 in REQ005. |
+| **D-002** | US017 | Soft-warn `run_check_warn` pattern; `gosec` ruleset covered by `golangci-lint`; README documents substitution | **ACCEPT** | See §9 D-011 for helper-shape guidance. |
+| **D-003** | US018 | Only the two production `context.Background()` sites are touched; tests legitimately use it | **ACCEPT** | |
+| **D-004** | US019 | 14 backfill tests (16 functions when Update is split into NotFound + GenericError) per audit §4.4 shopping list | **ACCEPT** | See §5 matrix. |
+| **D-005** | US020 | All three hooks use AbortController + signal-thread pattern; `fetchProject` gains `signal?` param; no new shared `useFetch<T>` extraction | **ACCEPT** | See §4 contract. |
+| **D-006** | US022 | `docker-compose.yml` at repo root; Makefile targets `e2e-up`/`e2e-down`/`e2e-seed`/`e2e-run`/`e2e`/`e2e-logs`; SQL fixtures under `tests/e2e/data/seeds/`; runbook in `tests/e2e/README.md` | **ACCEPT** | See §6. |
+| **D-007** | US023 | Two acceptance paths; (a) harness preferred, (b) agent-definition fallback | **ACCEPT then path (b) chosen** | Path (a) not reachable from repo — see §7.1. |
 
 ### New architectural decisions
 
-#### D-008 — No `internal/lifecycle/` helper package for US004
+#### D-008 — No `internal/lifecycle/` helper package for US018
 - **Context:** Two `main.go` files need the same signal-cancellable lifecycle context pattern (~9 lines of glue each).
 - **Decision:** Inline the pattern in both `cmd/api-server/main.go` and `cmd/mcp-server/main.go`. **Do NOT create a `services/agent-board/internal/lifecycle/` package.**
 - **Alternatives rejected:** `internal/lifecycle/context.go` with a single `New()` constructor. Rejected because (a) two call sites do not justify a new package + its tests; (b) introducing a package widens the API surface that future REQs have to maintain; (c) the pattern is plain stdlib and reads more clearly inline.
 - **Consequences:** If a third or fourth `main.go` shows up needing the same wiring, that REQ extracts the helper. Until then, copy-paste is cheaper.
 
 #### D-009 — Graceful HTTP shutdown is out of scope
-- **Context:** US004 establishes a signal-cancellable lifecycle context. The natural follow-on is to wire `e.Shutdown(ctx)` so SIGTERM during normal serving drains in-flight requests.
-- **Decision:** **Out of scope for REQ005.** US004 only fixes boot-time DB ping. `e.Start(":" + port)` remains a blocking call that exits on a fatal serve error or process kill.
-- **Alternatives rejected:** Bundling shutdown into US004. Rejected because graceful shutdown has its own design surface (Echo's shutdown semantics, drain-timeout policy, signal-during-Shutdown behaviour) and would inflate US004 beyond a single-INVEST story.
+- **Context:** US018 establishes a signal-cancellable lifecycle context. The natural follow-on is to wire `e.Shutdown(ctx)` so SIGTERM during normal serving drains in-flight requests.
+- **Decision:** **Out of scope for REQ005.** US018 only fixes boot-time DB ping. `e.Start(":" + port)` remains a blocking call that exits on a fatal serve error or process kill.
+- **Alternatives rejected:** Bundling shutdown into US018. Rejected because graceful shutdown has its own design surface (Echo's shutdown semantics, drain-timeout policy, signal-during-Shutdown behaviour) and would inflate US018 beyond a single-INVEST story.
 - **Consequences:** SIGTERM mid-serve is still a hard kill of in-flight requests. Operators have not asked for graceful shutdown yet; raise a follow-up REQ when they do.
 
-#### D-010 — `psql -f` for migration / seed application in US008
-- **Context:** US008 needs to apply `services/agent-board/migrations/*.up.sql` and `tests/e2e/data/seeds/*.sql` from a Makefile.
+#### D-010 — `psql -f` for migration / seed application in US022
+- **Context:** US022 needs to apply `services/agent-board/migrations/*.up.sql` and `tests/e2e/data/seeds/*.sql` from a Makefile.
 - **Decision:** Iterate over the SQL files in lex order and `psql -v ON_ERROR_STOP=1 -f` each one.
 - **Alternatives rejected:** (a) `golang-migrate/migrate` CLI — adds a new tool dep on every dev machine; (b) a Go-based runner with `embed.FS` — yet-another binary to build and maintain; (c) docker-entrypoint-initdb scripts — only run on first container create, not idempotent across compose lifecycles.
 - **Consequences:** Limited to plain SQL (no psql meta-commands). Migrations grow more complex → switch to option (a) in a follow-up REQ.
 
-#### D-011 — US003 helper shape: inline `command -v` check (no new helper function)
-- **Context:** US003 must replace two `require_tool` calls with a soft-warn behaviour.
+#### D-011 — US017 helper shape: inline `command -v` check (no new helper function)
+- **Context:** US017 must replace two `require_tool` calls with a soft-warn behaviour.
 - **Decision:** Inline the `command -v` check in `gate_be()` before each affected `run_check`. Print a WARN-prefixed line on miss; skip the `run_check`. **Do NOT add a `run_check_warn_if_missing` helper.**
 - **Alternatives rejected:** New helper `run_check_warn_if_missing <tool> <name> <cmd...>`. Rejected because the call sites are exactly two and inline shell `if ! command -v X; then ...; else run_check ...; fi` is more obvious than indirection through a third helper.
 - **Consequences:** If a third soft-warn-on-missing tool appears, extract the helper then.
 
-#### D-012 — US008 web service runs as a containerised production build
-- **Context:** US008 notes give two options — containerised vs host `next dev`.
+#### D-012 — US022 web service runs as a containerised production build
+- **Context:** US022 notes give two options — containerised vs host `next dev`.
 - **Decision:** Containerised. `web/Dockerfile` does `npm ci && npm run build && npm start` in a multi-stage build. Compose runs the prod build.
 - **Alternatives rejected:** Host `next dev` — splits the orchestrator's "one command" into "one command plus a sidecar terminal," and stale build state between compose-up and the host dev server is a real foot-gun. The `make dev-up` target (added REQ006/US015) covers the host-dev-loop workflow.
 - **Consequences:** Source changes require `make e2e-down && make e2e-up` to rebuild; that is acceptable for an "after the unit tests pass, run e2e once" workflow. FE devs in tight loop use `make dev-up` or `cd web && npm run dev`.
 
 #### D-013 — DB-ping timeout literal `5 * time.Second`; no env-var for now
-- **Context:** US004 leaves the timeout value to the architect; suggests an optional `DB_PING_TIMEOUT_SECONDS`.
+- **Context:** US018 leaves the timeout value to the architect; suggests an optional `DB_PING_TIMEOUT_SECONDS`.
 - **Decision:** Hard-code `5 * time.Second` with a TODO comment. No env var.
 - **Alternatives rejected:** `DB_PING_TIMEOUT_SECONDS` env-var. Rejected for now because no operator has asked for it; YAGNI; adding it later is a 4-line non-architecture change.
 - **Consequences:** Ops cannot tune the ping timeout without a code change. Acceptable trade-off until someone needs it.
 
-#### D-014 — US010 (React-Doctor regressions) folded into REQ005 — ACCEPTED
-- **Context:** po-ba's README D-008 (added 2026-06-02) folds the React-Doctor baseline regression fixes — 3 state/effect clusters + 1 security — into REQ005 as US010. tech-lead's one-off scan recorded 92/100 with 4 errors and 19 warnings against current `main`; ~70% of the state/effect findings live in REQ004-shipped files. The alternatives were (a) defer to a new REQ006, (b) include in REQ005 now while REQ005 is pre-Phase-2 and scope is cheap.
-- **Decision:** **Accept.** US010 is added to REQ005 and absorbed into this architecture via §11 (full contract), §2 (file touch map), §9 (this decision), §12 (react-doctor skill enforcement note), §14 (R7, R8, OQ-5, OQ-6).
-- **Alternatives rejected:** Deferring to REQ006. Rejected because (a) REQ005 is pre-Phase-2 — adding a story now is free, while a separate REQ would re-litigate scope REQ005 already owns (e2e harness, FE hook harmonisation, gate fixes — US010 lives next to all of these); (b) fixing react-doctor findings before they accumulate compounding reviewer cost beats a separate cycle later; (c) US006 already touches `useDocument` — landing US010 in the same REQ keeps that file's churn coherent and well-ordered (see §11.4).
-- **Consequences:** REQ005 grows from 9 stories to 10. US010 is FE-only and depends on US006 (one-directional). The four React-Doctor error rules go to zero; the 15 lower-severity baseline findings stay recorded for tracking. The architect picks ref-attach over DOMPurify for `MermaidDiagram` (rationale in §11.1.1) — confirm at re-approval via OQ-5.
+#### D-014 — US024 (React-Doctor regressions) folded into REQ005 — ACCEPTED
+- **Context:** po-ba's README D-008 (added 2026-06-02) folds the React-Doctor baseline regression fixes — 3 state/effect clusters + 1 security — into REQ005 as US024. tech-lead's one-off scan recorded 92/100 with 4 errors and 19 warnings against current `main`; ~70% of the state/effect findings live in REQ004-shipped files. The alternatives were (a) defer to a new REQ006, (b) include in REQ005 now while REQ005 is pre-Phase-2 and scope is cheap.
+- **Decision:** **Accept.** US024 is added to REQ005 and absorbed into this architecture via §11 (full contract), §2 (file touch map), §9 (this decision), §12 (react-doctor skill enforcement note), §14 (R7, R8, OQ-5, OQ-6).
+- **Alternatives rejected:** Deferring to REQ006. Rejected because (a) REQ005 is pre-Phase-2 — adding a story now is free, while a separate REQ would re-litigate scope REQ005 already owns (e2e harness, FE hook harmonisation, gate fixes — US024 lives next to all of these); (b) fixing react-doctor findings before they accumulate compounding reviewer cost beats a separate cycle later; (c) US020 already touches `useDocument` — landing US024 in the same REQ keeps that file's churn coherent and well-ordered (see §11.4).
+- **Consequences:** REQ005 grows from 9 stories to 10. US024 is FE-only and depends on US020 (one-directional). The four React-Doctor error rules go to zero; the 15 lower-severity baseline findings stay recorded for tracking. The architect picks ref-attach over DOMPurify for `MermaidDiagram` (rationale in §11.1.1) — confirm at re-approval via OQ-5.
 
 #### D-015 — mcp-server IS in the compose stack (REVERSES Rev-3 §2 + §6.2 inline notes)
-- **Context:** Live US008 verification ran the existing REQ001-004 Robot suites against the new compose stack. 15 of 21 failures hit `:8080/message?sessionId=...` — the MCP SSE write endpoint. api-server is read-only (4 GET endpoints by §8 contract); every fixture-creation path in the existing Robot suites uses MCP tools. Excluding mcp-server made write-driven e2e impossible.
+- **Context:** Live US022 verification ran the existing REQ001-004 Robot suites against the new compose stack. 15 of 21 failures hit `:8080/message?sessionId=...` — the MCP SSE write endpoint. api-server is read-only (4 GET endpoints by §8 contract); every fixture-creation path in the existing Robot suites uses MCP tools. Excluding mcp-server made write-driven e2e impossible.
 - **Decision:** Add `mcp-server` to `docker-compose.yml` as a fourth service, host-mapped to `:8081` (container port `:8080`). Same image as api-server (the multi-stage Dockerfile builds both binaries); `command: ["./mcp-server"]` selects the entry. Environment: `DB_URL` (NOT `DATABASE_URL` — pre-existing env-name inconsistency between the two binaries, filed to tech_debt).
 - **Alternatives rejected:** (a) Add REST POST endpoints to api-server. Rejected — much larger API contract change, breaks the "MCP is the write API" architectural intent. (b) Seed test fixtures via SQL only and rewrite Robot suite-setups. Rejected — defeats the live e2e proof (you're not exercising the write code path). (c) Document the gap and defer to REQ006. Rejected — user explicitly said "i expect us008 to make all test pass".
 - **Consequences:** Compose has 4 services instead of 3. `:8081` is now an exposed host port. Robot suites' `${BASE_URL}` for MCP keywords parametrized via env override (`%{MCP_BASE_URL=http://localhost:8081}`). 23/23 e2e tests pass live.
@@ -829,16 +829,16 @@ A code-review check at tech-lead's gate (US004 / US006 reviews) confirms that ha
 
 ## 10. Open-question resolutions
 
-### Q1 — MSW leak root-cause story (add as US010 or defer?)
+### Q1 — MSW leak root-cause story (add as US024 or defer?)
 
-**Recommendation: DEFER to a follow-up REQ (suggest REQ006), do NOT add as US010 to REQ005.**
+**Recommendation: DEFER to a follow-up REQ (suggest REQ006), do NOT add as US024 to REQ005.**
 
 Reasoning:
 
 - The audit already flags `--detectOpenHandles` + targeted analysis (react-markdown lazy-load? mermaid timer? jsdom global?) as the real fix. Each of those candidate causes has its own investigation arc.
 - Bundling that hunt into REQ005 would re-open a story type ("investigation with uncertain time-box") that REQ005 is explicitly avoiding. REQ005's nine stories are all single-INVEST tech-debt items; an investigation does not fit that profile.
-- US002's `--forceExit` already closes the operational pain. The leak is paid down as developer-time tax (Jest's `worker process has failed to exit gracefully` warning), not as gate flakiness. Acceptable to live with for one more REQ cycle.
-- When the leak is hunted in REQ006, the resulting fix may want to remove `--forceExit` from US002. That coupling is clean: a single follow-up REQ that fixes the leak + removes the workaround.
+- US016's `--forceExit` already closes the operational pain. The leak is paid down as developer-time tax (Jest's `worker process has failed to exit gracefully` warning), not as gate flakiness. Acceptable to live with for one more REQ cycle.
+- When the leak is hunted in REQ006, the resulting fix may want to remove `--forceExit` from US016. That coupling is clean: a single follow-up REQ that fixes the leak + removes the workaround.
 
 ### Q2 — `docker-compose.yml` location (repo root vs `tests/e2e/`)
 
@@ -851,17 +851,17 @@ Reasoning:
 - Keeps the Makefile targets simple — no `-f tests/e2e/docker-compose.yml` flag clutter.
 - The e2e-specific bits (seed fixtures, Robot runbook) DO live under `tests/e2e/`; only the compose file moves up.
 
-### Q3 — US009 harness reachability
+### Q3 — US023 harness reachability
 
-**Resolved: NOT reachable from this repo.** US009 ships path (b) only — agent-definition documentation fallback. See §7.1 and D-007 verdict.
+**Resolved: NOT reachable from this repo.** US023 ships path (b) only — agent-definition documentation fallback. See §7.1 and D-007 verdict.
 
 If the harness layer is later determined to be reachable (e.g. a `~/.claude/` config or a Claude Code update path becomes editable), the canonical-path policy block is removed and replaced with a one-line note in the README pointing at the harness commit. Until then, path (b) is the contract.
 
 ---
 
-## 11. US010 contract — React-Doctor regression fixes
+## 11. US024 contract — React-Doctor regression fixes
 
-This section is frozen at re-approval. fe-dev implements against it without re-interpreting; tester binds component assertions to it. The four fixes are independent of each other at the file level and can be implemented in any order within US010, but US010 as a whole is gated by US006 (see §11.4).
+This section is frozen at re-approval. fe-dev implements against it without re-interpreting; tester binds component assertions to it. The four fixes are independent of each other at the file level and can be implemented in any order within US024, but US024 as a whole is gated by US020 (see §11.4).
 
 ### 11.1 MermaidDiagram fix path — REF-ATTACH (default; recommended)
 
@@ -870,7 +870,7 @@ This section is frozen at re-approval. fe-dev implements against it without re-i
 The naive read of the rule is "DOMPurify sanitises the SVG, problem solved." It does not.
 
 - `react-doctor/no-danger` matches the JSX prop name `dangerouslySetInnerHTML` *syntactically*. It does not introspect what string is being injected. Whether or not the string passed through DOMPurify, the rule will fire because the prop is still present in the JSX.
-- Clearing the rule via DOMPurify therefore requires an inline lint suppression (`// eslint-disable-next-line react-doctor/no-danger`). The AC for US010 (Scenario: react-doctor score recovers, and the seven-rule-id exclusion list) does not permit per-line suppressions — it requires the rule to genuinely not fire.
+- Clearing the rule via DOMPurify therefore requires an inline lint suppression (`// eslint-disable-next-line react-doctor/no-danger`). The AC for US024 (Scenario: react-doctor score recovers, and the seven-rule-id exclusion list) does not permit per-line suppressions — it requires the rule to genuinely not fire.
 - DOMPurify also adds a runtime + dependency cost (`isomorphic-dompurify` is ~30 kB gz on top of the existing 300 kB gz mermaid chunk) for no real defence-in-depth gain here: `mermaid.initialize({ securityLevel: 'strict' })` already prevents script tags / event handlers in the rendered SVG, and mermaid's input in this app is never user-controlled (it comes from project markdown authored by the team).
 
 If the human prefers DOMPurify + suppression (OQ-5), the rule will be re-evaluated; today's default is ref-attach.
@@ -1080,25 +1080,25 @@ This is acceptable for two reasons:
 - `nextjs-no-client-side-redirect` (line 69) — fires on `router.replace` inside a `useEffect`. The effect is deleted; the rule cannot fire. The remaining `router.replace` in `handleSelectDoc` (a user-click handler, not an effect) does not match the rule's pattern.
 - `exhaustive-deps` (line 78) — fires today because the existing effect has `// eslint-disable-line react-hooks/exhaustive-deps`. With the effect deleted, the rule cannot fire.
 
-### 11.4 US006 ⇄ US010 ordering
+### 11.4 US020 ⇄ US024 ordering
 
-**Decision: US006 lands first; US010 lists `Depends-on: US006` in its task header.**
+**Decision: US020 lands first; US024 lists `Depends-on: US020` in its task header.**
 
 Rationale:
 
-- US006 harmonises three FE hooks (`useProject`, `useProjectDocuments`, `useDocument`) on AbortController + signal-thread. `useDocument` is the *reference implementation* in US006 — its current state-machine shape is what `useProject` and `useProjectDocuments` are rewritten to match.
-- US010 refactors `useDocument` from `useState×3` to `useReducer`. After US010, `useDocument` is **no longer structurally similar** to the other two hooks.
-- If US010 lands first: US006 still has to rewrite `useProject` and `useProjectDocuments` to match a `useState×3 + AbortController` template (the current `useDocument`), but the live reference (`useDocument`) has moved on to `useReducer` — confusing for the dev, doubles the cognitive cost.
-- If US006 lands first: US006's contract (§4 of this architecture) is satisfied by the existing `useDocument`. US010 then mechanically swaps `useState×3` for `useReducer` inside `useDocument` while preserving the AbortController flow (its action set already names `ABORTED`). The diff is small and isolated to one file.
+- US020 harmonises three FE hooks (`useProject`, `useProjectDocuments`, `useDocument`) on AbortController + signal-thread. `useDocument` is the *reference implementation* in US020 — its current state-machine shape is what `useProject` and `useProjectDocuments` are rewritten to match.
+- US024 refactors `useDocument` from `useState×3` to `useReducer`. After US024, `useDocument` is **no longer structurally similar** to the other two hooks.
+- If US024 lands first: US020 still has to rewrite `useProject` and `useProjectDocuments` to match a `useState×3 + AbortController` template (the current `useDocument`), but the live reference (`useDocument`) has moved on to `useReducer` — confusing for the dev, doubles the cognitive cost.
+- If US020 lands first: US020's contract (§4 of this architecture) is satisfied by the existing `useDocument`. US024 then mechanically swaps `useState×3` for `useReducer` inside `useDocument` while preserving the AbortController flow (its action set already names `ABORTED`). The diff is small and isolated to one file.
 
 **Concrete task-graph consequences for tech-lead (Phase 2):**
 
-- US006 tasks have NO dependency on US010 tasks.
-- US010 tasks declare `Depends-on: US006_fe_use_document_abort_controller` (or whichever specific US006 FE task touches `useDocument`).
-- This dependency is enforced at Phase 3a queue-build time — US010's fe-dev does not pick up the task until US006's matching task is `completed`.
-- If US010 is delayed (e.g. blocked at review), US006 is NOT held up — it can complete independently. The ordering is one-directional.
+- US020 tasks have NO dependency on US024 tasks.
+- US024 tasks declare `Depends-on: US020_fe_use_document_abort_controller` (or whichever specific US020 FE task touches `useDocument`).
+- This dependency is enforced at Phase 3a queue-build time — US024's fe-dev does not pick up the task until US020's matching task is `completed`.
+- If US024 is delayed (e.g. blocked at review), US020 is NOT held up — it can complete independently. The ordering is one-directional.
 
-### 11.5 What US010 does NOT change
+### 11.5 What US024 does NOT change
 
 - The lazy-load contract for mermaid (`dynamic({ ssr: false })` parent wrapping, in-effect `import('mermaid')`, module-level cache, `securityLevel: 'strict'`).
 - The error UX of `MermaidDiagram` — the `<div role="alert">Could not render diagram</div>` + `<pre><code>` fallback is preserved verbatim.
@@ -1107,7 +1107,7 @@ Rationale:
 - The URL-as-source-of-truth model in `DocumentsTab` for user-driven selection — `handleSelectDoc` continues to write `?doc=` on every click.
 - The `isBogusDeepLink` semantics — preserved unchanged.
 - The mermaid library version, config, or load mode.
-- Any of the 15 lower-severity React-Doctor baseline findings (out of scope per US010 anti-scope).
+- Any of the 15 lower-severity React-Doctor baseline findings (out of scope per US024 anti-scope).
 - `web/package.json` dependencies (default path: ref-attach adds nothing).
 
 ---
@@ -1116,9 +1116,9 @@ Rationale:
 
 The existing skill enforcements in `.claude/agents/*.md` continue to apply for the BE + FE code-touching stories:
 
-- **TDG skill** (Test-Driven Generation, vendored at `.claude/skills/`): enforced on **be-dev** and **fe-dev** when implementing US004, US005 (test-only, but the methodology of "write the failing assertion first, confirm the right failure mode, then run") still applies, US006, and US010.
-- **react-doctor skill**: enforced on **fe-dev** for US006 AND **US010** — for US006 it covers React effect-cleanup correctness, hook-deps soundness, and AbortController lifetime within `useEffect`; for US010 it is the *primary review gate* (`npx react-doctor scan web/` + `react-doctor --diff` against the recorded baseline must show only removals on the four targeted error rules).
-- **Gate script (run-gate.sh)**: tech-lead runs it on every review. US001 / US002 / US003 IMPROVE this gate; US004 / US005 / US006 / US007 / US010 are reviewed THROUGH it.
+- **TDG skill** (Test-Driven Generation, vendored at `.claude/skills/`): enforced on **be-dev** and **fe-dev** when implementing US018, US019 (test-only, but the methodology of "write the failing assertion first, confirm the right failure mode, then run") still applies, US020, and US024.
+- **react-doctor skill**: enforced on **fe-dev** for US020 AND **US024** — for US020 it covers React effect-cleanup correctness, hook-deps soundness, and AbortController lifetime within `useEffect`; for US024 it is the *primary review gate* (`npx react-doctor scan web/` + `react-doctor --diff` against the recorded baseline must show only removals on the four targeted error rules).
+- **Gate script (run-gate.sh)**: tech-lead runs it on every review. US015 / US016 / US017 IMPROVE this gate; US018 / US019 / US020 / US021 / US024 are reviewed THROUGH it.
 
 No new skills are introduced by REQ005.
 
@@ -1130,13 +1130,13 @@ No new skills are introduced by REQ005.
 
 - **Existing, no change:** `DATABASE_URL`, `DB_URL`, `PORT`, `FRONTEND_URL`, `NEXT_PUBLIC_API_BASE_URL`.
 - **New, optional, NOT introduced now (D-013):** `DB_PING_TIMEOUT_SECONDS`. Left as a TODO comment in code; ops can add it later without an architecture revision.
-- **US008 compose-local:** `POSTGRES_USER=agent_board`, `POSTGRES_PASSWORD=agent_board`, `POSTGRES_DB=agent_board`. These are local-only and never reach prod.
-- **US010:** no env vars touched.
+- **US022 compose-local:** `POSTGRES_USER=agent_board`, `POSTGRES_PASSWORD=agent_board`, `POSTGRES_DB=agent_board`. These are local-only and never reach prod.
+- **US024:** no env vars touched.
 
 ### 13.2 Logging
 
 - **No new logging keys** introduced. The `log.Printf("api-server exited with error: %v", err)` and `log.Printf("Starting api-server on port %s", safePort)` lines in `cmd/api-server/main.go` remain unchanged.
-- US004 may add one line on the ping-timeout / signal-cancel branch via the wrapped error message in the `return fmt.Errorf("db ping failed: %w", err)`. The outer `log.Printf("api-server exited with error: %v", err)` will print the wrapped chain.
+- US018 may add one line on the ping-timeout / signal-cancel branch via the wrapped error message in the `return fmt.Errorf("db ping failed: %w", err)`. The outer `log.Printf("api-server exited with error: %v", err)` will print the wrapped chain.
 
 ### 13.3 Metrics / observability
 
@@ -1144,8 +1144,8 @@ No new skills are introduced by REQ005.
 
 ### 13.4 Error model
 
-- BE error wrapping convention (`fmt.Errorf("failed to ...: %w", err)`) is preserved and extended into US004's new ping-failure wrap.
-- FE error model (`ApiError` with `code` + `message`) is preserved unchanged; AbortError handling is layered in front (see §4.5) AND remains intact through US010's reducer refactor (the `FETCH_FAILED` action carries `ApiError | Error`; the `ABORTED` action is the explicit non-error swallow path — see §11.2.2).
+- BE error wrapping convention (`fmt.Errorf("failed to ...: %w", err)`) is preserved and extended into US018's new ping-failure wrap.
+- FE error model (`ApiError` with `code` + `message`) is preserved unchanged; AbortError handling is layered in front (see §4.5) AND remains intact through US024's reducer refactor (the `FETCH_FAILED` action carries `ApiError | Error`; the `ABORTED` action is the explicit non-error swallow path — see §11.2.2).
 
 ### 13.5 CORS
 
@@ -1157,23 +1157,23 @@ No new skills are introduced by REQ005.
 
 ### 14.1 Risks (with mitigations)
 
-- **R1: `docker-compose.yml` build of `api-server` requires a `Dockerfile` that does not exist yet.** Mitigation: tech-lead splits US008 into a BE-Dockerfile task + a compose+Makefile task; the Dockerfile is a 20-line multi-stage build, low risk.
-- **R2: US007 (`@testing-library/dom` move) may cause a non-trivial lockfile churn.** Mitigation: AC requires the diff to be inspected before commit; if churn is large, dev raises `ARCHITECTURE_GAP_FOUND` (e.g. if mermaid actually depends on it at the top level via a peer chain we are unaware of).
-- **R3: US005's coverage assertion (`≥ 95% per file`) may be optimistic if any line is genuinely unreachable via sqlmock.** Mitigation: US005 AC already allows the threshold to become "≥ 95% modulo enumerated unreachable lines"; tester surfaces any unreachable lines in the test report.
-- **R4: US006's abort-semantics tests may flake on slow CI due to MSW timing.** Mitigation: tester uses `delay(100)`-style explicit delays in MSW handlers + `await waitFor(...)` rather than fixed sleeps. The existing `useDocument` tests are the working precedent.
+- **R1: `docker-compose.yml` build of `api-server` requires a `Dockerfile` that does not exist yet.** Mitigation: tech-lead splits US022 into a BE-Dockerfile task + a compose+Makefile task; the Dockerfile is a 20-line multi-stage build, low risk.
+- **R2: US021 (`@testing-library/dom` move) may cause a non-trivial lockfile churn.** Mitigation: AC requires the diff to be inspected before commit; if churn is large, dev raises `ARCHITECTURE_GAP_FOUND` (e.g. if mermaid actually depends on it at the top level via a peer chain we are unaware of).
+- **R3: US019's coverage assertion (`≥ 95% per file`) may be optimistic if any line is genuinely unreachable via sqlmock.** Mitigation: US019 AC already allows the threshold to become "≥ 95% modulo enumerated unreachable lines"; tester surfaces any unreachable lines in the test report.
+- **R4: US020's abort-semantics tests may flake on slow CI due to MSW timing.** Mitigation: tester uses `delay(100)`-style explicit delays in MSW handlers + `await waitFor(...)` rather than fixed sleeps. The existing `useDocument` tests are the working precedent.
 - **R5: Docker not installed on a dev's machine breaks `make e2e-*`.** Mitigation: `tests/e2e/README.md` runbook lists Docker as a prerequisite; the Makefile prints a friendly error (`docker compose: command not found`) and exits non-zero; nothing else regresses.
-- **R6: US009 path (b) accumulates lint debt** — six identical blocks across six files are now in lockstep. If one drifts, the workaround stops working consistently. Mitigation: tech-lead enforces identical-wording check during review (a `diff <(grep -A 12 'Canonical-path edit policy' file1) ...` one-liner suffices).
-- **R7: US010 ref-attach path may double-mount under React 18 strict mode.** The new `useEffect` in `MermaidDiagram.tsx` (§11.1.2) appends a parsed `<svg>` node to a `ref`'d host. Strict mode invokes effects twice in dev; the cleanup function removes the appended node before the second run re-appends. Mitigation: cleanup is spelled out in §11.1.2; tester adds an FCT-* assertion that asserts exactly one `<svg>` child after mount under `<React.StrictMode>`.
-- **R8: US010's `DocumentsTab` change drops the initial-load URL write.** Tests that asserted "`router.replace` is called when list loads with no `?doc=`" must be updated to "`router.replace` is called only when the user clicks a sidebar item." Mitigation: §11.3 enumerates this; tester's `fe_unit_tests.md` revision for US010 covers it. If po-ba pushes back on the bare-URL behaviour at sign-off, raise OQ-6.
+- **R6: US023 path (b) accumulates lint debt** — six identical blocks across six files are now in lockstep. If one drifts, the workaround stops working consistently. Mitigation: tech-lead enforces identical-wording check during review (a `diff <(grep -A 12 'Canonical-path edit policy' file1) ...` one-liner suffices).
+- **R7: US024 ref-attach path may double-mount under React 18 strict mode.** The new `useEffect` in `MermaidDiagram.tsx` (§11.1.2) appends a parsed `<svg>` node to a `ref`'d host. Strict mode invokes effects twice in dev; the cleanup function removes the appended node before the second run re-appends. Mitigation: cleanup is spelled out in §11.1.2; tester adds an FCT-* assertion that asserts exactly one `<svg>` child after mount under `<React.StrictMode>`.
+- **R8: US024's `DocumentsTab` change drops the initial-load URL write.** Tests that asserted "`router.replace` is called when list loads with no `?doc=`" must be updated to "`router.replace` is called only when the user clicks a sidebar item." Mitigation: §11.3 enumerates this; tester's `fe_unit_tests.md` revision for US024 covers it. If po-ba pushes back on the bare-URL behaviour at sign-off, raise OQ-6.
 
 ### 14.2 Open questions surfaced for the human (please confirm at approval)
 
-- **OQ-1 (US008 web build mode).** D-012 chooses containerised `next start` (production build). If the human prefers `next dev` inside the container for faster iteration when running `make e2e`, raise it now — flip D-012, change the Dockerfile's `CMD`, no other architecture impact.
-- **OQ-2 (US004 env var).** D-013 hard-codes the 5-s DB-ping timeout. If ops policy already requires every timeout to be env-driven, raise it now — add `DB_PING_TIMEOUT_SECONDS` with a 5-s default. Trivial.
-- **OQ-3 (US009 path).** §7.1 confirms path (b). If the human knows that the harness IS reachable somehow (an internal Claude Code config the architect couldn't see), please name the location at approval time and we add a path (a) task.
-- **OQ-4 (MSW leak hunt).** §10 Q1 recommends DEFER to REQ006. If the human prefers an in-REQ stub now (was previously phrased as "US010" — note that US010 is now React-Doctor regressions per D-008, so the MSW hunt stub would be US011 if folded in), please say so.
-- **OQ-5 (US010 MermaidDiagram fix path — NEW).** §11.1 recommends **ref-attach** as the default and rejects DOMPurify + inline lint suppression (won't clear `react-doctor/no-danger`, needs eslint disable comment, adds dep + bundle weight). If the human prefers DOMPurify + suppression anyway (e.g. team policy is "always sanitise mermaid output as defence-in-depth even though input is trusted"), confirm at approval; the architect will revise §11.1 + the §2 US010 row and add `isomorphic-dompurify` to the dep matrix. Default verdict if no objection: **ref-attach**.
-- **OQ-6 (US010 DocumentsTab initial-load URL behaviour — NEW).** §11.3.3 documents that the URL is no longer auto-written on initial load (it stays bare `/projects/:id?tab=documents` until the user clicks a sidebar item). Today's behaviour writes `?doc=<first>` on initial load via the `useEffect` that is being deleted. If po-ba or the human considers the bare-URL initial state a behaviour regression rather than an acceptable simplification, raise it now and the architect will explore a fix that does not re-introduce `nextjs-no-client-side-redirect` (likely: a `useLayoutEffect`-driven one-shot via `router.replace` with a `// react-doctor-allow` and a rationale — least bad of the bad options). Default verdict if no objection: **bare URL on initial load is acceptable**.
+- **OQ-1 (US022 web build mode).** D-012 chooses containerised `next start` (production build). If the human prefers `next dev` inside the container for faster iteration when running `make e2e`, raise it now — flip D-012, change the Dockerfile's `CMD`, no other architecture impact.
+- **OQ-2 (US018 env var).** D-013 hard-codes the 5-s DB-ping timeout. If ops policy already requires every timeout to be env-driven, raise it now — add `DB_PING_TIMEOUT_SECONDS` with a 5-s default. Trivial.
+- **OQ-3 (US023 path).** §7.1 confirms path (b). If the human knows that the harness IS reachable somehow (an internal Claude Code config the architect couldn't see), please name the location at approval time and we add a path (a) task.
+- **OQ-4 (MSW leak hunt).** §10 Q1 recommends DEFER to REQ006. If the human prefers an in-REQ stub now (was previously phrased as "US024" — note that US024 is now React-Doctor regressions per D-008, so the MSW hunt stub would be US011 if folded in), please say so.
+- **OQ-5 (US024 MermaidDiagram fix path — NEW).** §11.1 recommends **ref-attach** as the default and rejects DOMPurify + inline lint suppression (won't clear `react-doctor/no-danger`, needs eslint disable comment, adds dep + bundle weight). If the human prefers DOMPurify + suppression anyway (e.g. team policy is "always sanitise mermaid output as defence-in-depth even though input is trusted"), confirm at approval; the architect will revise §11.1 + the §2 US024 row and add `isomorphic-dompurify` to the dep matrix. Default verdict if no objection: **ref-attach**.
+- **OQ-6 (US024 DocumentsTab initial-load URL behaviour — NEW).** §11.3.3 documents that the URL is no longer auto-written on initial load (it stays bare `/projects/:id?tab=documents` until the user clicks a sidebar item). Today's behaviour writes `?doc=<first>` on initial load via the `useEffect` that is being deleted. If po-ba or the human considers the bare-URL initial state a behaviour regression rather than an acceptable simplification, raise it now and the architect will explore a fix that does not re-introduce `nextjs-no-client-side-redirect` (likely: a `useLayoutEffect`-driven one-shot via `router.replace` with a `// react-doctor-allow` and a rationale — least bad of the bad options). Default verdict if no objection: **bare URL on initial load is acceptable**.
 
 ---
 
@@ -1183,38 +1183,38 @@ No new skills are introduced by REQ005.
 
 - Initial draft.
 - Accepted D-001 through D-007 as locked by po-ba's intake; added D-008 through D-013 as new architectural decisions for REQ005-specific gaps.
-- §3 specifies the US004 signal-cancellable lifecycle context contract (signals, timeout, defer order, no shared helper).
-- §4 specifies the US006 AbortController hook contract for `useProject` and `useProjectDocuments`, plus the frozen `lib/api/` function signatures.
+- §3 specifies the US018 signal-cancellable lifecycle context contract (signals, timeout, defer order, no shared helper).
+- §4 specifies the US020 AbortController hook contract for `useProject` and `useProjectDocuments`, plus the frozen `lib/api/` function signatures.
 - §5 lists the 16 backfill test names verbatim with the branch and mock shape per test.
 - §6 specifies the docker-compose service topology, Makefile target shapes, migration / seed strategy.
-- §7 chooses path (b) for US009 — path (a) is not reachable from this repo.
+- §7 chooses path (b) for US023 — path (a) is not reachable from this repo.
 - §10 resolves Q1 / Q2 / Q3 from the README's open questions.
 - §13 (now §14) raises four open questions for the human to confirm at approval.
 
-### Revision 2 — 2026-06-02 — driver: human feedback pass 1 (po-ba added US010)
+### Revision 2 — 2026-06-02 — driver: human feedback pass 1 (po-ba added US024)
 
-- **Trigger:** po-ba folded US010 (React-Doctor baseline regression fixes — top-3 state/effect + 1 security) into REQ005 README per D-008. Architecture must absorb it without re-litigating REQ005's other eight stories.
-- **Added §0.1 Executive summary** at the top of the document so a re-approval scan in 60 seconds catches the five US010-driven calls (ref-attach over DOMPurify; reducer state/action contract; auto-select effect deletion; US006→US010 ordering; visual parity guarantees).
-- **Added US010 row to §2 File-level touch map** — four touched files (MermaidDiagram.tsx, useDocument.ts, DocumentsTab.tsx, plus the three matching test files with explicit notes on what changes vs stays). `web/package.json` row says NO CHANGE under the default ref-attach path.
-- **Added §11 — "US010 contract: React-Doctor regression fixes"** as a new, full-substance section. Covers:
+- **Trigger:** po-ba folded US024 (React-Doctor baseline regression fixes — top-3 state/effect + 1 security) into REQ005 README per D-008. Architecture must absorb it without re-litigating REQ005's other eight stories.
+- **Added §0.1 Executive summary** at the top of the document so a re-approval scan in 60 seconds catches the five US024-driven calls (ref-attach over DOMPurify; reducer state/action contract; auto-select effect deletion; US020→US024 ordering; visual parity guarantees).
+- **Added US024 row to §2 File-level touch map** — four touched files (MermaidDiagram.tsx, useDocument.ts, DocumentsTab.tsx, plus the three matching test files with explicit notes on what changes vs stays). `web/package.json` row says NO CHANGE under the default ref-attach path.
+- **Added §11 — "US024 contract: React-Doctor regression fixes"** as a new, full-substance section. Covers:
   - §11.1 MermaidDiagram ref-attach fix path (default, recommended), with exact `useEffect` shape + rationale for rejecting DOMPurify + inline suppression.
   - §11.2 `useDocument` reducer contract — state, actions, reducer signature, effect body, public-shape preservation. Locks the action set as `FETCH_STARTED | FETCH_SUCCEEDED | FETCH_FAILED | ABORTED` and clarifies why `hasMore` is not in scope (this is single-document fetch, not paginated).
   - §11.3 `DocumentsTab` redirect contract — delete the auto-select `useEffect`, replace with render-time `selectedDocId = docParam ?? documents?.[0]?.id`. Calls out that the existing `handleSelectDoc` click handler is the existing sibling click path, so **no `ARCHITECTURE_GAP_FOUND` is required**. Notes the side-effect of bare URL on initial load and raises OQ-6.
-  - §11.4 US006 ⇄ US010 ordering — US006 first, US010 declares `Depends-on: US006_fe_use_document_abort_controller`. Rationale provided.
-  - §11.5 What US010 does NOT change.
-- **Added D-014 to §9 Decisions** mirroring po-ba README's D-008 with architect-level confirmation. (Numbering: po-ba's "D-008 (US010 inclusion)" in the README maps to this architecture's **D-014** to avoid colliding with the existing architecture D-008 "no `internal/lifecycle/` helper".) See §9.
-- **Renumbered §11→§12, §12→§13, §13→§14, §14→§15.** Section content otherwise preserved verbatim. §12 (skill / hook usage) gained one line: react-doctor skill is now the primary review gate for US010 (was already enforced on US006).
+  - §11.4 US020 ⇄ US024 ordering — US020 first, US024 declares `Depends-on: US020_fe_use_document_abort_controller`. Rationale provided.
+  - §11.5 What US024 does NOT change.
+- **Added D-014 to §9 Decisions** mirroring po-ba README's D-008 with architect-level confirmation. (Numbering: po-ba's "D-008 (US024 inclusion)" in the README maps to this architecture's **D-014** to avoid colliding with the existing architecture D-008 "no `internal/lifecycle/` helper".) See §9.
+- **Renumbered §11→§12, §12→§13, §13→§14, §14→§15.** Section content otherwise preserved verbatim. §12 (skill / hook usage) gained one line: react-doctor skill is now the primary review gate for US024 (was already enforced on US020).
 - **Added R7 + R8** to §14.1 risks (strict-mode double-mount of the ref-attach effect; loss of initial-load URL write in DocumentsTab).
-- **Added OQ-5 + OQ-6** to §14.2 (ref-attach vs DOMPurify default; bare-URL acceptability). OQ-4's wording updated to note that "US010" now means React-Doctor regressions, so an MSW-leak-hunt stub would be **US011** if the human wants to fold it in.
+- **Added OQ-5 + OQ-6** to §14.2 (ref-attach vs DOMPurify default; bare-URL acceptability). OQ-4's wording updated to note that "US024" now means React-Doctor regressions, so an MSW-leak-hunt stub would be **US011** if the human wants to fold it in.
 - **Frontmatter set back to `Approval: pending_approval`** — this revision returns to the human for re-approval, NOT auto-approved.
 
-Sections **untouched** by this revision: §1 Scope, §3 US004 lifecycle context contract, §4 US006 AbortController hook contract, §5 US005 test backfill matrix, §6 US008 e2e stack-up, §7 US009 worktree origin contract, §8 API-contract impact (still N/A), §10 Open-question resolutions Q1/Q2/Q3, and D-001–D-013 in §9. Tasks that downstream agents may already have drafted for those untouched sections do NOT need rolling back.
+Sections **untouched** by this revision: §1 Scope, §3 US018 lifecycle context contract, §4 US020 AbortController hook contract, §5 US019 test backfill matrix, §6 US022 e2e stack-up, §7 US023 worktree origin contract, §8 API-contract impact (still N/A), §10 Open-question resolutions Q1/Q2/Q3, and D-001–D-013 in §9. Tasks that downstream agents may already have drafted for those untouched sections do NOT need rolling back.
 
-US010-specific downstream implications the orchestrator should be aware of:
-- tech-lead (Phase 2) will produce two US010 FE tasks (typical split: one for `MermaidDiagram` ref-attach + one for `useDocument` reducer + `DocumentsTab` selection — exact split is tech-lead's call) with `Depends-on:` pointing at the corresponding US006 task.
-- tester (Phase 2) will add FCT-* entries to `US010_fe_unit_tests.md` covering: ref-attach `<svg>` child assertion under strict mode, reducer-action-level unit tests, render-time selection without URL write, react-doctor diff baseline check.
+US024-specific downstream implications the orchestrator should be aware of:
+- tech-lead (Phase 2) will produce two US024 FE tasks (typical split: one for `MermaidDiagram` ref-attach + one for `useDocument` reducer + `DocumentsTab` selection — exact split is tech-lead's call) with `Depends-on:` pointing at the corresponding US020 task.
+- tester (Phase 2) will add FCT-* entries to `US024_fe_unit_tests.md` covering: ref-attach `<svg>` child assertion under strict mode, reducer-action-level unit tests, render-time selection without URL write, react-doctor diff baseline check.
 - No e2e impact — visual parity means existing Robot suites pass unchanged. No new e2e files needed.
-- No BE impact — US010 is FE-only.
+- No BE impact — US024 is FE-only.
 
 ### Revision 3 — 2026-06-02 — driver: human approval
 
@@ -1224,11 +1224,11 @@ US010-specific downstream implications the orchestrator should be aware of:
 
 ### Revision 4 — 2026-06-03 — driver: live verification findings (REOPENED for re-approval)
 
-**Trigger.** US008's first live `make e2e` run after the original `approved` verdict surfaced FIVE real defects in the Rev-3 architecture that no static check could catch. Per the playbook this is a HARD STOP — frontmatter flipped back to `Approval: pending_approval`, human re-approval gates re-merge to `approved`. The downstream task US008 stays `Status: completed` because the implementation now matches reality; only the document needs catch-up.
+**Trigger.** US022's first live `make e2e` run after the original `approved` verdict surfaced FIVE real defects in the Rev-3 architecture that no static check could catch. Per the playbook this is a HARD STOP — frontmatter flipped back to `Approval: pending_approval`, human re-approval gates re-merge to `approved`. The downstream task US022 stays `Status: completed` because the implementation now matches reality; only the document needs catch-up.
 
 **Defects this revision addresses (all 5 are inline-corrected; live e2e proves 23/23 pass across 3 consecutive runs):**
 
-1. **mcp-server excluded from compose ≠ "existing per-REQ tests/e2e suites still run" (US008 AC).** §2 and §6.2 inline notes (now struck through) assumed UI e2e only needs `web + api-server`. They missed that api-server is read-only per §8 contract — every write-driven Robot suite-setup uses MCP. **→ D-015** adds mcp-server to compose on `:8081`.
+1. **mcp-server excluded from compose ≠ "existing per-REQ tests/e2e suites still run" (US022 AC).** §2 and §6.2 inline notes (now struck through) assumed UI e2e only needs `web + api-server`. They missed that api-server is read-only per §8 contract — every write-driven Robot suite-setup uses MCP. **→ D-015** adds mcp-server to compose on `:8081`.
 
 2. **`api-server` healthcheck calls `wget` but D-012 chose distroless runtime which has no shell/wget.** The healthcheck can never resolve to PASS. **→ D-016** removes the container-level healthcheck; Makefile host-side curl loop is the readiness gate.
 
@@ -1251,7 +1251,7 @@ US010-specific downstream implications the orchestrator should be aware of:
 - §9: appended D-015 through D-019 (full Context / Decision / Alternatives / Consequences for each).
 - §15 (this section): added Revision 4 entry.
 
-**Sections untouched:** §1, §3, §4, §5, §7, §8, §11 (US010), §12, §13, §14, §10 OQ Q1/Q2/Q3 resolutions, D-001 through D-014. Tasks already approved/completed against those sections do NOT need rolling back.
+**Sections untouched:** §1, §3, §4, §5, §7, §8, §11 (US024), §12, §13, §14, §10 OQ Q1/Q2/Q3 resolutions, D-001 through D-014. Tasks already approved/completed against those sections do NOT need rolling back.
 
 **Live verification evidence (paste-verbatim, 3 consecutive runs against podman-compose stack):**
 ```
@@ -1261,5 +1261,5 @@ RUN 3: pass=23, fail=0
 ```
 
 **Open questions for human at re-approval:**
-- **OQ-7 (new):** Confirm `DB_URL` vs `DATABASE_URL` env-name inconsistency between mcp-server and api-server is acceptable for now (filed to tech_debt for REQ006 harmonisation), OR block US008 closure on harmonising it inline.
+- **OQ-7 (new):** Confirm `DB_URL` vs `DATABASE_URL` env-name inconsistency between mcp-server and api-server is acceptable for now (filed to tech_debt for REQ006 harmonisation), OR block US022 closure on harmonising it inline.
 - **OQ-8 (new):** Confirm the `web/Dockerfile` build-ARG default of `http://localhost:8080` is the right ergonomics, OR require a compose-driven build-arg always (no default).

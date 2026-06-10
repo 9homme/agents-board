@@ -3,7 +3,7 @@
 **Requirement:** REQ008
 **Story:** US047
 **Track:** FE
-**Status:** in_review
+**Status:** completed
 **Blocked by:** none
 **Worked-by:** fe-dev-2026-06-10T00-00-00Z-a6b7
 **Implements:** US047, D-6 (navigation), D-009 (FE consumes the canonical hierarchy paths), FE-surface rows `web/pages/projects/[id].tsx`, `RequirementSelector`, `ProjectHeader` (path), `UserStoriesTab`/`DocumentsTab` re-scope, `useProjectRequirements`, `web/lib/api/requirements.ts`, requirement-scoped story/document fetchers; API contracts §2/§4/§6/§10
@@ -264,3 +264,49 @@ REVIEW GATE: PASS   (cross)
 - DocumentsTab and UserStoriesTab fall back to legacy hooks when `requirementId` is absent — ensures existing pre-US047 tests remain green
 
 ## Review log
+
+### Review pass 1 — verdict: approved
+
+**Reviewer:** tech-lead-reviewer (Mode 1, FE)
+**Date:** 2026-06-10
+
+**Verification performed (on integrated branch):**
+- `npm run typecheck` → clean (`tsc --noEmit`, no errors).
+- `npm test -- --watchAll=false` → **36 suites, 260 passed, 260 total** (matches dev claim; was 250 baseline).
+- Coverage (re-run for the touched production files) — all ≥80% stmts/lines:
+  | File | Stmts | Lines |
+  |---|---|---|
+  | `lib/api/requirements.ts` | 100% | 100% |
+  | `hooks/useProjectRequirements.ts` | 92.3% | 91.89% |
+  | `hooks/useRequirementUserStories.ts` | 90% | 92.1% |
+  | `hooks/useRequirementDocuments.ts` | 92.5% | 92.1% |
+  | `components/ProjectDetail/RequirementSelector.tsx` | 100% | 100% |
+  | `components/ProjectDetail/UserStoriesTab.tsx` | 96% | 95.83% |
+  | `components/ProjectDetail/DocumentsTab.tsx` | 100% | 100% |
+  | `pages/projects/[id].tsx` | 100% | 100% |
+
+**Gate evidence carried from `## Notes` (dev ran the gate once, verified internally consistent):**
+```
+REVIEW GATE: PASS   (fe)
+REVIEW GATE: PASS   (cross)
+```
+- react-doctor `--diff`: **93 / 100 Great** — 1 warning (`prefer-tag-over-role` on `<div role="listbox">`). Accepted as a documented false positive: `<datalist>` is an input-paired autocomplete element, not a standalone selection widget; the ARIA listbox+option pattern on a div follows the APG. No regression vs the 92/100 baseline (tech-debt obs #697) — score improved.
+- `robot --dryrun tests/e2e/REQ008_*/` → `19 tests, 19 passed, 0 failed`.
+
+**Architecture conformance — PASS:**
+- All API calls use the canonical §4/§6/§10 hierarchy paths via `fetchClient` with per-segment `encodeURIComponent`; the §6 anti-regression test (`UserStoriesTab.047.test.tsx`) asserts the OLD flat route is NOT called (`flatRouteHit` → false).
+- `requirement` query param drives selection; URL is source of truth; `router.replace(..., { shallow: true })` mirrors the existing `tab` pattern.
+- Auto-selects first requirement when no `?requirement=` param (migrated "Default" project renders immediately); placeholder shown when no requirement selected (FCT-047-021).
+- CSR-only confirmed: no `getServerSideProps`/`getStaticProps`/`getInitialProps`, no `pages/api/` routes; no direct `fetch()` outside `web/lib/api/`.
+- `useProjectRequirements` (and the two requirement-scoped hooks) are AbortController/race-safe with stale-key refs, skip-on-undefined, abort-on-supersede, and `refresh()`.
+
+**Test contract — PASS:** all 28 FCT-047-001…028 IDs present in test files and green. Every new production file has a co-located test. TDD honesty verified: `red:` commit (f122e09) contains only test files + MSW handlers (no production code); `green:` commit (f399d17) added the implementation; refactor commits followed. TDG order red → green → refactor ×3, all tagged `(US047)`.
+
+**Scope — PASS:** all changes under `web/` (+ this task doc); no `services/` edits, no drive-by refactors outside `## Files touched`.
+
+**Non-blocking findings filed to `docs/tech_debt.md` Open table:**
+- #17 — `requirementId?` is optional vs the spec/extract's `requirementId: string` (required). Sound interim backward-compat choice (field is carried through; tests green); tighten to required when US048 removes flat routes + legacy fetchers.
+- #18 — `refactor: chore:` double-prefix on the handoff commit (recurrence of #4/#14/#16). Substantive TDD commits all conform.
+- #19 — branch coverage 57-64% on the three new hooks; the `else if (err instanceof Error)/else` fallback is uncovered (stmt/line ≥90%, meets gate; identical to pre-existing sibling hooks, not regressed).
+
+No blocking issues. Status → completed.

@@ -23,6 +23,23 @@ const TWO_DOCUMENT_LIST = [
 
 export const handlers = [
   // ---------------------------------------------------------------------------
+  // POST /api/v1/projects — create a project (§3 happy path)
+  // ---------------------------------------------------------------------------
+  http.post('*/api/v1/projects', () => {
+    return HttpResponse.json(
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        name: 'agents-board',
+        description: '',
+        path: '/Users/me/workspace/agents-board',
+        createdAt: '2026-06-09T11:00:00Z',
+        updatedAt: '2026-06-09T11:00:00Z',
+      },
+      { status: 201 }
+    )
+  }),
+
+  // ---------------------------------------------------------------------------
   // GET /api/v1/projects — list all projects
   // ---------------------------------------------------------------------------
   http.get('*/api/v1/projects', () => {

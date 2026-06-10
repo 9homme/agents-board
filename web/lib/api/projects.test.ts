@@ -1,4 +1,4 @@
-import { fetchProjects, fetchProject } from './projects';
+import { fetchProjects, fetchProject, createProject } from './projects';
 import { server } from '../../test/msw/server';
 import { http, HttpResponse } from 'msw';
 import { ApiError } from './client';
@@ -93,6 +93,96 @@ describe('projects API client', () => {
       const controller = new AbortController();
       controller.abort();
       await expect(fetchProjects(controller.signal)).rejects.toThrow();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // FCT-046-021 — createProject sends correct request body
+  // FCT-046-022 — createProject returns typed Project including path field
+  // ---------------------------------------------------------------------------
+  describe('createProject', () => {
+    it('FCT-046-021 — sends name, description, and path in request body with Content-Type', async () => {
+      let capturedBody: unknown = null;
+      let capturedContentType: string | null = null;
+
+      server.use(
+        http.post('*/api/v1/projects', async ({ request }) => {
+          capturedBody = await request.json();
+          capturedContentType = request.headers.get('content-type');
+          return HttpResponse.json(
+            {
+              id: '33333333-3333-3333-3333-333333333333',
+              name: 'Test',
+              description: 'Desc',
+              path: '/tmp/test',
+              createdAt: '2026-06-09T11:00:00Z',
+              updatedAt: '2026-06-09T11:00:00Z',
+            },
+            { status: 201 }
+          );
+        })
+      );
+
+      await createProject({ name: 'Test', description: 'Desc', path: '/tmp/test' });
+
+      expect(capturedBody).toEqual({ name: 'Test', description: 'Desc', path: '/tmp/test' });
+      expect(capturedContentType).toContain('application/json');
+    });
+
+    it('FCT-046-022 — returns typed Project including path field on 201', async () => {
+      const project = await createProject({
+        name: 'agents-board',
+        path: '/Users/me/workspace/agents-board',
+      });
+
+      expect(project.id).toBe('33333333-3333-3333-3333-333333333333');
+      expect(project.name).toBe('agents-board');
+      expect(project.description).toBe('');
+      expect(project.path).toBe('/Users/me/workspace/agents-board');
+      expect(typeof project.path).toBe('string');
+      expect(project.createdAt).toBe('2026-06-09T11:00:00Z');
+      expect(project.updatedAt).toBe('2026-06-09T11:00:00Z');
+    });
+
+    it('FCT-046-022b — throws ApiError with VALIDATION_ERROR code on 400', async () => {
+      server.use(
+        http.post('*/api/v1/projects', () => {
+          return HttpResponse.json(
+            { code: 'VALIDATION_ERROR', message: 'path does not exist or is not a directory' },
+            { status: 400 }
+          );
+        })
+      );
+
+      let caught: unknown;
+      try {
+        await createProject({ name: 'Test', path: '/bad/path' });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(ApiError);
+      expect((caught as ApiError).code).toBe('VALIDATION_ERROR');
+      expect((caught as ApiError).message).toBe('path does not exist or is not a directory');
+    });
+
+    it('FCT-046-022c — throws ApiError with DUPLICATE_PATH code on 409', async () => {
+      server.use(
+        http.post('*/api/v1/projects', () => {
+          return HttpResponse.json(
+            { code: 'DUPLICATE_PATH', message: 'path already linked to another project' },
+            { status: 409 }
+          );
+        })
+      );
+
+      let caught: unknown;
+      try {
+        await createProject({ name: 'Test', path: '/existing/path' });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(ApiError);
+      expect((caught as ApiError).code).toBe('DUPLICATE_PATH');
     });
   });
 });

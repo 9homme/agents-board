@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** US045_be_requirement_repo_and_list_api
 **Worked-by:** be-dev-2026-06-11T06-20-00Z-a3f1
 **Implements:** US045, D-3 (path validation), D-3b (path uniqueness), D-006 (path required), D-008 (MCP create_project requires path), API contract §1/§2 (projects gain `path`), §3 (`POST /api/v1/projects`)
@@ -204,3 +204,28 @@ REVIEW GATE: PASS  (cross)
 (REQ008 suite: US044 2/2, US045 8/8, US046 3/3, US047 3/3, US048 3/3)
 
 ## Review log
+
+### Review pass 1 — verdict: changes_requested
+
+**Reviewer:** tech-lead-reviewer (Mode 1) | **Date:** 2026-06-11
+
+**Test run:** `go vet ./...` clean; `go test ./...` → 529 passed in 11 packages. All listed test-contract IDs implemented and passing (IT-045-005..014, UT-045-013..020, UT-045-045..048 verified present).
+
+**Gate evidence verified:** `REVIEW GATE: PASS (be)` + `REVIEW GATE: PASS (cross)` present in `## Notes`; robot --dryrun 19/19; per-file coverage all ≥80% (CreateProject 94.7%, fsutil 100%, project_repo 100%, project_tools 100%). Evidence is internally consistent.
+
+#### Required changes (code at fault)
+
+1. **`services/agent-board/cmd/api-server/main.go:95-97`** — the new `POST /api/v1/projects` route is NOT registered. The block only registers `GET /api/v1/projects`, `GET /api/v1/projects/:id`, and the requirements route. Per `## Scope` (line 20), `## Architecture extract` Contract §3, and `## Implementation notes` line 147, you must add:
+   ```go
+   e.POST("/api/v1/projects", projectHandler.CreateProject)
+   ```
+   The `CreateProject` handler is fully implemented and correct, but it is **unreachable over HTTP** without this line — the live e2e POST flow and the FE add-project flow would receive 404/405. The unit/integration tests pass only because each test registers the route locally on a fresh `echo.New()` (e.g. `project_handler_test.go:511`), which masks the missing production wiring. Add the route and re-run the gate.
+
+No other code defects found. Handler 400/409/201 envelopes match §3 verbatim; repo INSERT/SELECTs include `path`; `ErrDuplicatePath` sentinel maps 23505 → 409; `projectResponse.Path` populated in all three handlers; MCP `create_project` (D-008) requires + validates + maps duplicate, and is correctly wired with the real `fsutil.NewFsValidator()` in `cmd/mcp-server/main.go:78-79`; no full paths logged at info level (handler logs `count=1, code=INTERNAL_ERROR`). TDG commit sequence conforms (red → green → refactor, all tagged `(US045)`).
+
+#### Non-blocking observations (filed to tech_debt.md)
+
+- `internal/repo/project_repo.go:137-138` — `isUniqueViolation` matches the SQLSTATE via `strings.Contains(err.Error(), "23505")` rather than a typed `*pq.Error`/`pgconn.PgError` Code check. Works with sqlmock and current driver but is brittle and does not assert the constraint is `uq_projects_path` specifically.
+- Validation-order divergence: HTTP handler checks path-blank → path-validate → name; MCP `create_project` checks name → path-blank → path-validate. Both satisfy their specs in isolation but the ordering is inconsistent between the two create paths.
+
+Routing: re-spawn `be-dev` (Track: BE) to add the route registration, then re-run the BE + cross gate and set `in_review`.

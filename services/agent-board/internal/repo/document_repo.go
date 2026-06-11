@@ -29,14 +29,17 @@ func NewDocumentRepo(db *sql.DB) DocumentRepository {
 	return &documentRepo{db: db}
 }
 
+// CreateDocument inserts a new document into the database.
+// requirement_id is included in the INSERT to satisfy the NOT NULL constraint from migration 000003.
 func (r *documentRepo) CreateDocument(ctx context.Context, d *domain.Document) (*domain.Document, error) {
-	query := `INSERT INTO documents (project_id, title, content) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
+	query := `INSERT INTO documents (project_id, requirement_id, title, content) VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
 	var created domain.Document
 	created.ProjectID = d.ProjectID
+	created.RequirementID = d.RequirementID
 	created.Title = d.Title
 	created.Content = d.Content
 
-	err := r.db.QueryRowContext(ctx, query, d.ProjectID, d.Title, d.Content).Scan(
+	err := r.db.QueryRowContext(ctx, query, d.ProjectID, d.RequirementID, d.Title, d.Content).Scan(
 		&created.ID,
 		&created.CreatedAt,
 		&created.UpdatedAt,

@@ -27,3 +27,16 @@ func ValidatePath(path string) error {
 
 	return nil
 }
+
+// FsValidator implements the handler.PathValidator interface using real filesystem calls.
+type FsValidator struct{}
+
+// NewFsValidator creates a FsValidator that uses os.Stat for path validation.
+func NewFsValidator() *FsValidator {
+	return &FsValidator{}
+}
+
+// ValidatePath checks that path is non-blank, exists on disk, and is a directory.
+func (v *FsValidator) ValidatePath(path string) error {
+	return ValidatePath(path)
+}

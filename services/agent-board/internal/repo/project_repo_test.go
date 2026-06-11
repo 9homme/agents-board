@@ -254,7 +254,7 @@ func TestProjectRepo_ListProjects_QueryError(t *testing.T) {
 
 	r := NewProjectRepo(db)
 
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY`).
 		WillReturnError(errors.New("db down"))
 
 	projects, err := r.ListProjects(context.Background())
@@ -274,9 +274,9 @@ func TestProjectRepo_ListProjects_ScanError(t *testing.T) {
 	r := NewProjectRepo(db)
 
 	// type-mismatch: id column expects a UUID string but receives an integer, causing Scan to fail
-	rows := sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-		AddRow(42, "P1", "D1", "not-a-time", "not-a-time")
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+	rows := sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+		AddRow(42, "P1", "D1", "", "not-a-time", "not-a-time")
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY`).
 		WillReturnRows(rows)
 
 	got, err := r.ListProjects(context.Background())
@@ -333,10 +333,10 @@ func TestProjectRepo_ListProjects_RowsErr(t *testing.T) {
 	r := NewProjectRepo(db)
 	now := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-		AddRow("123e4567-e89b-12d3-a456-426614174000", "P1", "D1", now, now).
+	rows := sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+		AddRow("123e4567-e89b-12d3-a456-426614174000", "P1", "D1", "", now, now).
 		RowError(0, errors.New("rows err"))
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY`).
 		WillReturnRows(rows)
 
 	result, err := r.ListProjects(context.Background())

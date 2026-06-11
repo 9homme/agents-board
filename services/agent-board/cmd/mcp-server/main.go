@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"agent-board/internal/config"
+	"agent-board/internal/fsutil"
 	"agent-board/internal/handler"
 	"agent-board/internal/mcp"
 	"agent-board/internal/repo"
@@ -57,6 +58,7 @@ func run() error {
 	documentRepo := repo.NewDocumentRepo(db)
 	userStoryRepo := repo.NewUserStoryRepo(db)
 	taskRepo := repo.NewTaskRepo(db)
+	requirementRepo := repo.NewRequirementRepo(db)
 
 	e := echo.New()
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
@@ -73,11 +75,13 @@ func run() error {
 	sessionManager := mcp.NewSessionManager()
 	toolRegistry := mcp.NewToolRegistry()
 
-	handler.RegisterProjectTools(toolRegistry, projectRepo)
-	handler.RegisterDocumentTools(toolRegistry, documentRepo)
-	handler.RegisterUserStoryTools(toolRegistry, userStoryRepo)
+	validator := fsutil.NewFsValidator()
+	handler.RegisterProjectTools(toolRegistry, projectRepo, validator)
+	handler.RegisterDocumentTools(toolRegistry, documentRepo, requirementRepo)
+	handler.RegisterUserStoryTools(toolRegistry, userStoryRepo, requirementRepo)
 	handler.RegisterTaskTools(toolRegistry, taskRepo)
 	handler.RegisterAuditTools(toolRegistry, repo.NewAuditRepo(db))
+	handler.RegisterRequirementTools(toolRegistry, requirementRepo)
 
 	h := handler.NewHandler(sessionManager, toolRegistry)
 

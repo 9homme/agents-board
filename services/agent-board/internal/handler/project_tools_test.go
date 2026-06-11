@@ -90,7 +90,7 @@ func (m *MockProjectRepo) ListProjects(ctx context.Context) ([]*domain.Project, 
 func TestRegisterProjectTools_RegistersAllFiveTools(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	names := []string{"create_project", "get_project", "update_project", "delete_project", "list_projects"}
 	for _, name := range names {
@@ -112,7 +112,7 @@ func TestRegisterProjectTools_RegistersAllFiveTools(t *testing.T) {
 func TestHandleCreateProject_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("create_project")
 	require.True(t, ok)
@@ -133,7 +133,7 @@ func TestHandleCreateProject_InvalidArguments(t *testing.T) {
 func TestHandleCreateProject_EmptyName(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("create_project")
 	require.True(t, ok)
@@ -159,12 +159,13 @@ func TestHandleCreateProject_RepoError(t *testing.T) {
 			return nil, mockErr
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	mockValidator := &MockPathValidator{ValidatePathFunc: func(_ string) error { return nil }}
+	RegisterProjectTools(registry, mockRepo, mockValidator)
 
 	tool, ok := registry.GetTool("create_project")
 	require.True(t, ok)
 
-	result, err := tool(context.Background(), json.RawMessage(`{"name": "My Project"}`))
+	result, err := tool(context.Background(), json.RawMessage(`{"name": "My Project", "path": "/tmp"}`))
 
 	assert.Nil(t, result)
 	require.Error(t, err)
@@ -180,7 +181,7 @@ func TestHandleCreateProject_RepoError(t *testing.T) {
 func TestHandleGetProject_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("get_project")
 	require.True(t, ok)
@@ -200,7 +201,7 @@ func TestHandleGetProject_InvalidArguments(t *testing.T) {
 func TestHandleGetProject_EmptyID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("get_project")
 	require.True(t, ok)
@@ -225,7 +226,7 @@ func TestHandleGetProject_NotFound(t *testing.T) {
 			return nil, repo.ErrNotFound
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("get_project")
 	require.True(t, ok)
@@ -252,7 +253,7 @@ func TestHandleGetProject_GenericError(t *testing.T) {
 			return nil, mockErr
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("get_project")
 	require.True(t, ok)
@@ -273,7 +274,7 @@ func TestHandleGetProject_GenericError(t *testing.T) {
 func TestHandleUpdateProject_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("update_project")
 	require.True(t, ok)
@@ -294,7 +295,7 @@ func TestHandleUpdateProject_InvalidArguments(t *testing.T) {
 func TestHandleUpdateProject_EmptyID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("update_project")
 	require.True(t, ok)
@@ -319,7 +320,7 @@ func TestHandleUpdateProject_NotFoundOnInitialGet(t *testing.T) {
 			return nil, repo.ErrNotFound
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("update_project")
 	require.True(t, ok)
@@ -346,7 +347,7 @@ func TestHandleUpdateProject_GenericErrorOnInitialGet(t *testing.T) {
 			return nil, mockErr
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("update_project")
 	require.True(t, ok)
@@ -377,7 +378,7 @@ func TestHandleUpdateProject_EmptyNameWhenProvided(t *testing.T) {
 			}, nil
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("update_project")
 	require.True(t, ok)
@@ -412,7 +413,7 @@ func TestHandleUpdateProject_RepoUpdateError(t *testing.T) {
 			return nil, mockErr
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("update_project")
 	require.True(t, ok)
@@ -433,7 +434,7 @@ func TestHandleUpdateProject_RepoUpdateError(t *testing.T) {
 func TestHandleDeleteProject_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("delete_project")
 	require.True(t, ok)
@@ -453,7 +454,7 @@ func TestHandleDeleteProject_InvalidArguments(t *testing.T) {
 func TestHandleDeleteProject_EmptyID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockProjectRepo{}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("delete_project")
 	require.True(t, ok)
@@ -479,7 +480,7 @@ func TestHandleDeleteProject_RepoError(t *testing.T) {
 			return mockErr
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("delete_project")
 	require.True(t, ok)
@@ -505,7 +506,7 @@ func TestHandleListProjects_RepoError(t *testing.T) {
 			return nil, mockErr
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("list_projects")
 	require.True(t, ok)
@@ -529,6 +530,7 @@ func TestHandleCreateProject_Success(t *testing.T) {
 		ID:          "proj-1",
 		Name:        "My Project",
 		Description: "",
+		Path:        "/tmp",
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -538,12 +540,13 @@ func TestHandleCreateProject_Success(t *testing.T) {
 			return expected, nil
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	mockValidator := &MockPathValidator{ValidatePathFunc: func(_ string) error { return nil }}
+	RegisterProjectTools(registry, mockRepo, mockValidator)
 
 	tool, ok := registry.GetTool("create_project")
 	require.True(t, ok)
 
-	result, err := tool(context.Background(), json.RawMessage(`{"name": "My Project"}`))
+	result, err := tool(context.Background(), json.RawMessage(`{"name": "My Project", "path": "/tmp"}`))
 	require.NoError(t, err)
 	assert.Equal(t, expected, result)
 }
@@ -563,7 +566,7 @@ func TestHandleGetProject_Success(t *testing.T) {
 			return expected, nil
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("get_project")
 	require.True(t, ok)
@@ -587,7 +590,7 @@ func TestHandleUpdateProject_Success(t *testing.T) {
 			return updated, nil
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("update_project")
 	require.True(t, ok)
@@ -603,7 +606,7 @@ func TestHandleDeleteProject_Success(t *testing.T) {
 	mockRepo := &MockProjectRepo{
 		DeleteProjectFunc: func(_ context.Context, _ string) error { return nil },
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("delete_project")
 	require.True(t, ok)
@@ -623,7 +626,7 @@ func TestHandleListProjects_Success(t *testing.T) {
 			return projects, nil
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("list_projects")
 	require.True(t, ok)
@@ -642,7 +645,7 @@ func TestHandleListProjects_NilReturnsEmpty(t *testing.T) {
 			return nil, nil
 		},
 	}
-	RegisterProjectTools(registry, mockRepo)
+	RegisterProjectTools(registry, mockRepo, nil)
 
 	tool, ok := registry.GetTool("list_projects")
 	require.True(t, ok)
@@ -668,6 +671,7 @@ func TestProjectTools_CreateProject(t *testing.T) {
 		ID:          "123",
 		Name:        "Test Project",
 		Description: "A test project",
+		Path:        "/tmp/testdir",
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -676,9 +680,10 @@ func TestProjectTools_CreateProject(t *testing.T) {
 			return expectedProject, nil
 		},
 	}
+	mockValidator := &MockPathValidator{ValidatePathFunc: func(_ string) error { return nil }}
 
-	h := handleCreateProject(mockRepo)
-	args := json.RawMessage(`{"name":"Test Project","description":"A test project"}`)
+	h := handleCreateProject(mockRepo, mockValidator)
+	args := json.RawMessage(`{"name":"Test Project","description":"A test project","path":"/tmp/testdir"}`)
 
 	result, err := h(context.Background(), args)
 	assert.NoError(t, err)

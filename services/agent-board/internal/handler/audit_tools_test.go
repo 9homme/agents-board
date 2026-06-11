@@ -243,7 +243,7 @@ func TestAuditTools_NoAuditOnInvalidUserStoryTransition(t *testing.T) {
 			return nil, errors.New("should not be called")
 		},
 	}
-	RegisterUserStoryTools(registry, mockRepo)
+	RegisterUserStoryTools(registry, mockRepo, nil)
 
 	ctx := context.Background()
 	storyID := "333e4567-e89b-12d3-a456-426614174000"

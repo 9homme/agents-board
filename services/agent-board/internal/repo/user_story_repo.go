@@ -46,9 +46,10 @@ func NewUserStoryRepo(db *sql.DB) *UserStoryRepo {
 }
 
 // CreateUserStory inserts a new user story into the database.
+// requirement_id is included in the INSERT to satisfy the NOT NULL constraint from migration 000003.
 func (r *UserStoryRepo) CreateUserStory(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error) {
-	query := `INSERT INTO user_stories (project_id, title, description, status) VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
-	err := r.db.QueryRowContext(ctx, query, u.ProjectID, u.Title, u.Description, u.Status).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
+	query := `INSERT INTO user_stories (project_id, requirement_id, title, description, status) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at`
+	err := r.db.QueryRowContext(ctx, query, u.ProjectID, u.RequirementID, u.Title, u.Description, u.Status).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}

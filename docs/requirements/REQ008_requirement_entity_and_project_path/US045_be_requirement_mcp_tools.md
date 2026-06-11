@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** changes_requested
 **Blocked by:** US045_be_requirement_repo_and_list_api
 **Worked-by:** be-dev-2026-06-11T06-20-00Z-a4f2
 **Implements:** US045, D-004 (MCP-only create), D-007 (MCP-only update), API contract §5 (`create_requirement`/`list_requirements`/`update_requirement`), §12 (`create_user_story` BREAKING), §13 (`create_document` BREAKING)
@@ -186,3 +186,41 @@ REVIEW GATE: PASS  (cross)
 (REQ008 suite: US044 2/2, US045 8/8, US046 3/3, US047 3/3, US048 3/3)
 
 ## Review log
+
+### Review pass 1 — verdict: changes_requested
+
+**Reviewer:** tech-lead-reviewer (Mode 1)
+**Date:** 2026-06-11
+
+The implementation is functionally correct and all 529 tests pass IN THE LOCAL WORKING TREE — but the production code for this task is **uncommitted / untracked**. The orchestrator merges only committed work from the review branch; uncommitted and untracked changes are dropped on merge, which would leave the committed test file referencing an absent production file and break the build. This is the blocking finding.
+
+#### BLOCKING — production code not committed
+
+1. `services/agent-board/internal/handler/requirement_tools.go` — **untracked** (`git status` shows `??`). The entire new `RegisterRequirementTools` file (create_requirement/list_requirements/update_requirement) exists only in the working tree and is not in any commit. `git ls-files` returns nothing for it.
+2. `services/agent-board/internal/handler/document_tools.go` — modified but **uncommitted**. `git show HEAD:...document_tools.go` contains zero occurrences of `requirement_id`; the §13 BREAKING implementation (lines 44, 55-69) is working-tree-only.
+3. `services/agent-board/internal/handler/user_story_tools.go` — modified but **uncommitted**. The §12 BREAKING implementation (`requirement_id` field + GetRequirement membership check, lines 46, 57-71) is working-tree-only.
+4. `services/agent-board/cmd/mcp-server/main.go:61,84` — `NewRequirementRepo` + `RegisterRequirementTools` wiring is uncommitted.
+5. `services/agent-board/internal/repo/user_story_repo.go` / `document_repo.go` — INSERT now includes `requirement_id`, but those edits are uncommitted in this checkout. (Note: an end-state INSERT with `requirement_id` was committed under 4bf8f6c tagged `(US048)`, not this task — but the current working-tree versions are again dirty.)
+
+**TDG sequence broken.** The `red:` commit a9fd6e1 committed the test spec; the `green:` commit 5986459 ("fix all failing tests") touched **test files only** — it introduced no production code, yet a `green:` commit must add the production code that makes the red tests pass. The production code never entered a commit. `abf9c6d` is a `refactor: chore:` hand-off that also committed no production code.
+
+#### Required changes (be-dev)
+
+1. `git add -A` and commit ALL production files for this task on the review branch with proper TDG `green:`/`refactor:` subjects ending in `(US045)`:
+   - `internal/handler/requirement_tools.go` (new)
+   - `internal/handler/document_tools.go`, `internal/handler/user_story_tools.go` (§12/§13 breaking)
+   - `internal/repo/user_story_repo.go`, `internal/repo/document_repo.go` (INSERT + requirement_id)
+   - `cmd/mcp-server/main.go` (registration)
+   - any matching `*_test.go` not already committed.
+2. Verify `git status` is clean (no `??`, no ` M`) for the in-scope files before flipping back to `in_review`.
+3. Re-run `go vet ./... && go test ./...` from a clean tree to confirm the suite passes from committed state alone.
+
+#### Checks that otherwise PASSED (re-verify after commit)
+
+- `go vet ./...` clean; `go test ./...` = 529 passed (matches dev's Notes).
+- Architecture conformance §5/§12/§13: snake_case input keys for new requirement tools and `requirement_id`; camelCase preserved on existing keys; response shapes (`projectId`/`requirementId` camelCase) correct; membership validation calls requirementRepo and does NOT call the story/document create repo on mismatch (UT-045-041/044 assert this); no state-machine enforcement on update_requirement (D-007 honoured).
+- Test contract: UT-045-021 through UT-045-044 all present and passing.
+- Coverage (in-tree): requirement_tools.go RegisterRequirementTools 94.0% / helpers 100%; user_story_tools 94.7%; document_tools 95.9%; requirement_repo.go all 100%; CreateUserStory/CreateDocument 100%. All ≥80%.
+- Minor extract divergence (non-blocking): task `## Architecture extract` line 131 specifies `RegisterRequirementTools(registry, requirementRepo, projectRepo)`; implementation uses `(registry, requirementRepo)` and maps FK violations to `ErrProjectNotFound` internally — cleaner, no projectRepo needed. Filed as tech-debt note, not a required change.
+
+Re-review will run from the committed tree once the dev commits and returns the task to `in_review`.

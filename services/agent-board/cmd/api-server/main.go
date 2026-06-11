@@ -93,6 +93,7 @@ func run() error {
 	documentHandler.SetRequirementRepo(requirementRepo)
 
 	e.GET("/api/v1/projects", projectHandler.GetProjects)
+	e.POST("/api/v1/projects", projectHandler.CreateProject)
 	e.GET("/api/v1/projects/:id", projectHandler.GetProject)
 	e.GET("/api/v1/projects/:pid/requirements", requirementHandler.ListProjectRequirements)
 

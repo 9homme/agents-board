@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** changes_requested
+**Status:** in_review
 **Blocked by:** US045_be_requirement_repo_and_list_api
 **Worked-by:** be-dev-2026-06-11T06-20-00Z-a3f1
 **Implements:** US045, D-3 (path validation), D-3b (path uniqueness), D-006 (path required), D-008 (MCP create_project requires path), API contract §1/§2 (projects gain `path`), §3 (`POST /api/v1/projects`)
@@ -178,11 +178,22 @@ The dev must make these tests pass:
 - `TestRequirementRepo_Update_NameAndDescription`
 - Total: 529 tests passing
 
-### Review gate evidence
+### Review gate evidence (pass 2 — post route-registration fix)
 ```
 REVIEW GATE: PASS  (be services/agent-board)
 REVIEW GATE: PASS  (cross)
 ```
+
+### robot --dryrun (pass 2)
+```
+19 tests, 19 passed, 0 failed
+```
+(REQ008 suite: US044 2/2, US045 8/8, US046 3/3, US047 3/3, US048 3/3)
+
+### Response to review pass 1
+- **Required change addressed:** Added `e.POST("/api/v1/projects", projectHandler.CreateProject)` at `cmd/api-server/main.go:96`. Route is now registered; CreateProject handler is reachable over HTTP.
+- **Non-blocking observations (tech_debt.md):** Acknowledged — `isUniqueViolation` string-match brittleness and validation-order divergence between HTTP/MCP paths are on record. No code changes made (non-blocking per reviewer).
+- All 529 tests still pass; gate re-run clean.
 
 ### Coverage (files touched, all ≥80%)
 - `internal/fsutil/fsutil.go`: ValidatePath 100%, NewFsValidator 100%, FsValidator.ValidatePath 100%
@@ -196,12 +207,6 @@ REVIEW GATE: PASS  (cross)
 - `internal/repo/user_story_repo.go`: all functions ≥80%
 - `internal/repo/document_repo.go`: all functions ≥80%
 - Total package coverage: 91.1%
-
-### robot --dryrun
-```
-19 tests, 19 passed, 0 failed
-```
-(REQ008 suite: US044 2/2, US045 8/8, US046 3/3, US047 3/3, US048 3/3)
 
 ## Review log
 

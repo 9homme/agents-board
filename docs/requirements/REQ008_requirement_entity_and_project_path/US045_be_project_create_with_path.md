@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US045_be_requirement_repo_and_list_api
 **Worked-by:** be-dev-2026-06-11T06-20-00Z-a3f1
 **Implements:** US045, D-3 (path validation), D-3b (path uniqueness), D-006 (path required), D-008 (MCP create_project requires path), API contract §1/§2 (projects gain `path`), §3 (`POST /api/v1/projects`)
@@ -234,3 +234,30 @@ No other code defects found. Handler 400/409/201 envelopes match §3 verbatim; r
 - Validation-order divergence: HTTP handler checks path-blank → path-validate → name; MCP `create_project` checks name → path-blank → path-validate. Both satisfy their specs in isolation but the ordering is inconsistent between the two create paths.
 
 Routing: re-spawn `be-dev` (Track: BE) to add the route registration, then re-run the BE + cross gate and set `in_review`.
+
+### Review pass 2 — verdict: approved
+
+**Reviewer:** tech-lead-reviewer (Mode 1) | **Date:** 2026-06-11
+
+**Pass 1 finding addressed:** The missing `POST /api/v1/projects` route is now registered. Confirmed at `cmd/api-server/main.go:96`:
+```go
+e.POST("/api/v1/projects", projectHandler.CreateProject)
+```
+Fix commit `4b818ed` is exactly one line in `main.go` (`+1 -0`) plus the task-file status/evidence update — no drive-by changes, no scope creep. The `CreateProject` handler is now reachable over HTTP; the live e2e POST flow and FE add-project flow will resolve.
+
+**Test run (re-run by reviewer):** `go vet ./...` clean; `go test ./...` → 529 passed in 11 packages. Matches the dev's pasted evidence.
+
+**Gate evidence verified (fresh, pass 2):**
+```
+REVIEW GATE: PASS  (be services/agent-board)
+REVIEW GATE: PASS  (cross)
+```
+robot --dryrun: `19 tests, 19 passed, 0 failed`. Per-file coverage all ≥80% (CreateProject 94.7%, fsutil 100%, project_repo 100%, project_tools 100%; total package 91.1%). Evidence is internally consistent.
+
+**Carried-forward checks (unchanged files, verified in pass 1, still hold):** §1/§2/§3 JSON shapes and 400/409/201 bodies match the extract verbatim; repo INSERT/SELECTs include `path`; `ErrDuplicatePath` maps 23505 → 409; `projectResponse.Path` populated in all three handlers; MCP `create_project` (D-008) requires + validates + maps duplicate, wired with real `fsutil.NewFsValidator()` in `cmd/mcp-server/main.go`; no full filesystem paths logged at info level. None of these production files changed in the pass-2 fix cycle.
+
+**TDG:** the fix-cycle handoff commit `4b818ed` is tagged `(US045)` and the substantive red→green→refactor sequence held in pass 1. The `refactor: chore:` double-prefix on the handoff commit is a recurring non-blocking convention smell (filed below).
+
+**Tech-debt:** row 23 filed (`refactor: chore:` double-prefix on the pass-2 handoff commit — recurrence of #4/#14/#16/#18). Pass-1 non-blocking observations (isUniqueViolation brittleness, validation-order divergence) remain on record as rows 21/22.
+
+Verdict: **approved** → `Status: completed`.

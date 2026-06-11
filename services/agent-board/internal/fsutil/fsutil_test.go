@@ -42,3 +42,20 @@ func TestValidatePath_EmptyPath(t *testing.T) {
 	err := fsutil.ValidatePath("")
 	assert.ErrorIs(t, err, fsutil.ErrInvalidPath)
 }
+
+// FsValidator — NewFsValidator and ValidatePath method delegate correctly.
+func TestFsValidator_ValidatePath_HappyPath(t *testing.T) {
+	dir, err := os.MkdirTemp("", "fsutil-validator-test-*")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(dir) }()
+
+	v := fsutil.NewFsValidator()
+	assert.NoError(t, v.ValidatePath(dir))
+}
+
+// FsValidator — ValidatePath method propagates ErrInvalidPath for missing path.
+func TestFsValidator_ValidatePath_InvalidPath(t *testing.T) {
+	v := fsutil.NewFsValidator()
+	err := v.ValidatePath("/tmp/this-does-not-exist-xxxxxxxxxxx-validator-test")
+	assert.ErrorIs(t, err, fsutil.ErrInvalidPath)
+}

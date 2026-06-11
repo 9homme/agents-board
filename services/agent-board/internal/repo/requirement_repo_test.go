@@ -239,6 +239,73 @@ func TestRequirementRepo_ListByProject_ContextCancelled(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+// GetRequirement — happy path
+func TestRequirementRepo_GetRequirement_HappyPath(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewRequirementRepo(db)
+	reqID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
+	projectID := "11111111-1111-1111-1111-111111111111"
+	now := time.Date(2026, 6, 9, 10, 0, 0, 0, time.UTC)
+
+	mock.ExpectQuery(`SELECT id, project_id, name, description, status, created_at, updated_at FROM requirements WHERE id = \$1`).
+		WithArgs(reqID).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "name", "description", "status", "created_at", "updated_at"}).
+			AddRow(reqID, projectID, "Default", "", "draft", now, now))
+
+	result, err := r.GetRequirement(context.Background(), reqID)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, reqID, result.ID)
+	assert.Equal(t, projectID, result.ProjectID)
+	assert.Equal(t, "Default", result.Name)
+	assert.Equal(t, "draft", result.Status)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// GetRequirement — not found returns ErrNotFound
+func TestRequirementRepo_GetRequirement_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewRequirementRepo(db)
+
+	mock.ExpectQuery(`SELECT id, project_id, name, description, status, created_at, updated_at FROM requirements WHERE id = \$1`).
+		WithArgs("nonexistent-id").
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "name", "description", "status", "created_at", "updated_at"}))
+
+	result, err := r.GetRequirement(context.Background(), "nonexistent-id")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNotFound)
+	assert.Nil(t, result)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// GetRequirement — generic scan/DB error
+func TestRequirementRepo_GetRequirement_DBError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewRequirementRepo(db)
+
+	mock.ExpectQuery(`SELECT id, project_id, name, description, status, created_at, updated_at FROM requirements WHERE id = \$1`).
+		WithArgs("some-id").
+		WillReturnError(errors.New("db connection lost"))
+
+	result, err := r.GetRequirement(context.Background(), "some-id")
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrNotFound), "generic DB error must NOT map to ErrNotFound")
+	assert.Nil(t, result)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
 // UT-045-010 — RequirementRepository.Update happy path
 func TestRequirementRepo_Update_HappyPath(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -261,6 +328,32 @@ func TestRequirementRepo_Update_HappyPath(t *testing.T) {
 	require.NotNil(t, result)
 	assert.Equal(t, "in_progress", result.Status)
 	assert.True(t, result.UpdatedAt.After(result.CreatedAt), "updatedAt must be after createdAt")
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// RequirementRepository.Update — name and description patch branches
+func TestRequirementRepo_Update_NameAndDescription(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewRequirementRepo(db)
+	reqID := "req-001"
+	now := time.Now()
+	newName := "New Name"
+	newDesc := "New description"
+
+	mock.ExpectQuery(`UPDATE requirements SET`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "name", "description", "status", "created_at", "updated_at"}).
+			AddRow(reqID, "proj-id", newName, newDesc, "draft", now, now))
+
+	patch := RequirementPatch{Name: &newName, Description: &newDesc}
+	result, err := r.Update(context.Background(), reqID, patch)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, newName, result.Name)
+	assert.Equal(t, newDesc, result.Description)
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }

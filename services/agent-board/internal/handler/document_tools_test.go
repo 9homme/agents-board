@@ -45,7 +45,13 @@ func (m *MockDocumentRepo) ListDocuments(ctx context.Context, projectID string) 
 func TestDocumentTools_CreateDocument(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	// Provide a requirement mock that returns a requirement belonging to the project (§13 BREAKING).
+	mockReqRepo := &MockRequirementRepo{
+		GetRequirementFunc: func(_ context.Context, id string) (*domain.Requirement, error) {
+			return &domain.Requirement{ID: id, ProjectID: "123e4567-e89b-12d3-a456-426614174000"}, nil
+		},
+	}
+	handler.RegisterDocumentTools(registry, mockRepo, mockReqRepo)
 
 	now := time.Now()
 	mockRepo.CreateDocumentFunc = func(ctx context.Context, d *domain.Document) (*domain.Document, error) {
@@ -53,16 +59,18 @@ func TestDocumentTools_CreateDocument(t *testing.T) {
 		assert.Equal(t, "My Doc", d.Title)
 		assert.Equal(t, "Content here", d.Content)
 		return &domain.Document{
-			ID:        "223e4567-e89b-12d3-a456-426614174000",
-			ProjectID: d.ProjectID,
-			Title:     d.Title,
-			Content:   d.Content,
-			CreatedAt: now,
-			UpdatedAt: now,
+			ID:            "223e4567-e89b-12d3-a456-426614174000",
+			ProjectID:     d.ProjectID,
+			RequirementID: d.RequirementID,
+			Title:         d.Title,
+			Content:       d.Content,
+			CreatedAt:     now,
+			UpdatedAt:     now,
 		}, nil
 	}
 
-	args := json.RawMessage(`{"projectId":"123e4567-e89b-12d3-a456-426614174000", "title": "My Doc", "content": "Content here"}`)
+	// requirement_id is now required (§13 BREAKING).
+	args := json.RawMessage(`{"projectId":"123e4567-e89b-12d3-a456-426614174000", "requirement_id":"rid-1", "title": "My Doc", "content": "Content here"}`)
 	toolHandler, ok := registry.GetTool("create_document")
 	require.True(t, ok)
 	res, err := toolHandler(context.Background(), args)
@@ -79,7 +87,7 @@ func TestDocumentTools_CreateDocument(t *testing.T) {
 func TestDocumentTools_GetDocument(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetDocumentFunc = func(ctx context.Context, id string) (*domain.Document, error) {
@@ -110,7 +118,7 @@ func TestDocumentTools_GetDocument(t *testing.T) {
 func TestDocumentTools_UpdateDocument(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetDocumentFunc = func(ctx context.Context, id string) (*domain.Document, error) {
@@ -150,7 +158,7 @@ func TestDocumentTools_UpdateDocument(t *testing.T) {
 func TestDocumentTools_DeleteDocument(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.DeleteDocumentFunc = func(ctx context.Context, id string) error {
 		return nil
@@ -170,7 +178,7 @@ func TestDocumentTools_DeleteDocument(t *testing.T) {
 func TestDocumentTools_ListDocuments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.ListDocumentsFunc = func(ctx context.Context, projectID string) ([]*domain.Document, error) {
@@ -205,7 +213,7 @@ func TestDocumentTools_ListDocuments(t *testing.T) {
 func TestRegisterDocumentTools_RegistersAllFiveTools(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	for _, name := range []string{"create_document", "get_document", "update_document", "delete_document", "list_documents"} {
 		tool, ok := registry.GetTool(name)
@@ -222,7 +230,7 @@ func TestRegisterDocumentTools_RegistersAllFiveTools(t *testing.T) {
 func TestCreateDocumentTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("create_document")
 	require.True(t, ok)
@@ -238,7 +246,7 @@ func TestCreateDocumentTool_InvalidArguments(t *testing.T) {
 func TestCreateDocumentTool_MissingProjectIDOrTitle(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("create_document")
 	require.True(t, ok)
@@ -254,7 +262,13 @@ func TestCreateDocumentTool_MissingProjectIDOrTitle(t *testing.T) {
 func TestCreateDocumentTool_RepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	// Provide requirement mock so validation passes before we reach the repo (§13 BREAKING).
+	mockReqRepo := &MockRequirementRepo{
+		GetRequirementFunc: func(_ context.Context, id string) (*domain.Requirement, error) {
+			return &domain.Requirement{ID: id, ProjectID: "proj-1"}, nil
+		},
+	}
+	handler.RegisterDocumentTools(registry, mockRepo, mockReqRepo)
 
 	mockErr := errors.New("db down")
 	mockRepo.CreateDocumentFunc = func(_ context.Context, _ *domain.Document) (*domain.Document, error) {
@@ -264,7 +278,8 @@ func TestCreateDocumentTool_RepoError(t *testing.T) {
 	tool, ok := registry.GetTool("create_document")
 	require.True(t, ok)
 
-	result, err := tool(context.Background(), json.RawMessage(`{"projectId":"proj-1","title":"My Doc"}`))
+	// requirement_id is now required (§13 BREAKING).
+	result, err := tool(context.Background(), json.RawMessage(`{"projectId":"proj-1","requirement_id":"rid-1","title":"My Doc"}`))
 
 	assert.Nil(t, result)
 	assert.Error(t, err)
@@ -275,7 +290,7 @@ func TestCreateDocumentTool_RepoError(t *testing.T) {
 func TestGetDocumentTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("get_document")
 	require.True(t, ok)
@@ -291,7 +306,7 @@ func TestGetDocumentTool_InvalidArguments(t *testing.T) {
 func TestGetDocumentTool_EmptyID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("get_document")
 	require.True(t, ok)
@@ -307,7 +322,7 @@ func TestGetDocumentTool_EmptyID(t *testing.T) {
 func TestGetDocumentTool_NotFound(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.GetDocumentFunc = func(_ context.Context, _ string) (*domain.Document, error) {
 		return nil, repo.ErrNotFound
@@ -328,7 +343,7 @@ func TestGetDocumentTool_NotFound(t *testing.T) {
 func TestGetDocumentTool_GenericError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.GetDocumentFunc = func(_ context.Context, _ string) (*domain.Document, error) {
 		return nil, errors.New("db down")
@@ -348,7 +363,7 @@ func TestGetDocumentTool_GenericError(t *testing.T) {
 func TestUpdateDocumentTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("update_document")
 	require.True(t, ok)
@@ -364,7 +379,7 @@ func TestUpdateDocumentTool_InvalidArguments(t *testing.T) {
 func TestUpdateDocumentTool_EmptyID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("update_document")
 	require.True(t, ok)
@@ -380,7 +395,7 @@ func TestUpdateDocumentTool_EmptyID(t *testing.T) {
 func TestUpdateDocumentTool_NotFoundOnInitialGet(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.GetDocumentFunc = func(_ context.Context, _ string) (*domain.Document, error) {
 		return nil, repo.ErrNotFound
@@ -401,7 +416,7 @@ func TestUpdateDocumentTool_NotFoundOnInitialGet(t *testing.T) {
 func TestUpdateDocumentTool_GenericErrorOnInitialGet(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.GetDocumentFunc = func(_ context.Context, _ string) (*domain.Document, error) {
 		return nil, errors.New("db down")
@@ -421,7 +436,7 @@ func TestUpdateDocumentTool_GenericErrorOnInitialGet(t *testing.T) {
 func TestUpdateDocumentTool_UpdateRepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetDocumentFunc = func(_ context.Context, id string) (*domain.Document, error) {
@@ -452,7 +467,7 @@ func TestUpdateDocumentTool_UpdateRepoError(t *testing.T) {
 func TestDeleteDocumentTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("delete_document")
 	require.True(t, ok)
@@ -468,7 +483,7 @@ func TestDeleteDocumentTool_InvalidArguments(t *testing.T) {
 func TestDeleteDocumentTool_EmptyID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("delete_document")
 	require.True(t, ok)
@@ -484,7 +499,7 @@ func TestDeleteDocumentTool_EmptyID(t *testing.T) {
 func TestDeleteDocumentTool_RepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.DeleteDocumentFunc = func(_ context.Context, _ string) error {
 		return errors.New("db down")
@@ -504,7 +519,7 @@ func TestDeleteDocumentTool_RepoError(t *testing.T) {
 func TestListDocumentsTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("list_documents")
 	require.True(t, ok)
@@ -520,7 +535,7 @@ func TestListDocumentsTool_InvalidArguments(t *testing.T) {
 func TestListDocumentsTool_MissingProjectID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	tool, ok := registry.GetTool("list_documents")
 	require.True(t, ok)
@@ -536,7 +551,7 @@ func TestListDocumentsTool_MissingProjectID(t *testing.T) {
 func TestListDocumentsTool_RepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.ListDocumentsFunc = func(_ context.Context, _ string) ([]*domain.Document, error) {
 		return nil, errors.New("db down")
@@ -664,7 +679,7 @@ func TestCreateDocumentTool_RequirementNotInProject(t *testing.T) {
 func TestListDocumentsTool_EmptySliceReturnsEmptyDocumentsArray(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockDocumentRepo{}
-	handler.RegisterDocumentTools(registry, mockRepo)
+	handler.RegisterDocumentTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.ListDocumentsFunc = func(_ context.Context, _ string) ([]*domain.Document, error) {
 		return nil, nil

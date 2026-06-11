@@ -94,10 +94,10 @@ func TestRequirementHandler_ListProjectRequirements_200_WithList(t *testing.T) {
 	t2 := time.Date(2026, 6, 9, 11, 0, 0, 0, time.UTC)
 
 	// project existence check
-	mock.ExpectQuery(`SELECT id, name, description, created_at, updated_at FROM projects WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = \$1`).
 		WithArgs(projectID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-			AddRow(projectID, "Test Project", "", t1, t1))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+			AddRow(projectID, "Test Project", "", "", t1, t1))
 
 	// list requirements
 	mock.ExpectQuery(`SELECT id, project_id, name, description, status, created_at, updated_at FROM requirements WHERE project_id = \$1 ORDER BY created_at ASC`).
@@ -152,10 +152,10 @@ func TestRequirementHandler_ListProjectRequirements_200_EmptyList(t *testing.T) 
 	now := time.Date(2026, 6, 9, 10, 0, 0, 0, time.UTC)
 
 	// project existence check
-	mock.ExpectQuery(`SELECT id, name, description, created_at, updated_at FROM projects WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = \$1`).
 		WithArgs(projectID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-			AddRow(projectID, "Test Project 2", "", now, now))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+			AddRow(projectID, "Test Project 2", "", "", now, now))
 
 	// list requirements — empty result
 	mock.ExpectQuery(`SELECT id, project_id, name, description, status, created_at, updated_at FROM requirements WHERE project_id = \$1 ORDER BY created_at ASC`).
@@ -198,9 +198,9 @@ func TestRequirementHandler_ListProjectRequirements_404_UnknownProject(t *testin
 	unknownProjectID := "00000000-0000-0000-0000-000000000000"
 
 	// project not found
-	mock.ExpectQuery(`SELECT id, name, description, created_at, updated_at FROM projects WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = \$1`).
 		WithArgs(unknownProjectID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}))
 
 	projectRepo := repo.NewProjectRepo(db)
 	reqRepo := repo.NewRequirementRepo(db)

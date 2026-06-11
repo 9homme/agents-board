@@ -19,10 +19,10 @@ import (
 // MockRequirementRepo is a hand-written mock for repo.RequirementRepository used in MCP tool tests.
 type MockRequirementRepo struct {
 	repo.RequirementRepository
-	ListByProjectFunc    func(ctx context.Context, projectID string) ([]domain.Requirement, error)
-	CreateFunc           func(ctx context.Context, req *domain.Requirement) (*domain.Requirement, error)
-	GetRequirementFunc   func(ctx context.Context, id string) (*domain.Requirement, error)
-	UpdateFunc           func(ctx context.Context, id string, patch repo.RequirementPatch) (*domain.Requirement, error)
+	ListByProjectFunc  func(ctx context.Context, projectID string) ([]domain.Requirement, error)
+	CreateFunc         func(ctx context.Context, req *domain.Requirement) (*domain.Requirement, error)
+	GetRequirementFunc func(ctx context.Context, id string) (*domain.Requirement, error)
+	UpdateFunc         func(ctx context.Context, id string, patch repo.RequirementPatch) (*domain.Requirement, error)
 }
 
 func (m *MockRequirementRepo) ListByProject(ctx context.Context, projectID string) ([]domain.Requirement, error) {

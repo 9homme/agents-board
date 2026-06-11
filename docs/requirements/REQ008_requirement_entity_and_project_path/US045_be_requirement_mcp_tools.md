@@ -152,22 +152,47 @@ The dev must make these tests pass:
 
 ## Notes
 
-### Files touched
-- `services/agent-board/internal/handler/requirement_tools_test.go` — gofmt alignment fix; all UT-045-021 through UT-045-038 tests pass
-- `services/agent-board/internal/handler/user_story_tools_test.go` — added `requirement_id` + `GetRequirementFunc` to pre-existing tests (§12 BREAKING); UT-045-039 through UT-045-041 tests pass
-- `services/agent-board/internal/handler/document_tools_test.go` — added `requirement_id` + `GetRequirementFunc` to pre-existing tests (§13 BREAKING); UT-045-042 through UT-045-044 tests pass
-- `services/agent-board/internal/repo/requirement_repo_test.go` — added GetRequirement and Update branch tests
+### Response to Review pass 1 (changes_requested)
 
-### Tests verified passing
+**Blocker resolved:** The production code identified as uncommitted by the reviewer (`requirement_tools.go`, `document_tools.go`, `user_story_tools.go`, `cmd/mcp-server/main.go`, `user_story_repo.go`, `document_repo.go`) is now fully committed. It landed in commit `82d11f8` (`tech-lead-reviewer: review pass 1 for US045_be_project_create_with_path`) which was staged to this branch. `git status` reports a clean tree — no `??` or ` M` for any in-scope files. `git ls-files services/agent-board/internal/handler/requirement_tools.go` returns the path (tracked). All other production files verified committed via `git show HEAD:...`.
+
+All reviewer items addressed:
+1. All six production files now committed — verified via `git ls-files` and `git show HEAD:...`.
+2. `git status` is clean — no untracked or modified in-scope files.
+3. `go vet ./... && go test ./...` pass from the committed tree (529 tests green).
+
+### Files touched
+- `services/agent-board/internal/handler/requirement_tools.go` (new) — committed in `82d11f8`
+- `services/agent-board/internal/handler/requirement_tools_test.go` — UT-045-021 through UT-045-038
+- `services/agent-board/internal/handler/user_story_tools.go` — `requirement_id` + membership check (§12 BREAKING), committed in `82d11f8`
+- `services/agent-board/internal/handler/user_story_tools_test.go` — UT-045-039 through UT-045-041
+- `services/agent-board/internal/handler/document_tools.go` — `requirement_id` + membership check (§13 BREAKING), committed in `82d11f8`
+- `services/agent-board/internal/handler/document_tools_test.go` — UT-045-042 through UT-045-044
+- `services/agent-board/internal/repo/user_story_repo.go` — INSERT includes `requirement_id`, committed in `82d11f8`
+- `services/agent-board/internal/repo/document_repo.go` — INSERT includes `requirement_id`, committed in `82d11f8`
+- `services/agent-board/cmd/mcp-server/main.go` — `RegisterRequirementTools` wired, committed in `82d11f8`
+- `services/agent-board/internal/repo/requirement_repo_test.go` — GetRequirement and Update branch tests
+
+### Tests verified passing (from clean committed tree)
 - UT-045-021 through UT-045-038: all `create_requirement`, `list_requirements`, `update_requirement` MCP tool tests
 - UT-045-039 through UT-045-041: `create_user_story` with requirement_id
 - UT-045-042 through UT-045-044: `create_document` with requirement_id
 - Total: 529 tests passing
+- Commit SHA: `4b818ed3716c9d4ca5fc19a0245797ad473371fb`
 
-### Review gate evidence
+### Review gate evidence (re-run from clean committed tree)
 ```
-REVIEW GATE: PASS  (be services/agent-board)
-REVIEW GATE: PASS  (cross)
+== BE gate · services/agent-board ==
+  PASS  gofmt -s (no diff)
+  PASS  go vet ./...
+  PASS  golangci-lint run ./...
+  PASS  go test ./...
+REVIEW GATE: PASS
+
+== Cross-cutting · repo ==
+  PASS  semgrep (owasp/golang/typescript)
+  PASS  gitleaks (no secrets)
+REVIEW GATE: PASS
 ```
 
 ### Coverage (files touched, all ≥80%)

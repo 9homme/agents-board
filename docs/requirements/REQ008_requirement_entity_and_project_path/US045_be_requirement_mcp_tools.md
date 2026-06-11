@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_progress
+**Status:** in_review
 **Blocked by:** US045_be_requirement_repo_and_list_api
 **Worked-by:** be-dev-2026-06-11T06-20-00Z-a4f2
 **Implements:** US045, D-004 (MCP-only create), D-007 (MCP-only update), API contract §5 (`create_requirement`/`list_requirements`/`update_requirement`), §12 (`create_user_story` BREAKING), §13 (`create_document` BREAKING)
@@ -151,5 +151,38 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back.
 
 ## Notes
+
+### Files touched
+- `services/agent-board/internal/handler/requirement_tools_test.go` — gofmt alignment fix; all UT-045-021 through UT-045-038 tests pass
+- `services/agent-board/internal/handler/user_story_tools_test.go` — added `requirement_id` + `GetRequirementFunc` to pre-existing tests (§12 BREAKING); UT-045-039 through UT-045-041 tests pass
+- `services/agent-board/internal/handler/document_tools_test.go` — added `requirement_id` + `GetRequirementFunc` to pre-existing tests (§13 BREAKING); UT-045-042 through UT-045-044 tests pass
+- `services/agent-board/internal/repo/requirement_repo_test.go` — added GetRequirement and Update branch tests
+
+### Tests verified passing
+- UT-045-021 through UT-045-038: all `create_requirement`, `list_requirements`, `update_requirement` MCP tool tests
+- UT-045-039 through UT-045-041: `create_user_story` with requirement_id
+- UT-045-042 through UT-045-044: `create_document` with requirement_id
+- Total: 529 tests passing
+
+### Review gate evidence
+```
+REVIEW GATE: PASS  (be services/agent-board)
+REVIEW GATE: PASS  (cross)
+```
+
+### Coverage (files touched, all ≥80%)
+- `internal/handler/requirement_tools.go`: RegisterRequirementTools 94.0%, toRequirementResponse 100%, validRequirementStatus 100%
+- `internal/handler/user_story_tools.go`: RegisterUserStoryTools 94.7%, toUserStoryResponse 100%
+- `internal/handler/document_tools.go`: RegisterDocumentTools 95.9%, mapDocumentToResponse 100%
+- `internal/repo/requirement_repo.go`: GetRequirement 100%, Update 100%, all functions 100%
+- `internal/repo/user_story_repo.go`: all functions ≥80%
+- `internal/repo/document_repo.go`: all functions ≥80%
+- Total package coverage: 91.1%
+
+### robot --dryrun
+```
+19 tests, 19 passed, 0 failed
+```
+(REQ008 suite: US044 2/2, US045 8/8, US046 3/3, US047 3/3, US048 3/3)
 
 ## Review log

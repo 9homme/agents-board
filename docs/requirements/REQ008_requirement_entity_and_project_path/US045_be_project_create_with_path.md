@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_progress
+**Status:** in_review
 **Blocked by:** US045_be_requirement_repo_and_list_api
 **Worked-by:** be-dev-2026-06-11T06-20-00Z-a3f1
 **Implements:** US045, D-3 (path validation), D-3b (path uniqueness), D-006 (path required), D-008 (MCP create_project requires path), API contract §1/§2 (projects gain `path`), §3 (`POST /api/v1/projects`)
@@ -159,5 +159,48 @@ The dev must make these tests pass:
 - Dev set status to `in_review` and reported back.
 
 ## Notes
+
+### Files touched
+- `services/agent-board/internal/fsutil/fsutil_test.go` — added FsValidator coverage tests (FsValidator happy path + invalid path, 100%)
+- `services/agent-board/internal/handler/project_handler_test.go` — fixed path field assertions (Len 5→6); added CreateProject HTTP handler tests IT-045-005 through IT-045-013 + UT-045-013; added `mockPathValidator`; added IT-045-013/014 path field assertions
+- `services/agent-board/internal/handler/requirement_handler_test.go` — updated sqlmock SELECT query to include `path` column in project existence check (IT-045-001/002/003)
+- `services/agent-board/internal/handler/requirement_tools_test.go` — gofmt struct alignment fix
+- `services/agent-board/internal/handler/user_story_tools_test.go` — added `requirement_id` to create_user_story test args + configured `GetRequirementFunc` (§12 BREAKING)
+- `services/agent-board/internal/handler/document_tools_test.go` — added `requirement_id` to create_document test args + configured `GetRequirementFunc` (§13 BREAKING)
+- `services/agent-board/internal/repo/requirement_repo_test.go` — added GetRequirement happy/not-found/db-error tests; added Update name+desc branch test
+
+### Tests added (this fix cycle)
+- IT-045-005 through IT-045-012: `POST /api/v1/projects` handler cases (201, 400 missing path, 400 blank path, 400 missing name, 400 blank name, 400 path-is-file, 400 path-not-on-disk, 409 duplicate)
+- UT-045-013: `POST /api/v1/projects` 500 repo error
+- IT-045-013, IT-045-014: GET responses include `path` field
+- `TestFsValidator_ValidatePath_HappyPath`, `TestFsValidator_ValidatePath_InvalidPath`
+- `TestRequirementRepo_GetRequirement_HappyPath`, `TestRequirementRepo_GetRequirement_NotFound`, `TestRequirementRepo_GetRequirement_DBError`
+- `TestRequirementRepo_Update_NameAndDescription`
+- Total: 529 tests passing
+
+### Review gate evidence
+```
+REVIEW GATE: PASS  (be services/agent-board)
+REVIEW GATE: PASS  (cross)
+```
+
+### Coverage (files touched, all ≥80%)
+- `internal/fsutil/fsutil.go`: ValidatePath 100%, NewFsValidator 100%, FsValidator.ValidatePath 100%
+- `internal/handler/project_handler.go`: NewProjectHandler 100%, newProjectHandlerWithValidator 100%, GetProjects 100%, GetProject 100%, CreateProject 94.7%
+- `internal/handler/project_tools.go`: all functions 100%
+- `internal/handler/requirement_tools.go`: RegisterRequirementTools 94.0%, toRequirementResponse 100%, validRequirementStatus 100%
+- `internal/handler/user_story_tools.go`: RegisterUserStoryTools 94.7%, toUserStoryResponse 100%
+- `internal/handler/document_tools.go`: RegisterDocumentTools 95.9%, mapDocumentToResponse 100%
+- `internal/repo/project_repo.go`: all functions 100%
+- `internal/repo/requirement_repo.go`: all functions 100% (GetRequirement 100%, Update 100%)
+- `internal/repo/user_story_repo.go`: all functions ≥80%
+- `internal/repo/document_repo.go`: all functions ≥80%
+- Total package coverage: 91.1%
+
+### robot --dryrun
+```
+19 tests, 19 passed, 0 failed
+```
+(REQ008 suite: US044 2/2, US045 8/8, US046 3/3, US047 3/3, US048 3/3)
 
 ## Review log

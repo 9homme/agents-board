@@ -4,7 +4,7 @@
 **Story:** US045
 **Track:** BE
 **Service:** services/agent-board
-**Status:** in_review
+**Status:** completed
 **Blocked by:** US045_be_requirement_repo_and_list_api
 **Worked-by:** be-dev-2026-06-11T06-20-00Z-a4f2
 **Implements:** US045, D-004 (MCP-only create), D-007 (MCP-only update), API contract §5 (`create_requirement`/`list_requirements`/`update_requirement`), §12 (`create_user_story` BREAKING), §13 (`create_document` BREAKING)
@@ -249,3 +249,45 @@ The implementation is functionally correct and all 529 tests pass IN THE LOCAL W
 - Minor extract divergence (non-blocking): task `## Architecture extract` line 131 specifies `RegisterRequirementTools(registry, requirementRepo, projectRepo)`; implementation uses `(registry, requirementRepo)` and maps FK violations to `ErrProjectNotFound` internally — cleaner, no projectRepo needed. Filed as tech-debt note, not a required change.
 
 Re-review will run from the committed tree once the dev commits and returns the task to `in_review`.
+
+### Review pass 2 — verdict: approved
+
+**Reviewer:** tech-lead-reviewer (Mode 1)
+**Date:** 2026-06-11
+
+Pass 1 blocking finding (production code uncommitted / untracked) is **resolved**. Verified from the committed tree:
+- `git ls-files services/agent-board/internal/handler/requirement_tools.go` returns the path — file is tracked.
+- `git show HEAD:` confirms `requirement_id` present in HEAD versions of `user_story_tools.go`, `document_tools.go`, `user_story_repo.go`, `document_repo.go`; `RegisterRequirementTools(toolRegistry, requirementRepo)` + `repo.NewRequirementRepo(db)` wired in HEAD `cmd/mcp-server/main.go` (lines 61, 84).
+- `git status --porcelain` is clean — no `??`, no ` M` anywhere in the repo.
+
+Independent verification (committed tree):
+- `go vet ./...` clean.
+- `go test ./...` = 529 passed across 11 packages.
+- `go test ./internal/handler/ ./internal/repo/ -count=1` both `ok`.
+- UT-045-021 through UT-045-044 all present in handler test files and passing.
+
+Architecture conformance (§5/§12/§13):
+- `create_requirement`/`list_requirements`/`update_requirement` use snake_case input keys (`project_id`, `requirement_id`); responses camelCase (`projectId`, `createdAt`, `updatedAt`). Status defaults to `draft`; invalid status rejected before repo call; `update_requirement` has no state-machine enforcement (D-007 honoured); all-empty patch delegated to repo (UT-045-037).
+- `create_user_story`/`create_document`: new `requirement_id` snake_case key added; existing keys (`projectId`, `title`, etc.) unchanged camelCase. Membership validated via `GetRequirement`; on not-found and on project mismatch the handler returns BEFORE calling `CreateUserStory`/`CreateDocument` (UT-045-041/044 satisfied).
+- Repo INSERTs: `INSERT INTO user_stories (project_id, requirement_id, title, description, status)` and `INSERT INTO documents (project_id, requirement_id, title, content)` — exact contract column order.
+
+Gate evidence (dev, verified consistent): `REVIEW GATE: PASS` (BE + cross); coverage all ≥80% (package total 91.1%); `robot --dryrun` 19 tests, 19 passed, 0 failed.
+
+```
+== BE gate · services/agent-board ==
+  PASS  gofmt -s (no diff)
+  PASS  go vet ./...
+  PASS  golangci-lint run ./...
+  PASS  go test ./...
+REVIEW GATE: PASS
+
+== Cross-cutting · repo ==
+  PASS  semgrep (owasp/golang/typescript)
+  PASS  gitleaks (no secrets)
+REVIEW GATE: PASS
+```
+Coverage: requirement_tools.go RegisterRequirementTools 94.0% / helpers 100%; user_story_tools.go 94.7%; document_tools.go 95.9%; requirement_repo.go 100%; user_story_repo.go / document_repo.go ≥80%. Package total 91.1%.
+
+**Note on TDG sequence (non-blocking):** the production code reached committed state via a reviewer commit (`82d11f8`) and a `refactor: chore:` hand-off (`b9a6e87`) rather than a clean `green:` commit dedicated to this task. The pass-1 blocker (code would be dropped on merge) is resolved — the code is committed and the suite is green from committed state — so this is not a blocking finding, but it is filed as tech-debt for process hygiene.
+
+Tech-debt: 1 row filed (RegisterRequirementTools 2-arg vs 3-arg extract divergence carried from pass 1, plus TDG-sequence note).

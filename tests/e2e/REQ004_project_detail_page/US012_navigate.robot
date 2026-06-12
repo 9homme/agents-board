@@ -28,15 +28,17 @@ URL Should Not Contain
 
 
 Setup US012 Suite
-    [Documentation]    Creates a test project via MCP and opens a browser.
+    [Documentation]    Creates a test project + requirement via MCP and opens a browser.
     ${random}=         Generate Random String    8    [LETTERS]
     ${name}=           Set Variable    REQ004 US012 E2E ${random}
     Set Suite Variable    ${PROJECT_NAME}    ${name}
     ${session_id}=     Connect To MCP SSE
-    ${resp}=           Create Project Tool    ${session_id}    ${name}    E2E test project description
+    ${resp}=           Create Project Tool    ${session_id}    ${name}    E2E test project description    /e2e/us012-nav
     ${resp_text}=      Set Variable    ${resp.json()['result']['content'][0]['text']}
     ${content}=        Evaluate    json.loads($resp_text)    json
     Set Suite Variable    ${PROJECT_ID}    ${content['id']}
+    # Create a requirement so the User Stories tab can render (REQ008)
+    Create Requirement Tool    ${session_id}    ${content['id']}    Default
     New Browser        headless=True
     New Page           ${WEB_BASE_URL}/
 
@@ -83,7 +85,7 @@ E2E-US012-001 Dashboard click-through to detail page then tab switch
 
     # Step 8: User Stories tab panel active and shows empty state (no stories seeded)
     Wait For Elements State
-    ...    text="No user stories yet for this project."
+    ...    text="No user stories yet for this requirement."
     ...    visible    timeout=10s
 
     # Step 9: switch back to Documents tab
@@ -100,7 +102,7 @@ E2E-US012-002 Direct URL with tab=user-stories survives browser refresh
     # Navigate directly with tab=user-stories
     New Page    ${WEB_BASE_URL}/projects/${PROJECT_ID}?tab=user-stories
     Wait For Elements State
-    ...    text="No user stories yet for this project."
+    ...    text="No user stories yet for this requirement."
     ...    visible    timeout=15s
 
     # Confirm User Stories tab is active
@@ -113,7 +115,7 @@ E2E-US012-002 Direct URL with tab=user-stories survives browser refresh
 
     # After reload: User Stories tab still active, empty state still shown
     Wait For Elements State
-    ...    text="No user stories yet for this project."
+    ...    text="No user stories yet for this requirement."
     ...    visible    timeout=15s
     ${us_tab_after}=    Get Element    role=tab >> text="User Stories"
     ${aria_after}=    Get Attribute    ${us_tab_after}    aria-selected

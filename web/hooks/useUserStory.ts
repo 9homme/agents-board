@@ -50,19 +50,17 @@ function reducer(state: State, action: Action): State {
 /**
  * Race-safe hook that fetches a single user story by id.
  *
- * Uses AbortController + a stale-id ref to ensure that rapid id changes
- * always end with the most-recently-requested story in state.
- * Mirrors the pattern established in useDocument.ts (D-005).
- *
- * Skips the fetch when `storyId` is undefined.
- *
- * @param storyId - The user story id to fetch, or undefined to skip.
+ * Skips the fetch when any of projectId, requirementId, or storyId is undefined.
  */
-export const useUserStory = (storyId: string | undefined): UseUserStoryResult => {
+export const useUserStory = (
+  projectId: string | undefined,
+  requirementId: string | undefined,
+  storyId: string | undefined
+): UseUserStoryResult => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const controllerRef = useRef<AbortController | null>(null);
-  const latestIdRef = useRef<string | undefined>(undefined);
+  const latestKeyRef = useRef<string | undefined>(undefined);
   const [fetchCount, setFetchCount] = useState(0);
 
   const refetch = useCallback(() => {
@@ -70,22 +68,23 @@ export const useUserStory = (storyId: string | undefined): UseUserStoryResult =>
   }, []);
 
   useEffect(() => {
-    if (storyId === undefined) {
+    if (!projectId || !requirementId || !storyId) {
       return;
     }
 
-    // Abort any in-flight request from the previous storyId
+    const compositeKey = `${projectId}|${requirementId}|${storyId}`;
+
     controllerRef.current?.abort();
 
     const controller = new AbortController();
     controllerRef.current = controller;
-    latestIdRef.current = storyId;
+    latestKeyRef.current = compositeKey;
 
     dispatch({ type: 'FETCH_STARTED' });
 
-    fetchUserStory(storyId, controller.signal)
+    fetchUserStory(projectId, requirementId, storyId, controller.signal)
       .then((story) => {
-        if (latestIdRef.current === storyId) {
+        if (latestKeyRef.current === compositeKey) {
           dispatch({ type: 'FETCH_SUCCEEDED', story });
         }
       })
@@ -95,7 +94,7 @@ export const useUserStory = (storyId: string | undefined): UseUserStoryResult =>
           return;
         }
 
-        if (latestIdRef.current !== storyId) return;
+        if (latestKeyRef.current !== compositeKey) return;
 
         const error: ApiError | Error =
           err instanceof ApiError
@@ -109,7 +108,7 @@ export const useUserStory = (storyId: string | undefined): UseUserStoryResult =>
     return () => {
       controller.abort();
     };
-  }, [storyId, fetchCount]);
+  }, [projectId, requirementId, storyId, fetchCount]);
 
   return { data: state.data, isLoading: state.isLoading, error: state.error, refetch };
 };

@@ -29,9 +29,15 @@ Call MCP Tool
 
 # Additional keywords for specific tools
 Create Project Tool
-    [Arguments]    ${session_id}    ${name}    ${description}=${EMPTY}
-    ${args}=    Create Dictionary    name=${name}    description=${description}
+    [Arguments]    ${session_id}    ${name}    ${description}=${EMPTY}    ${path}=${EMPTY}
+    ${args}=    Create Dictionary    name=${name}    description=${description}    path=${path}
     ${resp}=    Call MCP Tool    ${session_id}    create_project    ${args}
+    RETURN    ${resp}
+
+Create Requirement Tool
+    [Arguments]    ${session_id}    ${project_id}    ${name}    ${description}=${EMPTY}
+    ${args}=    Create Dictionary    project_id=${project_id}    name=${name}    description=${description}
+    ${resp}=    Call MCP Tool    ${session_id}    create_requirement    ${args}
     RETURN    ${resp}
 
 Get Project Tool
@@ -62,8 +68,8 @@ List Projects Tool
 
 # Document Tools
 Create Document Tool
-    [Arguments]    ${session_id}    ${project_id}    ${title}    ${content}
-    ${args}=    Create Dictionary    projectId=${project_id}    title=${title}    content=${content}
+    [Arguments]    ${session_id}    ${project_id}    ${requirement_id}    ${title}    ${content}
+    ${args}=    Create Dictionary    projectId=${project_id}    requirement_id=${requirement_id}    title=${title}    content=${content}
     ${resp}=    Call MCP Tool    ${session_id}    create_document    ${args}
     RETURN    ${resp}
 
@@ -95,8 +101,8 @@ List Documents Tool
 
 # User Story Tools
 Create User Story Tool
-    [Arguments]    ${session_id}    ${project_id}    ${title}    ${description}    ${status}=draft
-    ${args}=    Create Dictionary    projectId=${project_id}    title=${title}    description=${description}    status=${status}
+    [Arguments]    ${session_id}    ${project_id}    ${requirement_id}    ${title}    ${description}    ${status}=draft
+    ${args}=    Create Dictionary    projectId=${project_id}    requirement_id=${requirement_id}    title=${title}    description=${description}    status=${status}
     ${resp}=    Call MCP Tool    ${session_id}    create_user_story    ${args}
     RETURN    ${resp}
 

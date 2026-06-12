@@ -1,7 +1,7 @@
 # US048 — Migrate to fully-nested REST hierarchy (breaking change): remove flat routes, replace with Project → Requirement → UserStory → Task and Project → Requirement → Document
 
 **Requirement:** REQ008 — Requirement entity + project local-path linking
-**Status:** draft
+**Status:** done
 
 **Track:** BE
 
@@ -138,3 +138,8 @@ No UI: backend-only router migration. No FE component, page, or hook changes are
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-12 — verdict: approved
+- **Spec review:** All AC groups covered. Six happy-path nested leaves (US list/detail, task list/detail, document list/detail) → IT-048-001/004/005/009/012/013/017/019/020 + response-shape units UT-048-011..015 (requirementId on US/document list+detail, no taskCount on US detail, no requirementId on task, content on document detail) + E2E-048-001 (3 leaf sub-cases). Full-chain ownership 404s with no leakage: requirement-not-in-project → IT-048-002/007/011/018/022 + UT-048-007; story-not-in-requirement → IT-048-006/010 + UT-048-008; task-not-in-story → IT-048-014/015 + UT-048-009; document-not-in-requirement → IT-048-021 + UT-048-010; project-not-found → IT-048-003; resource-not-found → IT-048-008/016/023; one representative e2e → E2E-048-002. All 8 removed routes return non-200 → IT-048-024..031 + E2E-048-003 (asserts deployed main.go registration). 500 paths → UT-048-001..006; context cancel → UT-048-016. Pyramid honest exactly as the story's tester note directs (mismatch permutations at IT/unit, minimal e2e).
+- **Result review:** Report confirms hierarchy handler tests incl. UT-048-011 (list item requirementId) and UT-048-012 (detail requirementId, no taskCount) plus the nested route handler suite PASS within the 529-test BE suite; E2E-048-001 (golden leaves), E2E-048-002 (chain mismatch 404), E2E-048-003 (8 removed routes non-200) all PASS. No skips. Counts consistent.
+- **Routed to:** none

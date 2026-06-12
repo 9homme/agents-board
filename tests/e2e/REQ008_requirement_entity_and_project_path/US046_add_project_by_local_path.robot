@@ -27,10 +27,11 @@ Open Browser For US046
     New Context
 
 Create Dupe Fixture Project
-    [Documentation]    Creates a project with path=/tmp so the duplicate-path test can conflict with it.
+    [Documentation]    Creates a project with path=/e2e/us046-fixture so duplicate-path test can conflict with it.
     ${random}=    Generate Random String    8    [LETTERS]
+    ${body}=    Create Dictionary    name=Dupe Fixture ${random}    path=/e2e/us046-fixture
     ${response}=    POST    ${API_BASE_URL}/api/v1/projects
-    ...    json={"name": "Dupe Fixture ${random}", "path": "/tmp"}
+    ...    json=${body}
     ...    expected_status=201
     ${proj_id}=    Set Variable    ${response.json()}[id]
     Set Test Variable    ${DUPE_PROJ_ID}    ${proj_id}
@@ -54,11 +55,11 @@ E2E-046-001 Add Project golden path: form opens, submits, project appears in lis
     ...                submit, verify dialog closes and new project appears in the list.
     [Tags]    US046    smoke
     Open Add Project Dialog
-    # Fill path with /tmp (guaranteed real directory on server host)
+    # Fill path with /tmp (guaranteed real directory in container)
     ${random}=    Generate Random String    6    [LETTERS]
-    Fill Text    role=dialog >> [placeholder*=path i]    /tmp
+    Fill Text    id=add-project-path    /tmp
     # Name should auto-fill with "tmp" (basename); override with a unique name
-    Fill Text    role=dialog >> [placeholder*=name i]    E2E046 Project ${random}
+    Fill Text    id=add-project-name    E2E046 Project ${random}
     # Submit
     Click    role=dialog >> role=button >> text=/create|add|submit/i
     # Dialog should close
@@ -80,7 +81,7 @@ E2E-046-002 Add Project: server rejects non-existent path shows inline error
     ...                is shown and the dialog stays open.
     [Tags]    US046    regression
     Open Add Project Dialog
-    Fill Text    role=dialog >> [placeholder*=path i]    /tmp/this-path-does-not-exist-e2e-us046-x99z
+    Fill Text    id=add-project-path    /tmp/this-path-does-not-exist-e2e-us046-x99z
     # Name auto-fills; we don't need to touch it
     Click    role=dialog >> role=button >> text=/create|add|submit/i
     # Inline error should appear within the dialog
@@ -91,13 +92,13 @@ E2E-046-002 Add Project: server rejects non-existent path shows inline error
     Get Element States    role=dialog    contains    visible
 
 E2E-046-003 Add Project: duplicate path shows DUPLICATE_PATH inline error
-    [Documentation]    Creates a fixture project with path=/tmp, then submits the form
+    [Documentation]    Creates a fixture project with path=/e2e/us046-fixture, then submits the form
     ...                with the same path and expects the 409 DUPLICATE_PATH error inline.
     [Tags]    US046    regression
     [Setup]    Create Dupe Fixture Project
     [Teardown]    Delete Dupe Fixture Project
     Open Add Project Dialog
-    Fill Text    role=dialog >> [placeholder*=path i]    /tmp
+    Fill Text    id=add-project-path    /e2e/us046-fixture
     Click    role=dialog >> role=button >> text=/create|add|submit/i
     # The 409 DUPLICATE_PATH error message should appear inline
     Wait For Elements State

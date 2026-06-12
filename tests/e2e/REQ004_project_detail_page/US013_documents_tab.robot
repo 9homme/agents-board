@@ -31,7 +31,7 @@ Setup US013 Suite
     ${project_name}=   Set Variable    REQ004 US013 E2E ${random}
     ${session_id}=     Connect To MCP SSE
 
-    ${proj_resp}=    Create Project Tool    ${session_id}    ${project_name}    US013 E2E test project
+    ${proj_resp}=    Create Project Tool    ${session_id}    ${project_name}    US013 E2E test project    /e2e/us013-docs
     # Pass the text via `$var` (Python variable reference) NOT interpolation —
     # the doc content contains literal \n which Python would interpret as newline,
     # breaking JSON validity if used inside triple-quoted Evaluate expressions.
@@ -39,16 +39,22 @@ Setup US013 Suite
     ${proj_content}=    Evaluate    json.loads($proj_text)    json
     Set Suite Variable    ${PROJECT_ID}    ${proj_content['id']}
 
+    # Create a requirement for this project
+    ${req_resp}=    Create Requirement Tool    ${session_id}    ${PROJECT_ID}    Default
+    ${req_text}=    Set Variable    ${req_resp.json()['result']['content'][0]['text']}
+    ${req_content}=    Evaluate    json.loads($req_text)    json
+    ${requirement_id}=    Set Variable    ${req_content['id']}
+
     # Create Doc1 first (older updated_at)
     ${doc1_content_body}=    Set Variable    \# First\n\nHello from doc 1.
-    ${doc1_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    First Document    ${doc1_content_body}
+    ${doc1_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    ${requirement_id}    First Document    ${doc1_content_body}
     ${doc1_text}=    Set Variable    ${doc1_resp.json()['result']['content'][0]['text']}
     ${doc1_content}=    Evaluate    json.loads($doc1_text)    json
     Set Suite Variable    ${DOC1_ID}    ${doc1_content['id']}
 
     # Create Doc2 second (newer updated_at — will be listed first by the API)
     ${doc2_content_body}=    Set Variable    \# Second\n\nHello from doc 2.
-    ${doc2_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    Second Document    ${doc2_content_body}
+    ${doc2_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    ${requirement_id}    Second Document    ${doc2_content_body}
     ${doc2_text}=    Set Variable    ${doc2_resp.json()['result']['content'][0]['text']}
     ${doc2_content}=    Evaluate    json.loads($doc2_text)    json
 
@@ -70,8 +76,8 @@ E2E-US013-001 Documents tab auto-selects first document; click another updates p
     Wait For Elements State    role=option >> text=First Document    visible    timeout=5s
 
     # Second Document should be first in the sidebar (created later → newer updated_at)
-    ${sidebar_items}=    Get Elements    role=option
-    # Fallback: look for the first text content in the sidebar
+    # Scope to the Documents listbox to avoid picking up RequirementSelector options
+    ${sidebar_items}=    Get Elements    [aria-label="Documents"] [role="option"]
     ${first_item_text}=    Get Text    ${sidebar_items}[0]
     Should Contain    ${first_item_text}    Second Document
 

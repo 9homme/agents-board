@@ -15,12 +15,16 @@ ${SESSION_ID}    ${EMPTY}
 Connect And Create Base Entities
     ${session_id}=    Connect To MCP SSE
     Set Suite Variable    ${SESSION_ID}    ${session_id}
-    
-    ${proj_resp}=    Create Project Tool    ${SESSION_ID}    Test Project US008    State Machine Test Project
+
+    ${proj_resp}=    Create Project Tool    ${SESSION_ID}    Test Project US008    State Machine Test Project    /e2e/us008-state
     ${proj_content}=    Evaluate    json.loads('''${proj_resp.json()['result']['content'][0]['text']}''')    json
     Set Suite Variable    ${PROJECT_ID}    ${proj_content['id']}
 
-    ${story_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    Test Story US008    Story for task testing    draft
+    ${req_resp}=    Create Requirement Tool    ${SESSION_ID}    ${PROJECT_ID}    Default
+    ${req_content}=    Evaluate    json.loads('''${req_resp.json()['result']['content'][0]['text']}''')    json
+    ${requirement_id}=    Set Variable    ${req_content['id']}
+
+    ${story_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    ${requirement_id}    Test Story US008    Story for task testing    draft
     ${story_content}=    Evaluate    json.loads('''${story_resp.json()['result']['content'][0]['text']}''')    json
     Set Suite Variable    ${STORY_ID}    ${story_content['id']}
 

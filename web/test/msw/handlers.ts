@@ -359,4 +359,78 @@ export const handlers = [
       ],
     })
   }),
+
+  // §10 GET /api/v1/projects/:pid/requirements/:rid/documents/:did — single document with content
+  http.get('*/api/v1/projects/:pid/requirements/:rid/documents/:did', ({ params }) => {
+    const pid = typeof params.pid === 'string' ? params.pid : String(params.pid)
+    const rid = typeof params.rid === 'string' ? params.rid : String(params.rid)
+    const did = typeof params.did === 'string' ? params.did : String(params.did)
+    if (did === 'broken-document' || did === 'doc-bad') {
+      return HttpResponse.json({ code: 'INTERNAL_ERROR', message: 'Failed to fetch document' }, { status: 500 })
+    }
+    if (did === 'not-found-document') {
+      return HttpResponse.json({ code: 'NOT_FOUND', message: 'Document not found' }, { status: 404 })
+    }
+    const knownContent: Record<string, string> = {
+      'd111aaaa-1111-1111-1111-111111111111': '# Architecture\n\nThis project uses…\n\n```mermaid\ngraph TD; A-->B;\n```\n',
+      'd222bbbb-2222-2222-2222-222222222222': '# Onboarding\n\nWelcome.',
+    }
+    const knownMeta: Record<string, { title: string; createdAt: string; updatedAt: string }> = {
+      'd111aaaa-1111-1111-1111-111111111111': { title: 'Architecture overview', createdAt: '2026-05-18T08:30:00Z', updatedAt: '2026-05-20T09:45:00Z' },
+      'd222bbbb-2222-2222-2222-222222222222': { title: 'Onboarding guide', createdAt: '2026-05-15T11:00:00Z', updatedAt: '2026-05-19T16:20:00Z' },
+    }
+    const meta = knownMeta[did] ?? { title: 'Test Document', createdAt: '2026-05-20T10:00:00Z', updatedAt: '2026-05-20T10:00:00Z' }
+    return HttpResponse.json({
+      id: did,
+      projectId: pid,
+      requirementId: rid,
+      title: meta.title,
+      content: knownContent[did] ?? '# Test',
+      createdAt: meta.createdAt,
+      updatedAt: meta.updatedAt,
+    })
+  }),
+
+  // §6 GET /api/v1/projects/:pid/requirements/:rid/user-stories/:sid/tasks — must be before detail
+  http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/:sid/tasks', ({ params }) => {
+    const sid = typeof params.sid === 'string' ? params.sid : String(params.sid)
+    if (sid === 'broken-story') {
+      return HttpResponse.json({ code: 'INTERNAL_ERROR', message: 'Failed to fetch tasks' }, { status: 500 })
+    }
+    if (sid === 'not-found-story') {
+      return HttpResponse.json({ code: 'NOT_FOUND', message: 'User story not found' }, { status: 404 })
+    }
+    if (sid === 'us-empty') {
+      return HttpResponse.json({ tasks: [] })
+    }
+    return HttpResponse.json({
+      tasks: [
+        { id: 'task-001', userStoryId: sid, title: 'be_basket_repo', description: 'Implement the basket repository layer.', status: 'completed', createdAt: '2024-01-01T10:00:00Z', updatedAt: '2024-01-02T11:00:00Z' },
+        { id: 'task-002', userStoryId: sid, title: 'fe_basket_button', description: 'Add the add-to-basket button.', status: 'in_review', createdAt: '2024-01-02T10:00:00Z', updatedAt: '2024-01-03T11:00:00Z' },
+      ],
+    })
+  }),
+
+  // §6 GET /api/v1/projects/:pid/requirements/:rid/user-stories/:sid — single story detail
+  http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/:sid', ({ params }) => {
+    const pid = typeof params.pid === 'string' ? params.pid : String(params.pid)
+    const rid = typeof params.rid === 'string' ? params.rid : String(params.rid)
+    const sid = typeof params.sid === 'string' ? params.sid : String(params.sid)
+    if (sid === 'broken-story') {
+      return HttpResponse.json({ code: 'INTERNAL_ERROR', message: 'Failed to fetch user story' }, { status: 500 })
+    }
+    if (sid === 'not-found-story') {
+      return HttpResponse.json({ code: 'NOT_FOUND', message: 'User story not found' }, { status: 404 })
+    }
+    return HttpResponse.json({
+      id: sid,
+      projectId: pid,
+      requirementId: rid,
+      title: 'Add item to basket',
+      description: 'As a shopper I want to add an item to my basket so that I can purchase it later.',
+      status: 'in_development',
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-02T09:30:00Z',
+    })
+  }),
 ]

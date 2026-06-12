@@ -45,17 +45,16 @@ export const fetchProjectDocuments = async (
 
 /**
  * Fetch a single document including its raw markdown content.
- * Corresponds to GET /api/v1/documents/{documentId}.
- *
- * @param documentId - The document id (will be URL-encoded).
- * @param signal     - Optional AbortSignal for request cancellation (D-005).
+ * Corresponds to GET /api/v1/projects/{projectId}/requirements/{requirementId}/documents/{documentId} (§10).
  */
 export const fetchDocument = async (
+  projectId: string,
+  requirementId: string,
   documentId: string,
   signal?: AbortSignal
 ): Promise<Document> => {
   return fetchClient<Document>(
-    `/api/v1/documents/${encodeURIComponent(documentId)}`,
+    `/api/v1/projects/${encodeURIComponent(projectId)}/requirements/${encodeURIComponent(requirementId)}/documents/${encodeURIComponent(documentId)}`,
     { signal }
   );
 };

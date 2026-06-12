@@ -1,7 +1,7 @@
 # US044 — Introduce Requirement entity + re-parent model
 
 **Requirement:** REQ008 — Requirement entity + project local-path linking
-**Status:** draft
+**Status:** done
 
 ## Story
 As a system maintainer, I want a first-class Requirement (REQ) entity between Project and User Story, with existing User Stories and Documents re-parented under a Requirement and a `path` column added to Project, so that the data model matches how work is organised on disk (`docs/requirements/REQ[ID]_*/`) and nothing in the current dataset is lost.
@@ -60,3 +60,8 @@ No UI: this story is the data-model + migration + domain-type foundation only. U
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-12 — verdict: approved
+- **Spec review:** All 8 AC scenarios map to tests. Requirement table + columns + FK/CASCADE/index → IT-044-001. Status enum default → UT-044-001/002 + IT-044-001 CHECK constraint. user_stories.requirement_id NOT NULL + FK → IT-044-002 (incl. NULL-insert violation edge). documents.requirement_id NOT NULL + FK → IT-044-003. Default-requirement backfill (one per project) → IT-044-004; zero-data-loss re-parenting → IT-044-005 (stories) + IT-044-006 (documents); no-orphans invariant → IT-044-010. projects.path TEXT NOT NULL + unique → IT-044-007, duplicate-rejection edge → IT-044-008. Domain models (Requirement type, RequirementId on UserStory/Document, Path on Project) → UT-044-003/004/005/006. Reversible migration → IT-044-009 (down path correctly noted as documentation-only). Pyramid is honest: schema/backfill at integration, struct shape at unit, only a single read-path smoke at e2e.
+- **Result review:** Report shows UT-044-001..006 PASS and IT-044-001–010 (migration suite) PASS; E2E-044-001 (path field on read path) and E2E-044-002 (Default requirement post-migration) PASS. No skips. Counts consistent with the spec.
+- **Routed to:** none

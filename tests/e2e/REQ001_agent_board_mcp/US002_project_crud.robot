@@ -9,7 +9,7 @@ Scenario: Full Project CRUD Lifecycle
     ${session_id}=    Connect To MCP SSE
     
     # Create
-    ${resp}=    Create Project Tool    ${session_id}    Test Project    Initial description
+    ${resp}=    Create Project Tool    ${session_id}    Test Project    Initial description    /e2e/us002-crud
     ${project}=    Set Variable    ${resp.json()['result']['content'][0]['text']}
     # Note: text is JSON string according to architecture
     ${project_json}=    Evaluate    json.loads('''${project}''')    json

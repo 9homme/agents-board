@@ -1,7 +1,7 @@
 # US046 — Add Project from web by linking a local path
 
 **Requirement:** REQ008 — Requirement entity + project local-path linking
-**Status:** draft
+**Status:** done
 
 ## Story
 As a user of the dashboard, I want to add a new project by typing the full local path in a plain text field and a name (auto-filled from the path basename, editable), so that the project is linked to a multi-agents project directory on my disk.
@@ -63,3 +63,8 @@ As a user of the dashboard, I want to add a new project by typing the full local
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-12 — verdict: approved
+- **Spec review:** All 7 AC scenarios covered. Open form → FCT-046-001/002. Plain text path field (no suggestions) → FCT-046-003 (asserts type=text, not file/combobox/search — matches D-005). Name auto-fill from basename + sticky-off on manual edit → FCT-046-004/005. Successful create (dialog closes, list refreshes) → FCT-046-012 + E2E-046-001. Client-side empty-field validation (submit disabled, no request) → FCT-046-006/007/008/009. Server error surfaced inline with input preserved (400 VALIDATION_ERROR vs 409 DUPLICATE_PATH distinguished) → FCT-046-013/014/015 + E2E-046-002/003. In-flight loading + double-submit prevention → FCT-046-010/011. Hook/API-client contract (body shape, typed Project incl. path, abort-on-unmount) → FCT-046-016..023. Accessibility surface → FCT-046-024/025/026. Pyramid honest — e2e limited to the FE↔BE round-trips needing real os.Stat; loading/disabled/auto-fill/abort correctly kept at FCT.
+- **Result review:** Report shows FCT-046-001 through FCT-046-026 PASS (all 26) within the 260-test FE suite; E2E-046-001 (golden path), E2E-046-002 (non-existent path inline error), E2E-046-003 (DUPLICATE_PATH inline error) all PASS. No skips. Counts consistent.
+- **Routed to:** none

@@ -79,9 +79,14 @@ export const UserStoriesTab: React.FC<UserStoriesTabProps> = ({ projectId, requi
         )}
       </div>
 
-      {/* Detail drawer — mounted only when a story is selected */}
-      {selectedStoryId !== null && (
-        <UserStoryDrawer storyId={selectedStoryId} onClose={handleClose} />
+      {/* Detail drawer — mounted only when a story is selected and requirement is known */}
+      {selectedStoryId !== null && requirementId !== undefined && (
+        <UserStoryDrawer
+          projectId={projectId}
+          requirementId={requirementId}
+          storyId={selectedStoryId}
+          onClose={handleClose}
+        />
       )}
     </div>
   );

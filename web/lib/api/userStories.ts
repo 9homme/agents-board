@@ -43,34 +43,32 @@ export const fetchProjectUserStories = async (
 
 /**
  * Fetch a single user story's detail (no tasks embedded, no taskCount).
- * Corresponds to GET /api/v1/user-stories/{id}.
- *
- * @param storyId - The user story id (will be URL-encoded).
- * @param signal  - Optional AbortSignal for request cancellation.
+ * Corresponds to GET /api/v1/projects/{projectId}/requirements/{requirementId}/user-stories/{storyId} (§6).
  */
 export const fetchUserStory = async (
+  projectId: string,
+  requirementId: string,
   storyId: string,
   signal?: AbortSignal
 ): Promise<UserStory> => {
   return fetchClient<UserStory>(
-    `/api/v1/user-stories/${encodeURIComponent(storyId)}`,
+    `/api/v1/projects/${encodeURIComponent(projectId)}/requirements/${encodeURIComponent(requirementId)}/user-stories/${encodeURIComponent(storyId)}`,
     { signal }
   );
 };
 
 /**
  * Fetch all tasks for a user story.
- * Corresponds to GET /api/v1/user-stories/{id}/tasks.
- *
- * @param storyId - The user story id (will be URL-encoded).
- * @param signal  - Optional AbortSignal for request cancellation.
+ * Corresponds to GET /api/v1/projects/{projectId}/requirements/{requirementId}/user-stories/{storyId}/tasks (§6).
  */
 export const fetchUserStoryTasks = async (
+  projectId: string,
+  requirementId: string,
   storyId: string,
   signal?: AbortSignal
 ): Promise<TasksListResponse> => {
   return fetchClient<TasksListResponse>(
-    `/api/v1/user-stories/${encodeURIComponent(storyId)}/tasks`,
+    `/api/v1/projects/${encodeURIComponent(projectId)}/requirements/${encodeURIComponent(requirementId)}/user-stories/${encodeURIComponent(storyId)}/tasks`,
     { signal }
   );
 };

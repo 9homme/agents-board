@@ -19,7 +19,7 @@ US007 View Project Dashboard End-to-End
     ${project_name}=    Set Variable    Dashboard E2E Test ${random}
     ${project_desc}=    Set Variable    Created by Robot ${random}
     ${session_id}=    Connect To MCP SSE
-    ${resp}=    Create Project Tool    ${session_id}    ${project_name}    ${project_desc}
+    ${resp}=    Create Project Tool    ${session_id}    ${project_name}    ${project_desc}    /e2e/us007-dashboard
     
     # Action: View dashboard
     New Page           ${WEB_BASE_URL}/

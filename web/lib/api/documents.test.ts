@@ -49,7 +49,7 @@ describe('fetchProjectDocuments', () => {
 
 describe('fetchDocument', () => {
   it('returns Document with content on 200', async () => {
-    const result = await fetchDocument('d111aaaa-1111-1111-1111-111111111111');
+    const result = await fetchDocument('p1', 'req-001', 'd111aaaa-1111-1111-1111-111111111111');
     expect(result.id).toBe('d111aaaa-1111-1111-1111-111111111111');
     expect(result.title).toBe('Architecture overview');
     expect(result.content).toBeDefined();
@@ -59,28 +59,28 @@ describe('fetchDocument', () => {
   });
 
   it('throws ApiError with NOT_FOUND on 404', async () => {
-    await expect(fetchDocument('not-found-document')).rejects.toBeInstanceOf(ApiError);
+    await expect(fetchDocument('p1', 'req-001', 'not-found-document')).rejects.toBeInstanceOf(ApiError);
     try {
-      await fetchDocument('not-found-document');
+      await fetchDocument('p1', 'req-001', 'not-found-document');
     } catch (err) {
       expect((err as ApiError).code).toBe('NOT_FOUND');
     }
   });
 
   it('throws ApiError with INTERNAL_ERROR on 500', async () => {
-    await expect(fetchDocument('broken-document')).rejects.toBeInstanceOf(ApiError);
+    await expect(fetchDocument('p1', 'req-001', 'broken-document')).rejects.toBeInstanceOf(ApiError);
   });
 
   it('passes signal to fetch (AbortSignal pass-through)', async () => {
     const controller = new AbortController();
     server.use(
-      http.get('*/api/v1/documents/d111aaaa-1111-1111-1111-111111111111', async () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/documents/d111aaaa-1111-1111-1111-111111111111', async () => {
         await delay('infinite');
         return HttpResponse.json({});
       })
     );
 
-    const promise = fetchDocument('d111aaaa-1111-1111-1111-111111111111', controller.signal);
+    const promise = fetchDocument('p1', 'req-001', 'd111aaaa-1111-1111-1111-111111111111', controller.signal);
     controller.abort();
 
     await expect(promise).rejects.toThrow();
@@ -90,16 +90,15 @@ describe('fetchDocument', () => {
 // signal pass-through test for client.ts
 describe('fetchClient signal pass-through', () => {
   it('forwards signal to fetch so abort cancels in-flight requests', async () => {
-    // We test indirectly by verifying the fetch is aborted when signal fires
     const controller = new AbortController();
     server.use(
-      http.get('*/api/v1/documents/d222bbbb-2222-2222-2222-222222222222', async () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/documents/d222bbbb-2222-2222-2222-222222222222', async () => {
         await delay('infinite');
         return HttpResponse.json({});
       })
     );
 
-    const promise = fetchDocument('d222bbbb-2222-2222-2222-222222222222', controller.signal);
+    const promise = fetchDocument('p1', 'req-001', 'd222bbbb-2222-2222-2222-222222222222', controller.signal);
     controller.abort();
 
     await expect(promise).rejects.toThrow();

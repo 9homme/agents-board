@@ -20,20 +20,26 @@ ${PROJECT_ID}         ${EMPTY}
 Setup US043 Suite
     ${session_id}=     Connect To MCP SSE
     ${random}=         Generate Random String    8    [LETTERS]
-    ${proj_resp}=      Create Project Tool    ${session_id}    US043 Project ${random}
+    ${proj_resp}=      Create Project Tool    ${session_id}    US043 Project ${random}    ${EMPTY}    /e2e/us043-proj
     ${proj_text}=      Set Variable    ${proj_resp.json()['result']['content'][0]['text']}
     ${proj_content}=   Evaluate    json.loads($proj_text)    json
     Set Suite Variable    ${PROJECT_ID}    ${proj_content['id']}
 
+    # Requirement for this project
+    ${req_resp}=       Create Requirement Tool    ${session_id}    ${PROJECT_ID}    Default
+    ${req_text}=       Set Variable    ${req_resp.json()['result']['content'][0]['text']}
+    ${req_content}=    Evaluate    json.loads($req_text)    json
+    ${req_id}=         Set Variable    ${req_content['id']}
+
     # Story 1: 2 tasks
-    ${s1_resp}=        Create User Story Tool    ${session_id}    ${PROJECT_ID}    US043 Story 1    Full description for story 1
+    ${s1_resp}=        Create User Story Tool    ${session_id}    ${PROJECT_ID}    ${req_id}    US043 Story 1    Full description for story 1
     ${s1_text}=        Set Variable    ${s1_resp.json()['result']['content'][0]['text']}
     ${s1_content}=     Evaluate    json.loads($s1_text)    json
     Create Task Tool    ${session_id}    ${s1_content['id']}    Task A    Description A
     Create Task Tool    ${session_id}    ${s1_content['id']}    Task B    Description B
 
     # Story 2: 0 tasks
-    Create User Story Tool    ${session_id}    ${PROJECT_ID}    US043 Story 2    Full description for story 2
+    Create User Story Tool    ${session_id}    ${PROJECT_ID}    ${req_id}    US043 Story 2    Full description for story 2
 
     New Browser    headless=True
 

@@ -96,7 +96,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({ projectId, requireme
     isLoading: docLoading,
     error: docError,
     refetch: refetchDoc,
-  } = useDocument(isBogusDeepLink ? undefined : selectedDocId);
+  } = useDocument(projectId, requirementId, isBogusDeepLink ? undefined : selectedDocId);
 
   const handleSelectDoc = (id: string) => {
     void router.replace(

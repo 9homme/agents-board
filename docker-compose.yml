@@ -29,6 +29,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # e2e test path stubs — mounted read-only so Robot suites can pass /e2e/<id> paths
+    # that satisfy the filesystem-existence check in fsutil.ValidatePath.
+    volumes:
+      - ./tests/e2e/data/paths:/e2e:ro
     # NOTE: api-server runtime is distroless (no shell, no wget/curl). Container-level
     # healthcheck removed — the Makefile's `e2e-up` performs the real host-side
     # `curl http://localhost:8080/api/v1/projects` poll loop before declaring ready.
@@ -51,6 +55,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # same e2e path stubs as api-server — mcp-server validates paths before forwarding
+    volumes:
+      - ./tests/e2e/data/paths:/e2e:ro
 
   web:
     build:

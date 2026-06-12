@@ -28,9 +28,10 @@ Setup US047 Suite
     Set Suite Variable    ${SESSION_ID}    ${session_id}
     ${random}=    Generate Random String    8    [LETTERS]
 
-    # Create project with path=/tmp
+    # Create project with path=/e2e/us047-proj (volume-mounted stub dir)
+    ${proj_body}=    Create Dictionary    name=US047 Project ${random}    path=/e2e/us047-proj
     ${proj_resp}=    POST    ${API_BASE_URL}/api/v1/projects
-    ...    json={"name": "US047 Project ${random}", "path": "/tmp"}
+    ...    json=${proj_body}
     ...    expected_status=201
     ${proj_id}=    Set Variable    ${proj_resp.json()}[id]
     Set Suite Variable    ${PROJ_ID}    ${proj_id}
@@ -45,7 +46,7 @@ Setup US047 Suite
     # Create user story under the requirement via MCP
     ${story_args}=    Create Dictionary
     ...    projectId=${proj_id}
-    ...    requirementId=${req_content}[id]
+    ...    requirement_id=${req_content}[id]
     ...    title=US047 Story ${random}
     ...    description=Story for e2e navigation test
     ...    status=draft
@@ -53,8 +54,9 @@ Setup US047 Suite
 
     # Create a second project with NO requirements (freshly created, post-migration)
     ${random2}=    Generate Random String    8    [LETTERS]
+    ${empty_body}=    Create Dictionary    name=US047 Empty ${random2}    path=/e2e/us047-empty
     ${empty_proj_resp}=    POST    ${API_BASE_URL}/api/v1/projects
-    ...    json={"name": "US047 Empty ${random2}", "path": "/var/tmp"}
+    ...    json=${empty_body}
     ...    expected_status=201
     Set Suite Variable    ${EMPTY_PROJ_ID}    ${empty_proj_resp.json()}[id]
 
@@ -77,8 +79,8 @@ E2E-047-001 Project detail page shows linked path in header and requirements lis
     New Page    ${WEB_BASE_URL}/projects/${PROJ_ID}
     # Wait for the page to load (project header visible)
     Wait For Elements State    text=/US047 Project/i    visible    timeout=10s
-    # Assert path is shown in the header
-    Wait For Elements State    text=/tmp    visible    timeout=5s
+    # Assert path is shown in the header (substring match avoids regex slash ambiguity)
+    Wait For Elements State    text=us047-proj    visible    timeout=5s
     # Assert requirements list has at least one item
     Wait For Elements State    text=/US047 REQ/i    visible    timeout=5s
 
@@ -106,5 +108,5 @@ E2E-047-003 New project with no requirements shows empty-state message
     Wait For Elements State    text=/US047 Empty/i    visible    timeout=10s
     # Empty state for requirements area
     Wait For Elements State    text=/no requirements/i    visible    timeout=5s
-    # Project header and path should still render
-    Wait For Elements State    text=/var/tmp    visible    timeout=3s
+    # Project header and path should still render (substring match avoids regex slash ambiguity)
+    Wait For Elements State    text=us047-empty    visible    timeout=3s

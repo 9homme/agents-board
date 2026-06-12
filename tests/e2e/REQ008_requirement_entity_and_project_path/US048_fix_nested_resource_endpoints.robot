@@ -32,9 +32,10 @@ Setup US048 Suite
     Set Suite Variable    ${SESSION_ID}    ${session_id}
     ${random}=    Generate Random String    8    [LETTERS]
 
-    # Project P with path=/tmp
+    # Project P with path=/e2e/us048-p (volume-mounted stub dir)
+    ${p_body}=    Create Dictionary    name=US048 P ${random}    path=/e2e/us048-p
     ${p_resp}=    POST    ${API_BASE_URL}/api/v1/projects
-    ...    json={"name": "US048 P ${random}", "path": "/tmp"}
+    ...    json=${p_body}
     ...    expected_status=201
     Set Suite Variable    ${PROJ_P}    ${p_resp.json()}[id]
 
@@ -48,7 +49,7 @@ Setup US048 Suite
     # UserStory S in R
     ${s_args}=    Create Dictionary
     ...    projectId=${PROJ_P}
-    ...    requirementId=${REQ_R}
+    ...    requirement_id=${REQ_R}
     ...    title=US048 Story ${random}
     ...    description=hierarchy e2e story
     ...    status=draft
@@ -71,7 +72,7 @@ Setup US048 Suite
     # Document D in R
     ${d_args}=    Create Dictionary
     ...    projectId=${PROJ_P}
-    ...    requirementId=${REQ_R}
+    ...    requirement_id=${REQ_R}
     ...    title=US048 Doc ${random}
     ...    content=# US048 E2E Document
     ${d_resp}=    Call MCP Tool    ${SESSION_ID}    create_document    ${d_args}
@@ -79,9 +80,10 @@ Setup US048 Suite
     ${d_content}=    Evaluate    json.loads($d_text)    json
     Set Suite Variable    ${DOC_D}    ${d_content}[id]
 
-    # Project P2 for chain-mismatch test, path=/var/tmp
+    # Project P2 for chain-mismatch test, path=/e2e/us048-p2 (volume-mounted stub dir)
+    ${p2_body}=    Create Dictionary    name=US048 P2 ${random}    path=/e2e/us048-p2
     ${p2_resp}=    POST    ${API_BASE_URL}/api/v1/projects
-    ...    json={"name": "US048 P2 ${random}", "path": "/var/tmp"}
+    ...    json=${p2_body}
     ...    expected_status=201
     Set Suite Variable    ${PROJ_P2}    ${p2_resp.json()}[id]
 

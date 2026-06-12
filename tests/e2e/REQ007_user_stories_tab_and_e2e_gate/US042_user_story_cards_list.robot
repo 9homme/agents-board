@@ -19,13 +19,19 @@ Setup US042 Suite
 
     # Project 1: Has stories and tasks
     ${random}=         Generate Random String    8    [LETTERS]
-    ${proj_resp}=      Create Project Tool    ${session_id}    US042 Project ${random}
+    ${proj_resp}=      Create Project Tool    ${session_id}    US042 Project ${random}    ${EMPTY}    /e2e/us042-proj
     ${proj_text}=      Set Variable    ${proj_resp.json()['result']['content'][0]['text']}
     ${proj_content}=   Evaluate    json.loads($proj_text)    json
     Set Suite Variable    ${PROJECT_ID_1}    ${proj_content['id']}
 
+    # Requirement for Project 1
+    ${req_resp}=       Create Requirement Tool    ${session_id}    ${PROJECT_ID_1}    Default
+    ${req_text}=       Set Variable    ${req_resp.json()['result']['content'][0]['text']}
+    ${req_content}=    Evaluate    json.loads($req_text)    json
+    ${req_id}=         Set Variable    ${req_content['id']}
+
     # Story 1: 2 tasks
-    ${s1_resp}=        Create User Story Tool    ${session_id}    ${PROJECT_ID_1}    Story With Tasks    This story has tasks.
+    ${s1_resp}=        Create User Story Tool    ${session_id}    ${PROJECT_ID_1}    ${req_id}    Story With Tasks    This story has tasks.
     ${s1_text}=        Set Variable    ${s1_resp.json()['result']['content'][0]['text']}
     ${s1_content}=     Evaluate    json.loads($s1_text)    json
     Create Task Tool    ${session_id}    ${s1_content['id']}    Task 1    Desc 1
@@ -33,13 +39,14 @@ Setup US042 Suite
 
     # Story 2: 0 tasks, long description
     ${long_desc}=      Set Variable    This is a very long description that should exceed eighty characters so we can verify truncation visually in the browser.
-    Create User Story Tool    ${session_id}    ${PROJECT_ID_1}    Story Without Tasks    ${long_desc}
+    Create User Story Tool    ${session_id}    ${PROJECT_ID_1}    ${req_id}    Story Without Tasks    ${long_desc}
 
-    # Project 2: Empty
-    ${proj2_resp}=     Create Project Tool    ${session_id}    US042 Empty Project
+    # Project 2: Has a requirement but no stories (tests empty-state for stories)
+    ${proj2_resp}=     Create Project Tool    ${session_id}    US042 Empty Project    ${EMPTY}    /e2e/us042-empty
     ${proj2_text}=     Set Variable    ${proj2_resp.json()['result']['content'][0]['text']}
     ${proj2_content}=  Evaluate    json.loads($proj2_text)    json
     Set Suite Variable    ${PROJECT_ID_EMPTY}    ${proj2_content['id']}
+    Create Requirement Tool    ${session_id}    ${proj2_content['id']}    Default
 
     New Browser    headless=True
 
@@ -70,4 +77,4 @@ E2E-US042-002 Empty state when no stories
     New Page    ${WEB_BASE_URL}/projects/${PROJECT_ID_EMPTY}
     Click    role=tab >> text=User Stories
     
-    Wait For Elements State    text=No user stories yet for this project    visible    timeout=10s
+    Wait For Elements State    text=No user stories yet for this requirement    visible    timeout=10s

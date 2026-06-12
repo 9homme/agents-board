@@ -1,7 +1,7 @@
 # US047 — Requirement-level navigation on the project detail page
 
 **Requirement:** REQ008 — Requirement entity + project local-path linking
-**Status:** draft
+**Status:** done
 
 ## Story
 As a user viewing a project, I want to see the project's Requirements and drill into one to view its User Stories and Documents, so that the dashboard reflects the corrected `Project → Requirement → User Story / Document` hierarchy.
@@ -62,3 +62,8 @@ As a user viewing a project, I want to see the project's Requirements and drill 
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-12 — verdict: approved
+- **Spec review:** All 7 AC scenarios covered. Project shows its requirements (name + status) → FCT-047-004/019 + E2E-047-001. Drill into a requirement (scopes US/Documents tabs) → FCT-047-007/009/010 + E2E-047-002. Linked path visible read-only in header → FCT-047-001/002 + E2E-047-001. Empty requirements state → FCT-047-005 + E2E-047-003. Loading state → FCT-047-003/011. Error state (scoped, header still renders) → FCT-047-006/014/015. Deep-link via ?requirement= → FCT-047-008. Hooks/API-client fetch the new requirement-scoped hierarchical URLs (not old flat routes) → FCT-047-017/018/022/023/024; requirementId carried on story/document items → FCT-047-025/026. Default-requirement-for-migrated-project + no-selection placeholder + accessibility → FCT-047-020/021/027/028. Pyramid honest — URL/keyboard/component branches at FCT, full data-flow at e2e.
+- **Result review:** Report shows FCT-047-001 through FCT-047-028 PASS (all 28), plus cross-story hierarchical-endpoint suites (useDocument/useUserStory/useUserStoryTasks/UserStoryDrawer/UserStoriesTab) green; E2E-047-001/002/003 all PASS. No skips. Counts consistent.
+- **Routed to:** none

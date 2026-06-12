@@ -42,8 +42,8 @@ Setup US020 Suite
     ${name2}=          Set Variable    REQ005 US020 Beta ${random}
     Set Suite Variable    ${PROJECT_1_NAME}    ${name1}
     Set Suite Variable    ${PROJECT_2_NAME}    ${name2}
-    ${proj1}=          Create Project Via API    ${name1}    First project for rapid-navigation test
-    ${proj2}=          Create Project Via API    ${name2}    Second project for rapid-navigation test
+    ${proj1}=          Create Project Via API    ${name1}    First project for rapid-navigation test    /e2e/us020-alpha
+    ${proj2}=          Create Project Via API    ${name2}    Second project for rapid-navigation test    /e2e/us020-beta
     Set Suite Variable    ${PROJECT_1_ID}    ${proj1['id']}
     Set Suite Variable    ${PROJECT_2_ID}    ${proj2['id']}
     New Browser        chromium    headless=True

@@ -1,7 +1,7 @@
 # US045 — Requirement read API (HTTP list + MCP create) + project path on create
 
 **Requirement:** REQ008 — Requirement entity + project local-path linking
-**Status:** draft
+**Status:** done
 
 ## Story
 As a frontend client and as the po-ba agent, I want an HTTP API to list Requirements under a project and to create a Project with a validated required local path, plus MCP tools to create and list Requirements, so that the web can navigate the new REQ level (read-only for requirements) and register projects by path, while requirement records are created by po-ba via MCP at the end of Phase 1.
@@ -83,3 +83,8 @@ No UI: this story delivers backend HTTP endpoints + MCP tools + JSON contracts o
 
 ## Sign-off log
 (po-ba appends here on each sign-off pass)
+
+### Sign-off pass 1 — 2026-06-12 — verdict: approved
+- **Spec review:** All 12 AC scenarios covered. List requirements 200 (ordered) → IT-045-001 + UT-045-002; 404 unknown project → IT-045-003; 500 → UT-045-001; empty list → IT-045-002. No-HTTP-create-route → IT-045-004 (route unregistered). create_requirement (default draft, explicit status, validation on blank name/bad status/missing project) → UT-045-021..027. list_requirements (happy, unknown project, repo error) → UT-045-028..030. Project create with valid path 201 → IT-045-005 + UT-045-017 (fsutil exists+dir); missing/blank path 400 → IT-045-006/007 + UT-045-020; invalid path (not on disk / is file) 400 → IT-045-010/011 + UT-045-018/019; duplicate path 409 → IT-045-012 + UT-045-015; path field on list/get → IT-045-013/014. Re-parenting visible post-migration → E2E-045-005. BREAKING create_user_story/create_document requirement_id wiring (also relevant to US045 notes) → UT-045-039..044 + E2E-045-007/008. Edge cases (name validation, context cancel, repo Scan/Query errors) covered by UT-045-008/009/013/014/016/049. Pyramid honest — e2e limited to real-filesystem and shared-repo round-trips that httptest cannot fake.
+- **Result review:** Report confirms fsutil ValidatePath, RequirementHandler list (200/404/500), RequirementRepo, CreateProjectTool (path/duplicate/nonexistent/missing), CreateUserStoryTool/CreateDocumentTool with/without requirement_id all PASS within the 529-test BE suite; E2E-045-001..008 all PASS. No skips. Counts consistent.
+- **Routed to:** none

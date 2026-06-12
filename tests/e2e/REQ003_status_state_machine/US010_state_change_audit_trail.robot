@@ -7,20 +7,25 @@ Resource         ../REQ001_agent_board_mcp/mcp_keywords.resource
 Suite Setup      Connect And Create Base Entities
 
 *** Variables ***
-${PROJECT_ID}    ${EMPTY}
-${STORY_ID}      ${EMPTY}
-${SESSION_ID}    ${EMPTY}
+${PROJECT_ID}      ${EMPTY}
+${REQUIREMENT_ID}  ${EMPTY}
+${STORY_ID}        ${EMPTY}
+${SESSION_ID}      ${EMPTY}
 
 *** Keywords ***
 Connect And Create Base Entities
     ${session_id}=    Connect To MCP SSE
     Set Suite Variable    ${SESSION_ID}    ${session_id}
-    
-    ${proj_resp}=    Create Project Tool    ${SESSION_ID}    Test Project US010    Audit Trail Test Project
+
+    ${proj_resp}=    Create Project Tool    ${SESSION_ID}    Test Project US010    Audit Trail Test Project    /e2e/us010-audit
     ${proj_content}=    Evaluate    json.loads('''${proj_resp.json()['result']['content'][0]['text']}''')    json
     Set Suite Variable    ${PROJECT_ID}    ${proj_content['id']}
 
-    ${story_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    Test Story US010    Story for task audit testing    draft
+    ${req_resp}=    Create Requirement Tool    ${SESSION_ID}    ${PROJECT_ID}    Default
+    ${req_content}=    Evaluate    json.loads('''${req_resp.json()['result']['content'][0]['text']}''')    json
+    Set Suite Variable    ${REQUIREMENT_ID}    ${req_content['id']}
+
+    ${story_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    ${REQUIREMENT_ID}    Test Story US010    Story for task audit testing    draft
     ${story_content}=    Evaluate    json.loads('''${story_resp.json()['result']['content'][0]['text']}''')    json
     Set Suite Variable    ${STORY_ID}    ${story_content['id']}
 
@@ -70,7 +75,7 @@ E2E-001 Retrieve task audit trail after valid transitions
 E2E-002 Retrieve story audit trail after valid transitions
     [Tags]    US010    regression
     # 1. Create story
-    ${create_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    Story 2    Test story audit    draft
+    ${create_resp}=    Create User Story Tool    ${SESSION_ID}    ${PROJECT_ID}    ${REQUIREMENT_ID}    Story 2    Test story audit    draft
     ${story_content}=    Evaluate    json.loads('''${create_resp.json()['result']['content'][0]['text']}''')    json
     ${story_id}=    Set Variable    ${story_content['id']}
 

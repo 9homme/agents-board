@@ -49,36 +49,19 @@ function reducer(state: State, action: Action): State {
 }
 
 /**
- * Race-safe hook that fetches a single document by id.
+ * Race-safe hook that fetches a single document by id via the hierarchical endpoint.
  *
- * Uses AbortController + a stale-id ref to ensure that rapid consecutive calls
- * (rapid sidebar clicks) always end with the most-recently-requested document
- * in state — never a stale response from an earlier-started but later-resolved
- * request (D-005 in architecture.md).
- *
- * Internal state is managed via useReducer (architecture §11.2) — collapses the
- * prior useState×3 cascade into single-dispatch state transitions, clearing the
- * no-cascading-set-state, no-adjust-state-on-prop-change, and
- * rendering-usetransition-loading react-doctor rules.
- *
- * Pattern:
- *  1. On each new documentId, abort the prior controller (cancels in-flight network request).
- *  2. Create a new AbortController and store the current id in latestIdRef.
- *  3. Dispatch FETCH_STARTED (single state transition replaces three setState calls).
- *  4. Issue fetchDocument(id, controller.signal).
- *  5. On resolve: only commit state if documentId === latestIdRef.current; dispatch FETCH_SUCCEEDED.
- *  6. On error: dispatch ABORTED (no-op) if signal aborted; otherwise dispatch FETCH_FAILED.
- *
- * Skips the fetch when `documentId` is undefined.
- *
- * @param documentId - The document id to fetch, or undefined to skip.
+ * Skips the fetch when any of projectId, requirementId, or documentId is undefined.
  */
-export const useDocument = (documentId: string | undefined): UseDocumentResult => {
+export const useDocument = (
+  projectId: string | undefined,
+  requirementId: string | undefined,
+  documentId: string | undefined
+): UseDocumentResult => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const controllerRef = useRef<AbortController | null>(null);
-  const latestIdRef = useRef<string | undefined>(undefined);
-  // fetchCount drives manual refetch; stays as separate useState per §11.2.1
+  const latestKeyRef = useRef<string | undefined>(undefined);
   const [fetchCount, setFetchCount] = useState(0);
 
   const refetch = useCallback(() => {
@@ -86,36 +69,33 @@ export const useDocument = (documentId: string | undefined): UseDocumentResult =
   }, []);
 
   useEffect(() => {
-    if (documentId === undefined) {
+    if (!projectId || !requirementId || !documentId) {
       return;
     }
 
-    // Abort any in-flight request from the previous documentId
+    const compositeKey = `${projectId}|${requirementId}|${documentId}`;
+
     controllerRef.current?.abort();
 
     const controller = new AbortController();
     controllerRef.current = controller;
-    latestIdRef.current = documentId;
+    latestKeyRef.current = compositeKey;
 
-    // Single dispatch replaces the prior setIsLoading(true); setError(null); setData(null) cascade
     dispatch({ type: 'FETCH_STARTED' });
 
-    fetchDocument(documentId, controller.signal)
+    fetchDocument(projectId, requirementId, documentId, controller.signal)
       .then((doc) => {
-        // Belt-and-braces: only commit if this id is still the latest
-        if (latestIdRef.current === documentId) {
+        if (latestKeyRef.current === compositeKey) {
           dispatch({ type: 'FETCH_SUCCEEDED', document: doc });
         }
       })
       .catch((err: unknown) => {
-        // Ignore errors from aborted (superseded) requests
         if (controller.signal.aborted) {
           dispatch({ type: 'ABORTED' });
           return;
         }
 
-        // Only commit error if this id is still the latest (stale-id guard)
-        if (latestIdRef.current !== documentId) return;
+        if (latestKeyRef.current !== compositeKey) return;
 
         const error: ApiError | Error =
           err instanceof ApiError
@@ -129,7 +109,7 @@ export const useDocument = (documentId: string | undefined): UseDocumentResult =
     return () => {
       controller.abort();
     };
-  }, [documentId, fetchCount]);
+  }, [projectId, requirementId, documentId, fetchCount]);
 
   return { data: state.data, isLoading: state.isLoading, error: state.error, refetch };
 };

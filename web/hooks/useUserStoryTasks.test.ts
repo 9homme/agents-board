@@ -8,6 +8,8 @@ import { server } from '../test/msw/server';
 import { useUserStoryTasks } from './useUserStoryTasks';
 import { ApiError } from '../lib/api/client';
 
+const PROJECT_ID = 'proj-001';
+const REQUIREMENT_ID = 'req-001';
 const STORY_ID = 'us-001';
 const TASKS_FIXTURE = [
   {
@@ -33,14 +35,14 @@ const TASKS_FIXTURE = [
 describe('useUserStoryTasks', () => {
   beforeEach(() => {
     server.use(
-      http.get('*/api/v1/user-stories/us-001/tasks', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001/tasks', () => {
         return HttpResponse.json({ tasks: TASKS_FIXTURE });
       })
     );
   });
 
   it('returns isLoading:true initially then tasks when resolved', async () => {
-    const { result } = renderHook(() => useUserStoryTasks(STORY_ID));
+    const { result } = renderHook(() => useUserStoryTasks(PROJECT_ID, REQUIREMENT_ID, STORY_ID));
 
     expect(result.current.isLoading).toBe(true);
 
@@ -54,13 +56,7 @@ describe('useUserStoryTasks', () => {
   });
 
   it('returns empty tasks array when story has no tasks', async () => {
-    server.use(
-      http.get('*/api/v1/user-stories/us-empty/tasks', () => {
-        return HttpResponse.json({ tasks: [] });
-      })
-    );
-
-    const { result } = renderHook(() => useUserStoryTasks('us-empty'));
+    const { result } = renderHook(() => useUserStoryTasks(PROJECT_ID, REQUIREMENT_ID, 'us-empty'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -70,8 +66,8 @@ describe('useUserStoryTasks', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('skips fetch when storyId is undefined', () => {
-    const { result } = renderHook(() => useUserStoryTasks(undefined));
+  it('skips fetch when params are undefined', () => {
+    const { result } = renderHook(() => useUserStoryTasks(undefined, undefined, undefined));
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeNull();
@@ -79,16 +75,7 @@ describe('useUserStoryTasks', () => {
   });
 
   it('returns error when 500 response', async () => {
-    server.use(
-      http.get('*/api/v1/user-stories/broken-story/tasks', () => {
-        return HttpResponse.json(
-          { code: 'INTERNAL_ERROR', message: 'Failed to fetch tasks' },
-          { status: 500 }
-        );
-      })
-    );
-
-    const { result } = renderHook(() => useUserStoryTasks('broken-story'));
+    const { result } = renderHook(() => useUserStoryTasks(PROJECT_ID, REQUIREMENT_ID, 'broken-story'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -99,16 +86,7 @@ describe('useUserStoryTasks', () => {
   });
 
   it('returns error with NOT_FOUND code when 404', async () => {
-    server.use(
-      http.get('*/api/v1/user-stories/not-found-story/tasks', () => {
-        return HttpResponse.json(
-          { code: 'NOT_FOUND', message: 'User story not found' },
-          { status: 404 }
-        );
-      })
-    );
-
-    const { result } = renderHook(() => useUserStoryTasks('not-found-story'));
+    const { result } = renderHook(() => useUserStoryTasks(PROJECT_ID, REQUIREMENT_ID, 'not-found-story'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -120,11 +98,11 @@ describe('useUserStoryTasks', () => {
 
   it('aborts prior request when storyId changes', async () => {
     server.use(
-      http.get('*/api/v1/user-stories/story-slow/tasks', async () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/story-slow/tasks', async () => {
         await delay('infinite');
         return HttpResponse.json({ tasks: [] });
       }),
-      http.get('*/api/v1/user-stories/story-fast/tasks', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/story-fast/tasks', () => {
         return HttpResponse.json({
           tasks: [
             {
@@ -144,7 +122,7 @@ describe('useUserStoryTasks', () => {
     const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
 
     let storyId = 'story-slow';
-    const { result, rerender } = renderHook(() => useUserStoryTasks(storyId));
+    const { result, rerender } = renderHook(() => useUserStoryTasks(PROJECT_ID, REQUIREMENT_ID, storyId));
 
     expect(result.current.isLoading).toBe(true);
     abortSpy.mockClear();

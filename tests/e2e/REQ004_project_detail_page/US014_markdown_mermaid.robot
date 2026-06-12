@@ -24,10 +24,16 @@ Setup US014 Suite
     ${project_name}=  Set Variable    REQ004 US014 E2E ${random}
     ${session_id}=    Connect To MCP SSE
 
-    ${proj_resp}=    Create Project Tool    ${session_id}    ${project_name}    US014 markdown rendering test
+    ${proj_resp}=    Create Project Tool    ${session_id}    ${project_name}    US014 markdown rendering test    /e2e/us014-md
     ${proj_text}=    Set Variable    ${proj_resp.json()['result']['content'][0]['text']}
     ${proj_content}=    Evaluate    json.loads($proj_text)    json
     Set Suite Variable    ${PROJECT_ID}    ${proj_content['id']}
+
+    # Create a requirement for this project
+    ${req_resp}=    Create Requirement Tool    ${session_id}    ${PROJECT_ID}    Default
+    ${req_text}=    Set Variable    ${req_resp.json()['result']['content'][0]['text']}
+    ${req_content}=    Evaluate    json.loads($req_text)    json
+    ${requirement_id}=    Set Variable    ${req_content['id']}
 
     # Document content with a Go code fence and a mermaid diagram.
     # Use Catenate with SEPARATOR=\n so newlines survive Robot value processing
@@ -49,7 +55,7 @@ Setup US014 Suite
     ...    \`\`\`
     ...    ${EMPTY}
 
-    ${doc_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    Rendering test document    ${doc_content}
+    ${doc_resp}=    Create Document Tool    ${session_id}    ${PROJECT_ID}    ${requirement_id}    Rendering test document    ${doc_content}
     ${doc_text}=    Set Variable    ${doc_resp.json()['result']['content'][0]['text']}
     ${doc_content_json}=    Evaluate    json.loads($doc_text)    json
     Set Suite Variable    ${DOC_ID}    ${doc_content_json['id']}
@@ -85,7 +91,8 @@ E2E-US014-001 Previewer renders syntax-highlighted code fence and mermaid SVG
     ...    visible    timeout=20s
 
     # Assert the mermaid SVG is present (mermaid is async; allow generous timeout)
-    Wait For Elements State    css=svg    visible    timeout=30s
+    # Use id^="mermaid" to avoid matching unrelated SVG icons on the page
+    Wait For Elements State    css=svg[id^="mermaid"]    visible    timeout=30s
 
     # Assert raw mermaid source is NOT visible as user-readable text
     ${raw_mermaid_count}=    Get Element Count    text="graph TD; Start-->End;"

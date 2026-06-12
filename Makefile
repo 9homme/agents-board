@@ -64,20 +64,6 @@ e2e-seed:                      ## Seed test-data fixtures only (migrations run a
 	  echo "-> applying seed $$f"; \
 	  psql "$(PG_CONN)" -v ON_ERROR_STOP=1 -f $$f; \
 	done
-	@echo "-> ensuring e2e test path stubs exist (mounted into containers at /e2e)..."
-	@mkdir -p \
-	  tests/e2e/data/paths/us002-crud tests/e2e/data/paths/us003-doc \
-	  tests/e2e/data/paths/us004-story tests/e2e/data/paths/us005-task \
-	  tests/e2e/data/paths/us007-dashboard tests/e2e/data/paths/us008-state \
-	  tests/e2e/data/paths/us009-state tests/e2e/data/paths/us010-audit \
-	  tests/e2e/data/paths/us012-nav tests/e2e/data/paths/us013-docs \
-	  tests/e2e/data/paths/us014-md tests/e2e/data/paths/us020-alpha \
-	  tests/e2e/data/paths/us020-beta tests/e2e/data/paths/us042-proj \
-	  tests/e2e/data/paths/us042-empty tests/e2e/data/paths/us043-proj \
-	  tests/e2e/data/paths/us045-fixture tests/e2e/data/paths/us045-test-001 \
-	  tests/e2e/data/paths/us046-fixture tests/e2e/data/paths/us047-proj \
-	  tests/e2e/data/paths/us047-empty tests/e2e/data/paths/us048-p \
-	  tests/e2e/data/paths/us048-p2
 
 e2e-run:                       ## Run Robot suites. REQ=REQ001 US=US001 narrows scope.
 	@mkdir -p tests/e2e/results

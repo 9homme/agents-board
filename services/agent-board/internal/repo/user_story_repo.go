@@ -30,6 +30,9 @@ type UserStoryRepository interface {
 	// each enriched with the count of tasks linked via tasks.user_story_id.
 	// Results are ordered by created_at DESC.
 	ListUserStoriesWithTaskCount(ctx context.Context, projectID string) ([]*UserStoryWithCount, error)
+	// ListByRequirement retrieves all user stories for a requirement, each enriched with
+	// the count of tasks linked via tasks.user_story_id. Results are ordered by created_at DESC.
+	ListByRequirement(ctx context.Context, requirementID string) ([]*UserStoryWithCount, error)
 }
 
 // UserStoryRepo handles database operations for user stories.
@@ -43,20 +46,21 @@ func NewUserStoryRepo(db *sql.DB) *UserStoryRepo {
 }
 
 // CreateUserStory inserts a new user story into the database.
+// requirement_id is included in the INSERT to satisfy the NOT NULL constraint from migration 000003.
 func (r *UserStoryRepo) CreateUserStory(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error) {
-	query := `INSERT INTO user_stories (project_id, title, description, status) VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
-	err := r.db.QueryRowContext(ctx, query, u.ProjectID, u.Title, u.Description, u.Status).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
+	query := `INSERT INTO user_stories (project_id, requirement_id, title, description, status) VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at, updated_at`
+	err := r.db.QueryRowContext(ctx, query, u.ProjectID, u.RequirementID, u.Title, u.Description, u.Status).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return u, nil
 }
 
-// GetUserStory retrieves a user story by ID.
+// GetUserStory retrieves a user story by ID, including requirement_id.
 func (r *UserStoryRepo) GetUserStory(ctx context.Context, id string) (*domain.UserStory, error) {
-	query := `SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = $1`
+	query := `SELECT id, project_id, requirement_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = $1`
 	var u domain.UserStory
-	err := r.db.QueryRowContext(ctx, query, id).Scan(&u.ID, &u.ProjectID, &u.Title, &u.Description, &u.Status, &u.CreatedAt, &u.UpdatedAt)
+	err := r.db.QueryRowContext(ctx, query, id).Scan(&u.ID, &u.ProjectID, &u.RequirementID, &u.Title, &u.Description, &u.Status, &u.CreatedAt, &u.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -139,6 +143,31 @@ func (r *UserStoryRepo) ListUserStoriesWithTaskCount(ctx context.Context, projec
 	for rows.Next() {
 		var s UserStoryWithCount
 		if err := rows.Scan(&s.ID, &s.ProjectID, &s.Title, &s.Description, &s.Status, &s.CreatedAt, &s.UpdatedAt, &s.TaskCount); err != nil {
+			return nil, err
+		}
+		stories = append(stories, &s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return stories, nil
+}
+
+// ListByRequirement retrieves all user stories for a requirement joined with their task counts.
+// It uses a LEFT JOIN so stories with zero tasks are still included.
+// Results are ordered by created_at DESC.
+func (r *UserStoryRepo) ListByRequirement(ctx context.Context, requirementID string) ([]*UserStoryWithCount, error) {
+	query := `SELECT us.id, us.project_id, us.requirement_id, us.title, us.description, us.status, us.created_at, us.updated_at, COUNT(t.id) AS task_count FROM user_stories us LEFT JOIN tasks t ON t.user_story_id = us.id WHERE us.requirement_id = $1 GROUP BY us.id ORDER BY us.created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query, requirementID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	stories := make([]*UserStoryWithCount, 0)
+	for rows.Next() {
+		var s UserStoryWithCount
+		if err := rows.Scan(&s.ID, &s.ProjectID, &s.RequirementID, &s.Title, &s.Description, &s.Status, &s.CreatedAt, &s.UpdatedAt, &s.TaskCount); err != nil {
 			return nil, err
 		}
 		stories = append(stories, &s)

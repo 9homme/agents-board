@@ -7,24 +7,44 @@ import (
 	"strings"
 
 	"agent-board/internal/domain"
+	"agent-board/internal/fsutil"
 	"agent-board/internal/mcp"
 	"agent-board/internal/repo"
 )
 
+// PathValidator abstracts filesystem path validation so it can be mocked in tests.
+type PathValidator interface {
+	// ValidatePath checks that path is non-blank, exists on disk, and is a directory.
+	ValidatePath(path string) error
+}
+
+// fsutilValidator is the production PathValidator backed by the fsutil package.
+type fsutilValidator struct{}
+
+func (fsutilValidator) ValidatePath(path string) error {
+	return fsutil.ValidatePath(path)
+}
+
 // RegisterProjectTools registers project-related tools to the given registry.
-func RegisterProjectTools(registry *mcp.ToolRegistry, projectRepo repo.ProjectRepository) {
-	registry.RegisterTool("create_project", handleCreateProject(projectRepo))
+// validator is used to validate the path field on create_project (D-008).
+// Passing nil uses the real filesystem validator backed by the fsutil package.
+func RegisterProjectTools(registry *mcp.ToolRegistry, projectRepo repo.ProjectRepository, validator PathValidator) {
+	if validator == nil {
+		validator = fsutilValidator{}
+	}
+	registry.RegisterTool("create_project", handleCreateProject(projectRepo, validator))
 	registry.RegisterTool("get_project", handleGetProject(projectRepo))
 	registry.RegisterTool("update_project", handleUpdateProject(projectRepo))
 	registry.RegisterTool("delete_project", handleDeleteProject(projectRepo))
 	registry.RegisterTool("list_projects", handleListProjects(projectRepo))
 }
 
-func handleCreateProject(projectRepo repo.ProjectRepository) mcp.ToolHandler {
+func handleCreateProject(projectRepo repo.ProjectRepository, validator PathValidator) mcp.ToolHandler {
 	return func(ctx context.Context, args json.RawMessage) (interface{}, error) {
 		var req struct {
 			Name        string `json:"name"`
 			Description string `json:"description"`
+			Path        string `json:"path"`
 		}
 		if err := json.Unmarshal(args, &req); err != nil {
 			return nil, errors.New("invalid arguments")
@@ -35,13 +55,26 @@ func handleCreateProject(projectRepo repo.ProjectRepository) mcp.ToolHandler {
 			return nil, errors.New("name is required and cannot be empty")
 		}
 
+		req.Path = strings.TrimSpace(req.Path)
+		if req.Path == "" {
+			return nil, errors.New("path is required")
+		}
+
+		if err := validator.ValidatePath(req.Path); err != nil {
+			return nil, errors.New("path does not exist or is not a directory")
+		}
+
 		p := &domain.Project{
 			Name:        req.Name,
 			Description: req.Description,
+			Path:        req.Path,
 		}
 
 		created, err := projectRepo.CreateProject(ctx, p)
 		if err != nil {
+			if errors.Is(err, repo.ErrDuplicatePath) {
+				return nil, errors.New("path already linked to another project")
+			}
 			return nil, err
 		}
 

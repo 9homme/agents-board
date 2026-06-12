@@ -115,7 +115,7 @@ No changes to the existing database schema. Both applications read from the exis
 - **Observability:** Existing Echo request logging will capture REST API requests in the new `api-server`.
 
 ## Risks & open questions
-- **Deployment:** The orchestrator/user running tests or deployments will need to ensure both `mcp-server` and `api-server` are built and running. This may require updates to `US001_mcp_server_setup.robot` or a new test setup task to run the API server.
+- **Deployment:** The orchestrator/user running tests or deployments will need to ensure both `mcp-server` and `api-server` are built and running. This may require updates to `US007_mcp_server_setup.robot` or a new test setup task to run the API server.
 
 ## Approval log
 ### Revision 4 — 2026-05-15 — driver: human approval

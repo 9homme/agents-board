@@ -24,14 +24,16 @@ func TestDocumentRepo_CreateDocument(t *testing.T) {
 	now := time.Now()
 	projectID := "123e4567-e89b-12d3-a456-426614174000"
 
+	requirementID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
 	d := &domain.Document{
-		ProjectID: projectID,
-		Title:     "Test Document",
-		Content:   "A test document content",
+		ProjectID:     projectID,
+		RequirementID: requirementID,
+		Title:         "Test Document",
+		Content:       "A test document content",
 	}
 
-	mock.ExpectQuery(`^INSERT INTO documents \(project_id, title, content\) VALUES \(\$1, \$2, \$3\) RETURNING id, created_at, updated_at$`).
-		WithArgs(d.ProjectID, d.Title, d.Content).
+	mock.ExpectQuery(`^INSERT INTO documents \(project_id, requirement_id, title, content\) VALUES \(\$1, \$2, \$3, \$4\) RETURNING id, created_at, updated_at$`).
+		WithArgs(d.ProjectID, d.RequirementID, d.Title, d.Content).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).
 			AddRow("223e4567-e89b-12d3-a456-426614174000", now, now))
 
@@ -58,20 +60,22 @@ func TestDocumentRepo_GetDocument(t *testing.T) {
 	now := time.Now()
 	id := "223e4567-e89b-12d3-a456-426614174000"
 	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	requirementID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
 
-	// Success case
-	mock.ExpectQuery(`^SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE id = \$1$`).
+	// Success case — now includes requirement_id column
+	mock.ExpectQuery(`^SELECT id, project_id, requirement_id, title, content, created_at, updated_at FROM documents WHERE id = \$1$`).
 		WithArgs(id).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "content", "created_at", "updated_at"}).
-			AddRow(id, projectID, "Test Document", "Content", now, now))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "requirement_id", "title", "content", "created_at", "updated_at"}).
+			AddRow(id, projectID, requirementID, "Test Document", "Content", now, now))
 
 	d, err := repo.GetDocument(context.Background(), id)
 	assert.NoError(t, err)
 	assert.NotNil(t, d)
 	assert.Equal(t, id, d.ID)
+	assert.Equal(t, requirementID, d.RequirementID)
 
 	// Not found case
-	mock.ExpectQuery(`^SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE id = \$1$`).
+	mock.ExpectQuery(`^SELECT id, project_id, requirement_id, title, content, created_at, updated_at FROM documents WHERE id = \$1$`).
 		WithArgs("non-existent").
 		WillReturnError(sql.ErrNoRows)
 
@@ -193,7 +197,7 @@ func TestDocumentRepo_GetDocument_GenericError(t *testing.T) {
 
 	repo := NewDocumentRepo(db)
 
-	mock.ExpectQuery(`SELECT id, project_id, title, content, created_at, updated_at FROM documents WHERE id`).
+	mock.ExpectQuery(`SELECT id, project_id, requirement_id, title, content, created_at, updated_at FROM documents WHERE id`).
 		WillReturnError(errors.New("db down"))
 
 	d, err := repo.GetDocument(context.Background(), "any-id")

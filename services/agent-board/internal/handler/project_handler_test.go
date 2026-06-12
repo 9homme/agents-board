@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,8 +22,9 @@ import (
 
 // mockProjectRepo is a simple mock for repo.ProjectRepository
 type mockProjectRepo struct {
-	ListProjectsFunc func(ctx context.Context) ([]*domain.Project, error)
-	GetProjectFunc   func(ctx context.Context, id string) (*domain.Project, error)
+	ListProjectsFunc  func(ctx context.Context) ([]*domain.Project, error)
+	GetProjectFunc    func(ctx context.Context, id string) (*domain.Project, error)
+	CreateProjectFunc func(ctx context.Context, p *domain.Project) (*domain.Project, error)
 	// other methods are unimplemented as they are not needed for these tests
 	repo.ProjectRepository
 }
@@ -38,6 +41,25 @@ func (m *mockProjectRepo) GetProject(ctx context.Context, id string) (*domain.Pr
 		return m.GetProjectFunc(ctx, id)
 	}
 	return nil, repo.ErrNotFound
+}
+
+func (m *mockProjectRepo) CreateProject(ctx context.Context, p *domain.Project) (*domain.Project, error) {
+	if m.CreateProjectFunc != nil {
+		return m.CreateProjectFunc(ctx, p)
+	}
+	return nil, errors.New("CreateProject not implemented in mock")
+}
+
+// mockPathValidator is a simple mock for PathValidator used in handler tests.
+type mockPathValidator struct {
+	ValidatePathFunc func(path string) error
+}
+
+func (m *mockPathValidator) ValidatePath(path string) error {
+	if m.ValidatePathFunc != nil {
+		return m.ValidatePathFunc(path)
+	}
+	return nil
 }
 
 // UT-001 — Successfully load project list
@@ -148,10 +170,10 @@ func TestProjectHandler_GetProjects_Integration(t *testing.T) {
 	e.GET("/api/v1/projects", h.GetProjects)
 
 	now := time.Now()
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC$`).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-			AddRow("11111111-e89b-12d3-a456-426614174000", "P1", "D1", now, now).
-			AddRow("22222222-e89b-12d3-a456-426614174000", "P2", "D2", now, now))
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY created_at DESC$`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+			AddRow("11111111-e89b-12d3-a456-426614174000", "P1", "D1", "/path/1", now, now).
+			AddRow("22222222-e89b-12d3-a456-426614174000", "P2", "D2", "/path/2", now, now))
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects", nil)
 	rec := httptest.NewRecorder()
@@ -209,11 +231,12 @@ func TestProjectHandler_GetProject_200(t *testing.T) {
 	assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", res["id"])
 	assert.Equal(t, "E-commerce Website", res["name"])
 	assert.Equal(t, "A new online store for electronics", res["description"])
+	assert.Equal(t, "", res["path"]) // path field present (empty because mock returns no path)
 	assert.Equal(t, "2026-05-20T10:00:00Z", res["createdAt"])
 	assert.Equal(t, "2026-05-20T10:00:00Z", res["updatedAt"])
 
-	// Exactly five fields — no extra fields, not wrapped.
-	assert.Len(t, res, 5)
+	// Exactly six fields (id, name, description, path, createdAt, updatedAt) — no extra fields, not wrapped.
+	assert.Len(t, res, 6)
 
 	// Ensure no "project" wrapper key
 	_, hasWrapper := res["project"]
@@ -322,10 +345,10 @@ func TestProjectHandler_GetProject_Integration_Found(t *testing.T) {
 	e := echo.New()
 	e.GET("/api/v1/projects/:id", h.GetProject)
 
-	mock.ExpectQuery(`SELECT id, name, description, created_at, updated_at FROM projects WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = \$1`).
 		WithArgs("123e4567-e89b-12d3-a456-426614174000").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-			AddRow("123e4567-e89b-12d3-a456-426614174000", "Integration Test Project", "desc", fixedTime, fixedTime))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+			AddRow("123e4567-e89b-12d3-a456-426614174000", "Integration Test Project", "desc", "/some/path", fixedTime, fixedTime))
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects/123e4567-e89b-12d3-a456-426614174000", nil)
 	rec := httptest.NewRecorder()
@@ -337,9 +360,10 @@ func TestProjectHandler_GetProject_Integration_Found(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
 	assert.Equal(t, "123e4567-e89b-12d3-a456-426614174000", res["id"])
 	assert.Equal(t, "Integration Test Project", res["name"])
+	assert.Equal(t, "/some/path", res["path"])
 	assert.Equal(t, "2026-05-20T10:00:00Z", res["createdAt"])
 	assert.Equal(t, "2026-05-20T10:00:00Z", res["updatedAt"])
-	assert.Len(t, res, 5)
+	assert.Len(t, res, 6) // id, name, description, path, createdAt, updatedAt
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -356,9 +380,9 @@ func TestProjectHandler_GetProject_Integration_NotFound(t *testing.T) {
 	e := echo.New()
 	e.GET("/api/v1/projects/:id", h.GetProject)
 
-	mock.ExpectQuery(`SELECT id, name, description, created_at, updated_at FROM projects WHERE id = \$1`).
+	mock.ExpectQuery(`SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = \$1`).
 		WithArgs("00000000-0000-0000-0000-000000000000").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}))
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects/00000000-0000-0000-0000-000000000000", nil)
 	rec := httptest.NewRecorder()
@@ -392,4 +416,296 @@ func TestProjectHandler_RouteRegistration(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected route GET /api/v1/projects/:id to be registered")
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/v1/projects — CreateProject handler tests (IT-045-005 – IT-045-012, UT-045-013)
+// ---------------------------------------------------------------------------
+
+// IT-045-005 — POST /api/v1/projects — 201 with valid name and path
+func TestProjectHandler_CreateProject_201(t *testing.T) {
+	dir := t.TempDir()
+	fixedTime, _ := time.Parse(time.RFC3339, "2026-06-09T11:00:00Z")
+
+	e := echo.New()
+	e.POST("/api/v1/projects", func(c echo.Context) error {
+		mockRepo := &mockProjectRepo{
+			CreateProjectFunc: func(_ context.Context, p *domain.Project) (*domain.Project, error) {
+				return &domain.Project{
+					ID:          "33333333-3333-3333-3333-333333333333",
+					Name:        p.Name,
+					Description: p.Description,
+					Path:        p.Path,
+					CreatedAt:   fixedTime,
+					UpdatedAt:   fixedTime,
+				}, nil
+			},
+		}
+		h := newProjectHandlerWithValidator(mockRepo, &mockPathValidator{})
+		return h.CreateProject(c)
+	})
+
+	body := `{"name":"Test Project","description":"","path":"` + dir + `"}`
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var res map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "33333333-3333-3333-3333-333333333333", res["id"])
+	assert.Equal(t, "Test Project", res["name"])
+	assert.Equal(t, dir, res["path"])
+	assert.Equal(t, "2026-06-09T11:00:00Z", res["createdAt"])
+	assert.Len(t, res, 6) // id, name, description, path, createdAt, updatedAt
+}
+
+// IT-045-006 — POST /api/v1/projects — 400 when path field is missing
+func TestProjectHandler_CreateProject_400_MissingPath(t *testing.T) {
+	e := echo.New()
+	mockRepo := &mockProjectRepo{}
+	h := newProjectHandlerWithValidator(mockRepo, &mockPathValidator{})
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(`{"name":"No Path Project"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "VALIDATION_ERROR", res["code"])
+	assert.Equal(t, "path is required", res["message"])
+}
+
+// IT-045-007 — POST /api/v1/projects — 400 when path is blank string
+func TestProjectHandler_CreateProject_400_BlankPath(t *testing.T) {
+	e := echo.New()
+	mockRepo := &mockProjectRepo{}
+	h := newProjectHandlerWithValidator(mockRepo, &mockPathValidator{})
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(`{"name":"Blank Path","path":""}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "VALIDATION_ERROR", res["code"])
+	assert.Equal(t, "path is required", res["message"])
+}
+
+// IT-045-008 — POST /api/v1/projects — 400 when name is missing
+func TestProjectHandler_CreateProject_400_MissingName(t *testing.T) {
+	dir := t.TempDir()
+	e := echo.New()
+	mockRepo := &mockProjectRepo{}
+	h := newProjectHandlerWithValidator(mockRepo, &mockPathValidator{})
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	body := `{"path":"` + dir + `"}`
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "VALIDATION_ERROR", res["code"])
+	assert.Equal(t, "name is required", res["message"])
+}
+
+// IT-045-009 — POST /api/v1/projects — 400 when name is blank (trimmed = "")
+func TestProjectHandler_CreateProject_400_BlankName(t *testing.T) {
+	dir := t.TempDir()
+	e := echo.New()
+	mockRepo := &mockProjectRepo{}
+	h := newProjectHandlerWithValidator(mockRepo, &mockPathValidator{})
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	body := `{"name":"   ","path":"` + dir + `"}`
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "VALIDATION_ERROR", res["code"])
+	assert.Equal(t, "name is required", res["message"])
+}
+
+// IT-045-010 — POST /api/v1/projects — 400 when path exists but is a regular file
+func TestProjectHandler_CreateProject_400_PathIsFile(t *testing.T) {
+	// Create a real temp file to use as path
+	f, err := os.CreateTemp("", "test-file-*.txt")
+	require.NoError(t, err)
+	filePath := f.Name()
+	require.NoError(t, f.Close())
+	defer func() { _ = os.Remove(filePath) }()
+
+	e := echo.New()
+	mockRepo := &mockProjectRepo{}
+	// Use the real fsutil validator so os.Stat is actually called.
+	h := NewProjectHandler(mockRepo)
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	body := `{"name":"File Path","path":"` + filePath + `"}`
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "VALIDATION_ERROR", res["code"])
+	assert.Equal(t, "path does not exist or is not a directory", res["message"])
+}
+
+// IT-045-011 — POST /api/v1/projects — 400 when path does not exist on disk
+func TestProjectHandler_CreateProject_400_PathNotOnDisk(t *testing.T) {
+	e := echo.New()
+	mockRepo := &mockProjectRepo{}
+	h := NewProjectHandler(mockRepo)
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(`{"name":"Ghost Path","path":"/tmp/this-does-not-exist-xxxxxxxxxxx"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "VALIDATION_ERROR", res["code"])
+	assert.Equal(t, "path does not exist or is not a directory", res["message"])
+}
+
+// IT-045-012 — POST /api/v1/projects — 409 when path is already linked to another project
+func TestProjectHandler_CreateProject_409_DuplicatePath(t *testing.T) {
+	dir := t.TempDir()
+	e := echo.New()
+	mockRepo := &mockProjectRepo{
+		CreateProjectFunc: func(_ context.Context, _ *domain.Project) (*domain.Project, error) {
+			return nil, repo.ErrDuplicatePath
+		},
+	}
+	h := newProjectHandlerWithValidator(mockRepo, &mockPathValidator{})
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	body := `{"name":"Duplicate","path":"` + dir + `"}`
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "DUPLICATE_PATH", res["code"])
+	assert.Equal(t, "path already linked to another project", res["message"])
+}
+
+// UT-045-013 — POST /api/v1/projects — 500 on repo DB error
+func TestProjectHandler_CreateProject_500_RepoError(t *testing.T) {
+	dir := t.TempDir()
+	e := echo.New()
+	mockRepo := &mockProjectRepo{
+		CreateProjectFunc: func(_ context.Context, _ *domain.Project) (*domain.Project, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	h := newProjectHandlerWithValidator(mockRepo, &mockPathValidator{})
+	e.POST("/api/v1/projects", h.CreateProject)
+
+	body := `{"name":"Test Project","path":"` + dir + `"}`
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/projects",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	var res map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "INTERNAL_ERROR", res["code"])
+	assert.Equal(t, "Failed to create project", res["message"])
+}
+
+// IT-045-013 — GET /api/v1/projects — response items include `path` field
+func TestProjectHandler_GetProjects_IncludesPath(t *testing.T) {
+	e := echo.New()
+	now := time.Now()
+	mockRepo := &mockProjectRepo{
+		ListProjectsFunc: func(_ context.Context) ([]*domain.Project, error) {
+			return []*domain.Project{
+				{
+					ID:          "pid-1",
+					Name:        "P1",
+					Description: "desc",
+					Path:        "/some/path",
+					CreatedAt:   now,
+					UpdatedAt:   now,
+				},
+			}, nil
+		},
+	}
+	h := NewProjectHandler(mockRepo)
+	e.GET("/api/v1/projects", h.GetProjects)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var res map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	projects := res["projects"].([]interface{})
+	require.Len(t, projects, 1)
+	p := projects[0].(map[string]interface{})
+	assert.Equal(t, "/some/path", p["path"])
+}
+
+// IT-045-014 — GET /api/v1/projects/:pid — response includes `path` field
+func TestProjectHandler_GetProject_IncludesPath(t *testing.T) {
+	fixedTime, _ := time.Parse(time.RFC3339, "2026-06-01T09:00:00Z")
+	e := echo.New()
+	mockRepo := &mockProjectRepo{
+		GetProjectFunc: func(_ context.Context, _ string) (*domain.Project, error) {
+			return &domain.Project{
+				ID:          "pid-1",
+				Name:        "agents-board",
+				Description: "",
+				Path:        "/Users/me/workspace/agents-board",
+				CreatedAt:   fixedTime,
+				UpdatedAt:   fixedTime,
+			}, nil
+		},
+	}
+	h := NewProjectHandler(mockRepo)
+	e.GET("/api/v1/projects/:id", h.GetProject)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/projects/pid-1", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var res map[string]interface{}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+	assert.Equal(t, "/Users/me/workspace/agents-board", res["path"])
 }

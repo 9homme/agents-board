@@ -12,37 +12,41 @@ import (
 	"agent-board/internal/repo"
 )
 
-// UserStoryResponse defines the JSON structure for a user story response.
+// UserStoryResponse defines the JSON structure for a user story response (§12).
 type UserStoryResponse struct {
-	ID          string `json:"id"`
-	ProjectID   string `json:"projectId"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
-	CreatedAt   string `json:"createdAt"`
-	UpdatedAt   string `json:"updatedAt"`
+	ID            string `json:"id"`
+	ProjectID     string `json:"projectId"`
+	RequirementID string `json:"requirementId"`
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	Status        string `json:"status"`
+	CreatedAt     string `json:"createdAt"`
+	UpdatedAt     string `json:"updatedAt"`
 }
 
 func toUserStoryResponse(u *domain.UserStory) UserStoryResponse {
 	return UserStoryResponse{
-		ID:          u.ID,
-		ProjectID:   u.ProjectID,
-		Title:       u.Title,
-		Description: u.Description,
-		Status:      u.Status,
-		CreatedAt:   u.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   u.UpdatedAt.Format(time.RFC3339),
+		ID:            u.ID,
+		ProjectID:     u.ProjectID,
+		RequirementID: u.RequirementID,
+		Title:         u.Title,
+		Description:   u.Description,
+		Status:        u.Status,
+		CreatedAt:     u.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:     u.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
 // RegisterUserStoryTools registers user story MCP tools.
-func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStoryRepository) {
+// requirementRepo is used by create_user_story to validate requirement membership (§12 BREAKING).
+func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStoryRepository, requirementRepo repo.RequirementRepository) {
 	registry.RegisterTool("create_user_story", func(ctx context.Context, args json.RawMessage) (interface{}, error) {
 		var req struct {
-			ProjectID   string `json:"projectId"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			Status      string `json:"status"`
+			ProjectID     string `json:"projectId"`
+			RequirementID string `json:"requirement_id"`
+			Title         string `json:"title"`
+			Description   string `json:"description"`
+			Status        string `json:"status"`
 		}
 		if err := json.Unmarshal(args, &req); err != nil {
 			return nil, fmt.Errorf("invalid arguments: %w", err)
@@ -50,16 +54,32 @@ func RegisterUserStoryTools(registry *mcp.ToolRegistry, repository repo.UserStor
 		if req.ProjectID == "" || req.Title == "" {
 			return nil, fmt.Errorf("missing required fields")
 		}
+		if req.RequirementID == "" {
+			return nil, fmt.Errorf("requirement_id is required")
+		}
+
+		// Validate requirement belongs to project (§12).
+		requirement, err := requirementRepo.GetRequirement(ctx, req.RequirementID)
+		if err != nil {
+			if errors.Is(err, repo.ErrNotFound) {
+				return nil, fmt.Errorf("requirement not found")
+			}
+			return nil, fmt.Errorf("failed to validate requirement: %w", err)
+		}
+		if requirement.ProjectID != req.ProjectID {
+			return nil, fmt.Errorf("requirement does not belong to project")
+		}
 
 		// Default to "draft" if no status provided; reject any non-draft initial status (UT-005, D-001).
 		if req.Status == "" {
 			req.Status = domain.UserStoryStatusDraft
 		}
 		u := &domain.UserStory{
-			ProjectID:   req.ProjectID,
-			Title:       req.Title,
-			Description: req.Description,
-			Status:      req.Status,
+			ProjectID:     req.ProjectID,
+			RequirementID: req.RequirementID,
+			Title:         req.Title,
+			Description:   req.Description,
+			Status:        req.Status,
 		}
 		// Enforce initial state via domain constructor.
 		if _, err := domain.NewUserStory(req.ProjectID, req.Title, req.Description, req.Status); err != nil {

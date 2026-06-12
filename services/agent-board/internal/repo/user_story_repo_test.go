@@ -24,15 +24,17 @@ func TestUserStoryRepo_CreateUserStory(t *testing.T) {
 	now := time.Now()
 	projectID := "123e4567-e89b-12d3-a456-426614174000"
 
+	requirementID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
 	u := &domain.UserStory{
-		ProjectID:   projectID,
-		Title:       "Test User Story",
-		Description: "A test description",
-		Status:      "draft",
+		ProjectID:     projectID,
+		RequirementID: requirementID,
+		Title:         "Test User Story",
+		Description:   "A test description",
+		Status:        "draft",
 	}
 
-	mock.ExpectQuery(`^INSERT INTO user_stories \(project_id, title, description, status\) VALUES \(\$1, \$2, \$3, \$4\) RETURNING id, created_at, updated_at$`).
-		WithArgs(u.ProjectID, u.Title, u.Description, u.Status).
+	mock.ExpectQuery(`^INSERT INTO user_stories \(project_id, requirement_id, title, description, status\) VALUES \(\$1, \$2, \$3, \$4, \$5\) RETURNING id, created_at, updated_at$`).
+		WithArgs(u.ProjectID, u.RequirementID, u.Title, u.Description, u.Status).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).
 			AddRow("223e4567-e89b-12d3-a456-426614174000", now, now))
 
@@ -50,7 +52,7 @@ func TestUserStoryRepo_CreateUserStory(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-// UT-016: Get user story from DB
+// UT-016: Get user story from DB — includes requirement_id
 func TestUserStoryRepo_GetUserStory(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -60,20 +62,22 @@ func TestUserStoryRepo_GetUserStory(t *testing.T) {
 	now := time.Now()
 	id := "223e4567-e89b-12d3-a456-426614174000"
 	projectID := "123e4567-e89b-12d3-a456-426614174000"
+	requirementID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
 
-	// Success case
-	mock.ExpectQuery(`^SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1$`).
+	// Success case — now includes requirement_id
+	mock.ExpectQuery(`^SELECT id, project_id, requirement_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1$`).
 		WithArgs(id).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "title", "description", "status", "created_at", "updated_at"}).
-			AddRow(id, projectID, "Test User Story", "Desc", "draft", now, now))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "project_id", "requirement_id", "title", "description", "status", "created_at", "updated_at"}).
+			AddRow(id, projectID, requirementID, "Test User Story", "Desc", "draft", now, now))
 
 	u, err := repo.GetUserStory(context.Background(), id)
 	assert.NoError(t, err)
 	assert.NotNil(t, u)
 	assert.Equal(t, id, u.ID)
+	assert.Equal(t, requirementID, u.RequirementID)
 
 	// Not found case
-	mock.ExpectQuery(`^SELECT id, project_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1$`).
+	mock.ExpectQuery(`^SELECT id, project_id, requirement_id, title, description, status, created_at, updated_at FROM user_stories WHERE id = \$1$`).
 		WithArgs("non-existent").
 		WillReturnError(sql.ErrNoRows)
 

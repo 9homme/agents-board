@@ -938,6 +938,197 @@ func TestListTasksTool_HappyPath(t *testing.T) {
 
 // --- end US006 verbatim test functions ---
 
+// --- US049 tests: blocked_review_gate MCP handler ---
+
+// UT-049-010 — MCP update_task accepts blocked_review_gate from in_review
+func TestUpdateTaskTool_BlockedReviewGate_FromInReview(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusInReview,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	updated := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusBlockedReviewGate,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	mockRepo.On("UpdateTaskStatus", mock.Anything, "task-1", domain.TaskStatusInReview, domain.TaskStatusBlockedReviewGate).
+		Return(updated, nil)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "status": "blocked_review_gate"}`))
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	resp, ok := result.(TaskResponse)
+	require.True(t, ok)
+	assert.Equal(t, domain.TaskStatusBlockedReviewGate, resp.Status)
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-049-011 — MCP update_task accepts blocked_review_gate from changes_requested
+func TestUpdateTaskTool_BlockedReviewGate_FromChangesRequested(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusChangesRequested,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	updated := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusBlockedReviewGate,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	mockRepo.On("UpdateTaskStatus", mock.Anything, "task-1", domain.TaskStatusChangesRequested, domain.TaskStatusBlockedReviewGate).
+		Return(updated, nil)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "status": "blocked_review_gate"}`))
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	resp, ok := result.(TaskResponse)
+	require.True(t, ok)
+	assert.Equal(t, domain.TaskStatusBlockedReviewGate, resp.Status)
+
+	mockRepo.AssertExpectations(t)
+}
+
+// UT-049-012 — MCP update_task rejects blocked_review_gate from pending
+func TestUpdateTaskTool_BlockedReviewGate_FromPending_Rejected(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	existing := &domain.Task{
+		ID:          "task-1",
+		UserStoryID: "us-1",
+		Title:       "T",
+		Status:      domain.TaskStatusPending,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	mockRepo.On("GetTask", mock.Anything, "task-1").Return(existing, nil)
+	// UpdateTask and UpdateTaskStatus must NOT be called
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "task-1", "status": "blocked_review_gate"}`))
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid transition")
+
+	mockRepo.AssertExpectations(t)
+	mockRepo.AssertNotCalled(t, "UpdateTask")
+	mockRepo.AssertNotCalled(t, "UpdateTaskStatus")
+}
+
+// IT-049-001 — MCP update_task persists blocked_review_gate status (via mock repo, testing handler→repo boundary)
+func TestUpdateTaskTool_BlockedReviewGate_Persisted(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	taskID := "task-it049-001"
+	existing := &domain.Task{
+		ID:          taskID,
+		UserStoryID: "us-1",
+		Title:       "Gate blocked task",
+		Status:      domain.TaskStatusInReview,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	persisted := &domain.Task{
+		ID:          taskID,
+		UserStoryID: "us-1",
+		Title:       "Gate blocked task",
+		Status:      domain.TaskStatusBlockedReviewGate,
+		CreatedAt:   now,
+		UpdatedAt:   now.Add(time.Second),
+	}
+	mockRepo.On("GetTask", mock.Anything, taskID).Return(existing, nil)
+	mockRepo.On("UpdateTaskStatus", mock.Anything, taskID, domain.TaskStatusInReview, domain.TaskStatusBlockedReviewGate).
+		Return(persisted, nil)
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "`+taskID+`", "status": "blocked_review_gate"}`))
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	resp, ok := result.(TaskResponse)
+	require.True(t, ok)
+	assert.Equal(t, domain.TaskStatusBlockedReviewGate, resp.Status)
+	// updated_at is later than created_at (both serialised through RFC3339)
+	assert.NotEqual(t, resp.CreatedAt, resp.UpdatedAt, "UpdatedAt should be later than CreatedAt after status update")
+
+	mockRepo.AssertExpectations(t)
+}
+
+// IT-049-002 — MCP update_task rejects further transitions out of blocked_review_gate (terminal)
+func TestUpdateTaskTool_BlockedReviewGate_IsTerminal(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockRepo := new(MockTaskRepo)
+	RegisterTaskTools(registry, mockRepo)
+
+	now := time.Now()
+	taskID := "task-it049-002"
+	// Task is already in blocked_review_gate
+	existing := &domain.Task{
+		ID:          taskID,
+		UserStoryID: "us-1",
+		Title:       "Terminal task",
+		Status:      domain.TaskStatusBlockedReviewGate,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+	mockRepo.On("GetTask", mock.Anything, taskID).Return(existing, nil)
+	// UpdateTask and UpdateTaskStatus must NOT be called
+
+	tool, ok := registry.GetTool("update_task")
+	require.True(t, ok)
+
+	result, err := tool(context.Background(), json.RawMessage(`{"id": "`+taskID+`", "status": "in_progress"}`))
+	require.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "invalid transition")
+
+	mockRepo.AssertExpectations(t)
+	mockRepo.AssertNotCalled(t, "UpdateTaskStatus")
+}
+
 // IT-021: `list_tasks` tool call
 func TestTaskTools_ListTasks(t *testing.T) {
 	mockRepo := new(MockTaskRepo)

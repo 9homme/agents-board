@@ -8,10 +8,13 @@ import { http, HttpResponse, delay } from 'msw';
 import { server } from '../../test/msw/server';
 import { UserStoryDrawer } from './UserStoryDrawer';
 
+const PROJECT_ID = 'proj-001';
+const REQUIREMENT_ID = 'req-001';
 const STORY_ID = 'us-001';
 const STORY_FIXTURE = {
   id: 'us-001',
   projectId: 'proj-001',
+  requirementId: 'req-001',
   title: 'Add item to basket',
   description: 'As a shopper I want to add an item to my basket so that I can purchase it later.',
   status: 'in_development',
@@ -38,15 +41,15 @@ const mockOnClose = jest.fn();
 describe('FCT-002 — empty state when no tasks', () => {
   it('shows "No tasks for this story." when tasks array is empty', async () => {
     server.use(
-      http.get('*/api/v1/user-stories/us-001', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001', () => {
         return HttpResponse.json(STORY_FIXTURE);
       }),
-      http.get('*/api/v1/user-stories/us-001/tasks', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001/tasks', () => {
         return HttpResponse.json({ tasks: [] });
       })
     );
 
-    render(<UserStoryDrawer storyId={STORY_ID} onClose={mockOnClose} />);
+    render(<UserStoryDrawer projectId={PROJECT_ID} requirementId={REQUIREMENT_ID} storyId={STORY_ID} onClose={mockOnClose} />);
 
     expect(await screen.findByText(/No tasks for this story/i)).toBeInTheDocument();
   });
@@ -58,16 +61,16 @@ describe('FCT-002 — empty state when no tasks', () => {
 describe('FCT-004 — Escape key closes drawer', () => {
   it('calls onClose when Escape is pressed', async () => {
     server.use(
-      http.get('*/api/v1/user-stories/us-001', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001', () => {
         return HttpResponse.json(STORY_FIXTURE);
       }),
-      http.get('*/api/v1/user-stories/us-001/tasks', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001/tasks', () => {
         return HttpResponse.json({ tasks: TASKS_FIXTURE });
       })
     );
 
     const onClose = jest.fn();
-    render(<UserStoryDrawer storyId={STORY_ID} onClose={onClose} />);
+    render(<UserStoryDrawer projectId={PROJECT_ID} requirementId={REQUIREMENT_ID} storyId={STORY_ID} onClose={onClose} />);
 
     fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
 
@@ -81,17 +84,17 @@ describe('FCT-004 — Escape key closes drawer', () => {
 describe('FCT-006 — loading state in drawer', () => {
   it('shows spinner while requests are pending', async () => {
     server.use(
-      http.get('*/api/v1/user-stories/us-001', async () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001', async () => {
         await delay(500);
         return HttpResponse.json(STORY_FIXTURE);
       }),
-      http.get('*/api/v1/user-stories/us-001/tasks', async () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001/tasks', async () => {
         await delay(500);
         return HttpResponse.json({ tasks: TASKS_FIXTURE });
       })
     );
 
-    render(<UserStoryDrawer storyId={STORY_ID} onClose={mockOnClose} />);
+    render(<UserStoryDrawer projectId={PROJECT_ID} requirementId={REQUIREMENT_ID} storyId={STORY_ID} onClose={mockOnClose} />);
 
     // Spinner should be visible immediately (loading state)
     expect(screen.getByRole('status')).toBeInTheDocument();
@@ -104,18 +107,18 @@ describe('FCT-006 — loading state in drawer', () => {
 describe('FCT-007 — error state in drawer', () => {
   it('shows error message and close button when story fetch fails', async () => {
     server.use(
-      http.get('*/api/v1/user-stories/us-001', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001', () => {
         return HttpResponse.json(
           { code: 'INTERNAL_ERROR', message: 'Failed to fetch user story' },
           { status: 500 }
         );
       }),
-      http.get('*/api/v1/user-stories/us-001/tasks', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001/tasks', () => {
         return HttpResponse.json({ tasks: [] });
       })
     );
 
-    render(<UserStoryDrawer storyId={STORY_ID} onClose={mockOnClose} />);
+    render(<UserStoryDrawer projectId={PROJECT_ID} requirementId={REQUIREMENT_ID} storyId={STORY_ID} onClose={mockOnClose} />);
 
     expect(
       await screen.findByText(/Couldn't load this user story/i)

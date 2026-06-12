@@ -7,33 +7,38 @@ Scenario: Full Task CRUD Lifecycle
     [Documentation]    Create, read, update, list and delete a task via MCP tools.
     [Tags]    E2E-005
     ${session_id}=    Connect To MCP SSE
-    
+
     # Pre-requisites: Create Project and Story
-    ${resp}=    Create Project Tool    ${session_id}    Task Project
+    ${resp}=    Create Project Tool    ${session_id}    Task Project    ${EMPTY}    /e2e/us005-task
     ${project_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
     ${project_id}=    Set Variable    ${project_json['id']}
-    
-    ${resp}=    Create User Story Tool    ${session_id}    ${project_id}    Task Story    Description
+
+    # Create Requirement
+    ${resp}=    Create Requirement Tool    ${session_id}    ${project_id}    Default
+    ${req_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
+    ${requirement_id}=    Set Variable    ${req_json['id']}
+
+    ${resp}=    Create User Story Tool    ${session_id}    ${project_id}    ${requirement_id}    Task Story    Description
     ${story_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
     ${story_id}=    Set Variable    ${story_json['id']}
-    
+
     # Create Task
     ${resp}=    Create Task Tool    ${session_id}    ${story_id}    Test Task    Task description    pending
     ${task_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
     ${task_id}=    Set Variable    ${task_json['id']}
     Should Be Equal    ${task_json['title']}    Test Task
     Should Be Equal    ${task_json['status']}    pending
-    
+
     # Get Task
     ${resp}=    Get Task Tool    ${session_id}    ${task_id}
     ${task_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
     Should Be Equal    ${task_json['id']}    ${task_id}
-    
+
     # Update Task
     ${resp}=    Update Task Tool    ${session_id}    ${task_id}    status=in_progress
     ${task_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
     Should Be Equal    ${task_json['status']}    in_progress
-    
+
     # List Tasks
     ${resp}=    List Tasks Tool    ${session_id}    ${story_id}
     ${list_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
@@ -45,12 +50,12 @@ Scenario: Full Task CRUD Lifecycle
         END
     END
     Should Be True    ${found}
-    
+
     # Delete Task
     ${resp}=    Delete Task Tool    ${session_id}    ${task_id}
     ${delete_json}=    Evaluate    json.loads('''${resp.json()['result']['content'][0]['text']}''')    json
     Should Be True    ${delete_json['success']}
-    
+
     # Verify Deleted
     ${resp}=    Get Task Tool    ${session_id}    ${task_id}
     Should Be True    ${resp.json()['result']['isError']}

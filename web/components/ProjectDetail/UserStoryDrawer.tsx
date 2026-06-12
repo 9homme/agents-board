@@ -3,6 +3,8 @@ import { useUserStory } from '../../hooks/useUserStory';
 import { useUserStoryTasks } from '../../hooks/useUserStoryTasks';
 
 interface UserStoryDrawerProps {
+  projectId: string;
+  requirementId: string;
   /** The id of the user story to display. */
   storyId: string;
   /** Callback invoked when the drawer should close (X button or Escape key). */
@@ -22,11 +24,13 @@ interface UserStoryDrawerProps {
  * - Focus moves to the close button on mount; caller restores focus on close.
  */
 export const UserStoryDrawer: React.FC<UserStoryDrawerProps> = ({
+  projectId,
+  requirementId,
   storyId,
   onClose,
 }) => {
-  const { data: story, isLoading: storyLoading, error: storyError } = useUserStory(storyId);
-  const { data: tasksData, isLoading: tasksLoading } = useUserStoryTasks(storyId);
+  const { data: story, isLoading: storyLoading, error: storyError } = useUserStory(projectId, requirementId, storyId);
+  const { data: tasksData, isLoading: tasksLoading } = useUserStoryTasks(projectId, requirementId, storyId);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 

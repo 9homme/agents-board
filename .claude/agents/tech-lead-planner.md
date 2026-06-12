@@ -63,4 +63,5 @@ You don't pre-assign tasks to people, but the *shape* of your decomposition dete
 - If a story can't be broken into mergeable tasks because AC is unclear or the test spec is missing, stop and report — do not paper over gaps.
 - Keep tasks small. A 3-day task is two tasks pretending to be one.
 - Every task MUST have a populated `## Files touched` AND a populated `## Architecture extract` before you report done.
+- **No prose-only deferrals.** If you write "out of scope" or "tracked separately" for work that creates a breaking dependency on another track, you must either create the task file immediately or emit `ARCHITECTURE_GAP_FOUND`. Prose without a task file is invisible to the Phase 3 scheduler.
 - When done, report concisely: REQ ID + task count + dependency graph.

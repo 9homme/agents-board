@@ -5,12 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"agent-board/internal/domain"
 )
 
 // ErrNotFound is returned when a requested record is not found in the database.
 var ErrNotFound = errors.New("record not found")
+
+// ErrDuplicatePath is returned when a project with the same path already exists (SQLSTATE 23505 on uq_projects_path).
+var ErrDuplicatePath = errors.New("path already linked to another project")
 
 // ProjectRepository defines the interface for project data access.
 type ProjectRepository interface {
@@ -31,17 +35,21 @@ func NewProjectRepo(db *sql.DB) ProjectRepository {
 }
 
 func (r *projectRepo) CreateProject(ctx context.Context, p *domain.Project) (*domain.Project, error) {
-	query := `INSERT INTO projects (name, description) VALUES ($1, $2) RETURNING id, created_at, updated_at`
+	query := `INSERT INTO projects (name, description, path) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
 	var created domain.Project
 	created.Name = p.Name
 	created.Description = p.Description
+	created.Path = p.Path
 
-	err := r.db.QueryRowContext(ctx, query, p.Name, p.Description).Scan(
+	err := r.db.QueryRowContext(ctx, query, p.Name, p.Description, p.Path).Scan(
 		&created.ID,
 		&created.CreatedAt,
 		&created.UpdatedAt,
 	)
 	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, ErrDuplicatePath
+		}
 		return nil, fmt.Errorf("failed to create project: %w", err)
 	}
 
@@ -49,13 +57,14 @@ func (r *projectRepo) CreateProject(ctx context.Context, p *domain.Project) (*do
 }
 
 func (r *projectRepo) GetProject(ctx context.Context, id string) (*domain.Project, error) {
-	query := `SELECT id, name, description, created_at, updated_at FROM projects WHERE id = $1`
+	query := `SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = $1`
 	var p domain.Project
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&p.ID,
 		&p.Name,
 		&p.Description,
+		&p.Path,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)
@@ -70,13 +79,14 @@ func (r *projectRepo) GetProject(ctx context.Context, id string) (*domain.Projec
 }
 
 func (r *projectRepo) UpdateProject(ctx context.Context, p *domain.Project) (*domain.Project, error) {
-	query := `UPDATE projects SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, description, created_at, updated_at`
+	query := `UPDATE projects SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, description, path, created_at, updated_at`
 	var updated domain.Project
 
 	err := r.db.QueryRowContext(ctx, query, p.Name, p.Description, p.ID).Scan(
 		&updated.ID,
 		&updated.Name,
 		&updated.Description,
+		&updated.Path,
 		&updated.CreatedAt,
 		&updated.UpdatedAt,
 	)
@@ -100,7 +110,7 @@ func (r *projectRepo) DeleteProject(ctx context.Context, id string) error {
 }
 
 func (r *projectRepo) ListProjects(ctx context.Context) ([]*domain.Project, error) {
-	query := `SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC`
+	query := `SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY created_at DESC`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list projects: %w", err)
@@ -110,7 +120,7 @@ func (r *projectRepo) ListProjects(ctx context.Context) ([]*domain.Project, erro
 	projects := make([]*domain.Project, 0)
 	for rows.Next() {
 		var p domain.Project
-		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Path, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan project: %w", err)
 		}
 		projects = append(projects, &p)
@@ -121,4 +131,9 @@ func (r *projectRepo) ListProjects(ctx context.Context) ([]*domain.Project, erro
 	}
 
 	return projects, nil
+}
+
+// isUniqueViolation checks if the error represents a Postgres unique-constraint violation (SQLSTATE 23505).
+func isUniqueViolation(err error) bool {
+	return strings.Contains(err.Error(), "23505")
 }

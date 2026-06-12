@@ -22,18 +22,18 @@ Create Project Via API
     [Documentation]    Creates a project via the MCP create_project tool and returns the project dict.
     ...                The api-server has no REST POST endpoint — MCP is the only write API
     ...                in this codebase (arch §6.2 + §8). This keyword wraps that fact.
-    [Arguments]    ${name}    ${description}=${EMPTY}
+    [Arguments]    ${name}    ${description}=${EMPTY}    ${path}=${EMPTY}
     ${session_id}=    Connect To MCP SSE
-    ${resp}=    Create Project Tool    ${session_id}    ${name}    ${description}
+    ${resp}=    Create Project Tool    ${session_id}    ${name}    ${description}    ${path}
     ${text}=    Set Variable    ${resp.json()['result']['content'][0]['text']}
     ${project}=    Evaluate    json.loads('''${text}''')    json
     RETURN    ${project}
 
 Create Document Via API
     [Documentation]    Creates a document via the MCP create_document tool and returns the document dict.
-    [Arguments]    ${project_id}    ${title}    ${content}
+    [Arguments]    ${project_id}    ${requirement_id}    ${title}    ${content}
     ${session_id}=    Connect To MCP SSE
-    ${resp}=    Create Document Tool    ${session_id}    ${project_id}    ${title}    ${content}
+    ${resp}=    Create Document Tool    ${session_id}    ${project_id}    ${requirement_id}    ${title}    ${content}
     ${text}=    Set Variable    ${resp.json()['result']['content'][0]['text']}
     ${document}=    Evaluate    json.loads('''${text}''')    json
     RETURN    ${document}

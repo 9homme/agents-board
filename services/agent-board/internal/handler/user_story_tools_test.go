@@ -49,7 +49,13 @@ func (m *MockUserStoryRepo) ListUserStories(ctx context.Context, projectID strin
 func TestUserStoryTools_CreateUserStory(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	// Provide requirement mock so validation passes before reaching the repo (§12 BREAKING).
+	mockReqRepo := &MockRequirementRepo{
+		GetRequirementFunc: func(_ context.Context, id string) (*domain.Requirement, error) {
+			return &domain.Requirement{ID: id, ProjectID: "123e4567-e89b-12d3-a456-426614174000"}, nil
+		},
+	}
+	handler.RegisterUserStoryTools(registry, mockRepo, mockReqRepo)
 
 	now := time.Now()
 	mockRepo.CreateUserStoryFunc = func(ctx context.Context, u *domain.UserStory) (*domain.UserStory, error) {
@@ -68,7 +74,8 @@ func TestUserStoryTools_CreateUserStory(t *testing.T) {
 		}, nil
 	}
 
-	args := json.RawMessage(`{"projectId":"123e4567-e89b-12d3-a456-426614174000", "title": "My Story", "description": "Desc", "status": "draft"}`)
+	// requirement_id is now required (§12 BREAKING).
+	args := json.RawMessage(`{"projectId":"123e4567-e89b-12d3-a456-426614174000", "requirement_id":"rid-1", "title": "My Story", "description": "Desc", "status": "draft"}`)
 	toolHandler, ok := registry.GetTool("create_user_story")
 	require.True(t, ok)
 	res, err := toolHandler(context.Background(), args)
@@ -87,7 +94,7 @@ func TestUserStoryTools_CreateUserStory(t *testing.T) {
 func TestUserStoryTools_CreateUserStory_InvalidInitialStatus(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	// Providing non-draft status should be rejected
 	args := json.RawMessage(`{"projectId":"123e4567-e89b-12d3-a456-426614174000", "title": "My Story", "description": "Desc", "status": "done"}`)
@@ -101,7 +108,7 @@ func TestUserStoryTools_CreateUserStory_InvalidInitialStatus(t *testing.T) {
 func TestUserStoryTools_GetUserStory(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(ctx context.Context, id string) (*domain.UserStory, error) {
@@ -135,7 +142,7 @@ func TestUserStoryTools_GetUserStory(t *testing.T) {
 func TestUserStoryTools_UpdateUserStory(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(ctx context.Context, id string) (*domain.UserStory, error) {
@@ -192,7 +199,7 @@ func TestUserStoryTools_UpdateUserStory(t *testing.T) {
 func TestUserStoryTools_UpdateUserStory_InvalidTransition(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(ctx context.Context, id string) (*domain.UserStory, error) {
@@ -220,7 +227,7 @@ func TestUserStoryTools_UpdateUserStory_InvalidTransition(t *testing.T) {
 func TestUserStoryTools_DeleteUserStory(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.DeleteUserStoryFunc = func(ctx context.Context, id string) error {
 		return nil
@@ -240,7 +247,7 @@ func TestUserStoryTools_DeleteUserStory(t *testing.T) {
 func TestUserStoryTools_ListUserStories(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.ListUserStoriesFunc = func(ctx context.Context, projectID string) ([]*domain.UserStory, error) {
@@ -280,7 +287,7 @@ func TestUserStoryTools_ListUserStories(t *testing.T) {
 func TestRegisterUserStoryTools_RegistersAllFiveTools(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	for _, name := range []string{
 		"create_user_story",
@@ -302,7 +309,7 @@ func TestRegisterUserStoryTools_RegistersAllFiveTools(t *testing.T) {
 func TestCreateUserStoryTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("create_user_story")
 	require.True(t, ok)
@@ -316,7 +323,7 @@ func TestCreateUserStoryTool_InvalidArguments(t *testing.T) {
 func TestCreateUserStoryTool_MissingProjectIDOrTitle(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("create_user_story")
 	require.True(t, ok)
@@ -336,7 +343,13 @@ func TestCreateUserStoryTool_MissingProjectIDOrTitle(t *testing.T) {
 func TestCreateUserStoryTool_DefaultStatusWhenOmitted(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	// Provide requirement mock so validation passes before reaching the repo (§12 BREAKING).
+	mockReqRepo := &MockRequirementRepo{
+		GetRequirementFunc: func(_ context.Context, id string) (*domain.Requirement, error) {
+			return &domain.Requirement{ID: id, ProjectID: "pid-1"}, nil
+		},
+	}
+	handler.RegisterUserStoryTools(registry, mockRepo, mockReqRepo)
 
 	var capturedStory *domain.UserStory
 	mockRepo.CreateUserStoryFunc = func(_ context.Context, s *domain.UserStory) (*domain.UserStory, error) {
@@ -355,7 +368,8 @@ func TestCreateUserStoryTool_DefaultStatusWhenOmitted(t *testing.T) {
 	toolHandler, ok := registry.GetTool("create_user_story")
 	require.True(t, ok)
 
-	_, err := toolHandler(context.Background(), json.RawMessage(`{"projectId":"pid-1","title":"My Story"}`))
+	// requirement_id is now required (§12 BREAKING).
+	_, err := toolHandler(context.Background(), json.RawMessage(`{"projectId":"pid-1","requirement_id":"rid-1","title":"My Story"}`))
 	require.NoError(t, err)
 	require.NotNil(t, capturedStory)
 	assert.Equal(t, domain.UserStoryStatusDraft, capturedStory.Status)
@@ -365,12 +379,17 @@ func TestCreateUserStoryTool_DefaultStatusWhenOmitted(t *testing.T) {
 func TestCreateUserStoryTool_InvalidInitialStatus(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	mockReqRepo := &MockRequirementRepo{
+		GetRequirementFunc: func(_ context.Context, id string) (*domain.Requirement, error) {
+			return &domain.Requirement{ID: id, ProjectID: "pid-1"}, nil
+		},
+	}
+	handler.RegisterUserStoryTools(registry, mockRepo, mockReqRepo)
 
 	toolHandler, ok := registry.GetTool("create_user_story")
 	require.True(t, ok)
 
-	_, err := toolHandler(context.Background(), json.RawMessage(`{"projectId":"pid-1","title":"Story","status":"in_signoff"}`))
+	_, err := toolHandler(context.Background(), json.RawMessage(`{"projectId":"pid-1","requirement_id":"rid-1","title":"Story","status":"in_signoff"}`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid initial status:")
 }
@@ -379,7 +398,12 @@ func TestCreateUserStoryTool_InvalidInitialStatus(t *testing.T) {
 func TestCreateUserStoryTool_RepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	mockReqRepo := &MockRequirementRepo{
+		GetRequirementFunc: func(_ context.Context, id string) (*domain.Requirement, error) {
+			return &domain.Requirement{ID: id, ProjectID: "pid-1"}, nil
+		},
+	}
+	handler.RegisterUserStoryTools(registry, mockRepo, mockReqRepo)
 
 	mockErr := errors.New("db down")
 	mockRepo.CreateUserStoryFunc = func(_ context.Context, _ *domain.UserStory) (*domain.UserStory, error) {
@@ -389,7 +413,7 @@ func TestCreateUserStoryTool_RepoError(t *testing.T) {
 	toolHandler, ok := registry.GetTool("create_user_story")
 	require.True(t, ok)
 
-	_, returnedErr := toolHandler(context.Background(), json.RawMessage(`{"projectId":"pid-1","title":"Story"}`))
+	_, returnedErr := toolHandler(context.Background(), json.RawMessage(`{"projectId":"pid-1","requirement_id":"rid-1","title":"Story"}`))
 	require.Error(t, returnedErr)
 	assert.True(t, errors.Is(returnedErr, mockErr), "expected passthrough error, got: %v", returnedErr)
 }
@@ -398,7 +422,7 @@ func TestCreateUserStoryTool_RepoError(t *testing.T) {
 func TestGetUserStoryTool_HappyPath(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
@@ -429,7 +453,7 @@ func TestGetUserStoryTool_HappyPath(t *testing.T) {
 func TestGetUserStoryTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("get_user_story")
 	require.True(t, ok)
@@ -443,7 +467,7 @@ func TestGetUserStoryTool_InvalidArguments(t *testing.T) {
 func TestGetUserStoryTool_MissingID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("get_user_story")
 	require.True(t, ok)
@@ -457,7 +481,7 @@ func TestGetUserStoryTool_MissingID(t *testing.T) {
 func TestGetUserStoryTool_NotFound(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.GetUserStoryFunc = func(_ context.Context, _ string) (*domain.UserStory, error) {
 		return nil, repo.ErrNotFound
@@ -476,7 +500,7 @@ func TestGetUserStoryTool_NotFound(t *testing.T) {
 func TestGetUserStoryTool_GenericError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockErr := errors.New("db down")
 	mockRepo.GetUserStoryFunc = func(_ context.Context, _ string) (*domain.UserStory, error) {
@@ -495,7 +519,7 @@ func TestGetUserStoryTool_GenericError(t *testing.T) {
 func TestUpdateUserStoryTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("update_user_story")
 	require.True(t, ok)
@@ -509,7 +533,7 @@ func TestUpdateUserStoryTool_InvalidArguments(t *testing.T) {
 func TestUpdateUserStoryTool_MissingID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("update_user_story")
 	require.True(t, ok)
@@ -523,7 +547,7 @@ func TestUpdateUserStoryTool_MissingID(t *testing.T) {
 func TestUpdateUserStoryTool_NotFoundOnInitialGet(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.GetUserStoryFunc = func(_ context.Context, _ string) (*domain.UserStory, error) {
 		return nil, repo.ErrNotFound
@@ -542,7 +566,7 @@ func TestUpdateUserStoryTool_NotFoundOnInitialGet(t *testing.T) {
 func TestUpdateUserStoryTool_GenericErrorOnInitialGet(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockErr := errors.New("db down")
 	mockRepo.GetUserStoryFunc = func(_ context.Context, _ string) (*domain.UserStory, error) {
@@ -561,7 +585,7 @@ func TestUpdateUserStoryTool_GenericErrorOnInitialGet(t *testing.T) {
 func TestUpdateUserStoryTool_InvalidStatusTransition(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
@@ -588,7 +612,7 @@ func TestUpdateUserStoryTool_InvalidStatusTransition(t *testing.T) {
 func TestUpdateUserStoryTool_StatusChange_UpdateUserStoryStatusError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
@@ -620,7 +644,7 @@ func TestUpdateUserStoryTool_StatusChange_UpdateUserStoryStatusError(t *testing.
 func TestUpdateUserStoryTool_StatusChange_PostStatusFieldUpdateError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
@@ -663,7 +687,7 @@ func TestUpdateUserStoryTool_StatusChange_PostStatusFieldUpdateError(t *testing.
 func TestUpdateUserStoryTool_StatusChange_HappyPath_NoExtraFields(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
@@ -703,7 +727,7 @@ func TestUpdateUserStoryTool_StatusChange_HappyPath_NoExtraFields(t *testing.T) 
 func TestUpdateUserStoryTool_StatusChange_HappyPath_WithExtraFields(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
@@ -759,7 +783,7 @@ func TestUpdateUserStoryTool_StatusChange_HappyPath_WithExtraFields(t *testing.T
 func TestUpdateUserStoryTool_NoStatusChange_RepoUpdateError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	now := time.Now()
 	mockRepo.GetUserStoryFunc = func(_ context.Context, id string) (*domain.UserStory, error) {
@@ -791,7 +815,7 @@ func TestUpdateUserStoryTool_NoStatusChange_RepoUpdateError(t *testing.T) {
 func TestDeleteUserStoryTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("delete_user_story")
 	require.True(t, ok)
@@ -805,7 +829,7 @@ func TestDeleteUserStoryTool_InvalidArguments(t *testing.T) {
 func TestDeleteUserStoryTool_MissingID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("delete_user_story")
 	require.True(t, ok)
@@ -819,7 +843,7 @@ func TestDeleteUserStoryTool_MissingID(t *testing.T) {
 func TestDeleteUserStoryTool_RepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockErr := errors.New("db down")
 	mockRepo.DeleteUserStoryFunc = func(_ context.Context, _ string) error {
@@ -838,7 +862,7 @@ func TestDeleteUserStoryTool_RepoError(t *testing.T) {
 func TestListUserStoriesTool_InvalidArguments(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("list_user_stories")
 	require.True(t, ok)
@@ -852,7 +876,7 @@ func TestListUserStoriesTool_InvalidArguments(t *testing.T) {
 func TestListUserStoriesTool_MissingProjectID(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	toolHandler, ok := registry.GetTool("list_user_stories")
 	require.True(t, ok)
@@ -866,7 +890,7 @@ func TestListUserStoriesTool_MissingProjectID(t *testing.T) {
 func TestListUserStoriesTool_RepoError(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockErr := errors.New("db down")
 	mockRepo.ListUserStoriesFunc = func(_ context.Context, _ string) ([]*domain.UserStory, error) {
@@ -881,11 +905,122 @@ func TestListUserStoriesTool_RepoError(t *testing.T) {
 	assert.True(t, errors.Is(returnedErr, mockErr), "expected passthrough error, got: %v", returnedErr)
 }
 
+// -----------------------------------------------------------------------
+// US045 BREAKING CHANGE tests — create_user_story now requires requirement_id
+// -----------------------------------------------------------------------
+
+// UT-045-039 — MCP create_user_story now includes requirement_id in INSERT
+func TestCreateUserStoryTool_WithRequirementID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{} // used for membership check
+	mockUSRepo := &MockUserStoryRepo{}
+	now := time.Now()
+
+	projectID := "11111111-1111-1111-1111-111111111111"
+	requirementID := "b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f"
+
+	// GetRequirement returns a requirement belonging to the same project
+	mockReqRepo.GetRequirementFunc = func(_ context.Context, id string) (*domain.Requirement, error) {
+		return &domain.Requirement{
+			ID:        id,
+			ProjectID: projectID,
+			Name:      "REQ",
+			Status:    "draft",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil
+	}
+
+	mockUSRepo.CreateUserStoryFunc = func(_ context.Context, u *domain.UserStory) (*domain.UserStory, error) {
+		assert.Equal(t, requirementID, u.RequirementID, "RequirementID must be set on INSERT")
+		return &domain.UserStory{
+			ID:            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+			ProjectID:     u.ProjectID,
+			RequirementID: u.RequirementID,
+			Title:         u.Title,
+			Description:   u.Description,
+			Status:        u.Status,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		}, nil
+	}
+
+	handler.RegisterUserStoryTools(registry, mockUSRepo, mockReqRepo)
+
+	args := json.RawMessage(`{"projectId":"11111111-1111-1111-1111-111111111111","requirement_id":"b2e9d0c1-2f3a-4b5c-8d7e-1a2b3c4d5e6f","title":"Add item to basket"}`)
+	tool, ok := registry.GetTool("create_user_story")
+	require.True(t, ok)
+
+	res, err := tool(context.Background(), args)
+	require.NoError(t, err)
+
+	b, err := json.Marshal(res)
+	require.NoError(t, err)
+	var m map[string]interface{}
+	require.NoError(t, json.Unmarshal(b, &m))
+	assert.Equal(t, requirementID, m["requirementId"])
+	assert.Equal(t, projectID, m["projectId"])
+	assert.Equal(t, "Add item to basket", m["title"])
+}
+
+// UT-045-040 — MCP create_user_story — missing requirement_id returns tool error
+func TestCreateUserStoryTool_MissingRequirementID(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{}
+	mockUSRepo := &MockUserStoryRepo{}
+
+	handler.RegisterUserStoryTools(registry, mockUSRepo, mockReqRepo)
+
+	tool, ok := registry.GetTool("create_user_story")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), json.RawMessage(`{"projectId":"proj-1","title":"Story"}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requirement_id")
+}
+
+// UT-045-041 — MCP create_user_story — requirement does not belong to project returns tool error
+func TestCreateUserStoryTool_RequirementNotInProject(t *testing.T) {
+	registry := mcp.NewToolRegistry()
+	mockReqRepo := &MockRequirementRepo{}
+	mockUSRepo := &MockUserStoryRepo{}
+	now := time.Now()
+
+	// requirement belongs to a DIFFERENT project
+	mockReqRepo.GetRequirementFunc = func(_ context.Context, id string) (*domain.Requirement, error) {
+		return &domain.Requirement{
+			ID:        id,
+			ProjectID: "different-project-id",
+			Name:      "REQ",
+			Status:    "draft",
+			CreatedAt: now,
+			UpdatedAt: now,
+		}, nil
+	}
+
+	called := false
+	mockUSRepo.CreateUserStoryFunc = func(_ context.Context, _ *domain.UserStory) (*domain.UserStory, error) {
+		called = true
+		return nil, errors.New("should not be called")
+	}
+
+	handler.RegisterUserStoryTools(registry, mockUSRepo, mockReqRepo)
+
+	args := json.RawMessage(`{"projectId":"proj-1","requirement_id":"req-belongs-to-other","title":"Story"}`)
+	tool, ok := registry.GetTool("create_user_story")
+	require.True(t, ok)
+
+	_, err := tool(context.Background(), args)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requirement does not belong to project")
+	assert.False(t, called, "repo must NOT be called when requirement doesn't belong to project")
+}
+
 // UT-027
 func TestListUserStoriesTool_EmptySliceReturnsEmptyArray(t *testing.T) {
 	registry := mcp.NewToolRegistry()
 	mockRepo := &MockUserStoryRepo{}
-	handler.RegisterUserStoryTools(registry, mockRepo)
+	handler.RegisterUserStoryTools(registry, mockRepo, &MockRequirementRepo{})
 
 	mockRepo.ListUserStoriesFunc = func(_ context.Context, _ string) ([]*domain.UserStory, error) {
 		return nil, nil

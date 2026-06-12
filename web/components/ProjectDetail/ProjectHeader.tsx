@@ -105,6 +105,10 @@ export const ProjectHeader: React.FC<ProjectHeaderProps> = (props) => {
       ) : (
         <p className="text-gray-400 mt-2 italic">No description</p>
       )}
+      {/* Read-only linked path (US047 — always present per §2) */}
+      <p className="text-sm text-gray-500 mt-1 font-mono truncate" title={project.path}>
+        {project.path}
+      </p>
     </header>
   );
 };

@@ -9,9 +9,12 @@ import { server } from '../test/msw/server';
 import { useDocument } from './useDocument';
 import { ApiError } from '../lib/api/client';
 
+const PROJECT_ID = 'p1';
+const REQUIREMENT_ID = 'req-001';
+
 describe('useDocument', () => {
   it('returns isLoading:true initially then data when resolved', async () => {
-    const { result } = renderHook(() => useDocument('d111aaaa-1111-1111-1111-111111111111'));
+    const { result } = renderHook(() => useDocument(PROJECT_ID, REQUIREMENT_ID, 'd111aaaa-1111-1111-1111-111111111111'));
 
     expect(result.current.isLoading).toBe(true);
 
@@ -25,8 +28,8 @@ describe('useDocument', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('skips fetch when documentId is undefined', () => {
-    const { result } = renderHook(() => useDocument(undefined));
+  it('skips fetch when params are undefined', () => {
+    const { result } = renderHook(() => useDocument(undefined, undefined, undefined));
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeNull();
@@ -34,7 +37,7 @@ describe('useDocument', () => {
   });
 
   it('returns error when 500 response', async () => {
-    const { result } = renderHook(() => useDocument('broken-document'));
+    const { result } = renderHook(() => useDocument(PROJECT_ID, REQUIREMENT_ID, 'broken-document'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -46,7 +49,7 @@ describe('useDocument', () => {
   });
 
   it('returns error with NOT_FOUND code when 404', async () => {
-    const { result } = renderHook(() => useDocument('not-found-document'));
+    const { result } = renderHook(() => useDocument(PROJECT_ID, REQUIREMENT_ID, 'not-found-document'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -59,11 +62,12 @@ describe('useDocument', () => {
   it('refetch re-issues the document fetch', async () => {
     let callCount = 0;
     server.use(
-      http.get('*/api/v1/documents/d111aaaa-1111-1111-1111-111111111111', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/documents/d111aaaa-1111-1111-1111-111111111111', () => {
         callCount++;
         return HttpResponse.json({
           id: 'd111aaaa-1111-1111-1111-111111111111',
           projectId: 'p1',
+          requirementId: 'req-001',
           title: 'Architecture overview',
           content: '# Architecture',
           createdAt: '2026-05-18T08:30:00Z',
@@ -72,7 +76,7 @@ describe('useDocument', () => {
       })
     );
 
-    const { result } = renderHook(() => useDocument('d111aaaa-1111-1111-1111-111111111111'));
+    const { result } = renderHook(() => useDocument(PROJECT_ID, REQUIREMENT_ID, 'd111aaaa-1111-1111-1111-111111111111'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -97,11 +101,12 @@ describe('useDocument', () => {
   describe('FCT-US010-005 — reducer: FETCH_STARTED clears state', () => {
     it('shows data:null, isLoading:true, error:null when fetch starts', async () => {
       server.use(
-        http.get('*/api/v1/documents/doc-001', async () => {
+        http.get('*/api/v1/projects/:pid/requirements/:rid/documents/doc-001', async () => {
           await delay(300);
           return HttpResponse.json({
             id: 'doc-001',
             projectId: 'proj-001',
+            requirementId: 'req-001',
             title: 'Architecture',
             content: '# Arch',
             createdAt: '2026-05-20T10:00:00Z',
@@ -110,7 +115,7 @@ describe('useDocument', () => {
         })
       );
 
-      const { result } = renderHook(() => useDocument('doc-001'));
+      const { result } = renderHook(() => useDocument('proj-001', REQUIREMENT_ID, 'doc-001'));
 
       await waitFor(() => expect(result.current.isLoading).toBe(true));
       expect(result.current.data).toBeNull();
@@ -124,10 +129,11 @@ describe('useDocument', () => {
   describe('FCT-US010-006 — reducer: FETCH_SUCCEEDED commits document', () => {
     it('shows data populated, isLoading:false, error:null after successful fetch', async () => {
       server.use(
-        http.get('*/api/v1/documents/doc-001', () => {
+        http.get('*/api/v1/projects/:pid/requirements/:rid/documents/doc-001', () => {
           return HttpResponse.json({
             id: 'doc-001',
             projectId: 'proj-001',
+            requirementId: 'req-001',
             title: 'Architecture',
             content: '# Arch',
             createdAt: '2026-05-20T10:00:00Z',
@@ -136,7 +142,7 @@ describe('useDocument', () => {
         })
       );
 
-      const { result } = renderHook(() => useDocument('doc-001'));
+      const { result } = renderHook(() => useDocument('proj-001', REQUIREMENT_ID, 'doc-001'));
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
       expect(result.current.data?.id).toBe('doc-001');
@@ -151,7 +157,7 @@ describe('useDocument', () => {
   describe('FCT-US010-007 — reducer: FETCH_FAILED records error', () => {
     it('shows data:null, isLoading:false, error:non-null after failed fetch', async () => {
       server.use(
-        http.get('*/api/v1/documents/doc-bad', () => {
+        http.get('*/api/v1/projects/:pid/requirements/:rid/documents/doc-bad', () => {
           return HttpResponse.json(
             { code: 'INTERNAL_ERROR', message: 'Failed to fetch document' },
             { status: 500 }
@@ -159,7 +165,7 @@ describe('useDocument', () => {
         })
       );
 
-      const { result } = renderHook(() => useDocument('doc-bad'));
+      const { result } = renderHook(() => useDocument(PROJECT_ID, REQUIREMENT_ID, 'doc-bad'));
 
       await waitFor(() => expect(result.current.error).not.toBeNull());
       expect(result.current.data).toBeNull();
@@ -176,11 +182,12 @@ describe('useDocument', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
       server.use(
-        http.get('*/api/v1/documents/doc-abort', async () => {
+        http.get('*/api/v1/projects/:pid/requirements/:rid/documents/doc-abort', async () => {
           await delay(200);
           return HttpResponse.json({
             id: 'doc-abort',
             projectId: 'proj-001',
+            requirementId: 'req-001',
             title: 'Abort test',
             content: '',
             createdAt: '2026-05-20T10:00:00Z',
@@ -189,7 +196,7 @@ describe('useDocument', () => {
         })
       );
 
-      const { result, unmount } = renderHook(() => useDocument('doc-abort'));
+      const { result, unmount } = renderHook(() => useDocument(PROJECT_ID, REQUIREMENT_ID, 'doc-abort'));
 
       // Wait for loading to start
       await waitFor(() => expect(result.current.isLoading).toBe(true));
@@ -215,10 +222,11 @@ describe('useDocument', () => {
   describe('FCT-US010-009 — public return shape unchanged', () => {
     it('returns exactly { data, isLoading, error, refetch } with correct types', async () => {
       server.use(
-        http.get('*/api/v1/documents/doc-001', () => {
+        http.get('*/api/v1/projects/:pid/requirements/:rid/documents/doc-001', () => {
           return HttpResponse.json({
             id: 'doc-001',
             projectId: 'proj-001',
+            requirementId: 'req-001',
             title: 'Architecture',
             content: '# Arch',
             createdAt: '2026-05-20T10:00:00Z',
@@ -227,7 +235,7 @@ describe('useDocument', () => {
         })
       );
 
-      const { result } = renderHook(() => useDocument('doc-001'));
+      const { result } = renderHook(() => useDocument('proj-001', REQUIREMENT_ID, 'doc-001'));
 
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
@@ -253,17 +261,15 @@ describe('useDocument', () => {
   // FCT-US002-007 — Rapid click: abort prior controller before new request; only latest doc shown
   describe('FCT-US002-007 — rapid click cancels in-flight request via AbortController + stale-id', () => {
     it('switching documentId aborts prior fetch and only latest doc ends in state', async () => {
-      // doc-A: delay indefinitely so the initial request stays in-flight.
-      // Spy on AbortController.abort to verify the hook calls it when switching docs.
       const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
 
       server.use(
-        http.get('*/api/v1/documents/doc-A', async () => {
-          // Simulate an indefinitely-pending request
+        http.get('*/api/v1/projects/:pid/requirements/:rid/documents/doc-A', async () => {
           await delay('infinite');
           return HttpResponse.json({
             id: 'doc-A',
             projectId: 'p1',
+            requirementId: 'req-001',
             title: 'Doc A',
             content: 'Doc A content',
             createdAt: '2026-05-20T10:00:00Z',
@@ -273,15 +279,15 @@ describe('useDocument', () => {
       );
 
       let documentId = 'doc-A';
-      const { result, rerender } = renderHook(() => useDocument(documentId));
+      const { result, rerender } = renderHook(() => useDocument(PROJECT_ID, REQUIREMENT_ID, documentId));
 
       // doc-A fetch is in-flight
       expect(result.current.isLoading).toBe(true);
 
-      // Clear calls from initial render (effect cleanup from unmounts etc.)
+      // Clear calls from initial render
       abortSpy.mockClear();
 
-      // Switch to doc-B before doc-A resolves — this triggers controllerRef.current.abort()
+      // Switch to doc-B before doc-A resolves
       act(() => {
         documentId = 'doc-B';
         rerender();
@@ -292,14 +298,9 @@ describe('useDocument', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Final state must be doc-B (the most recently requested doc)
+      // Final state must be doc-B
       expect(result.current.data?.id).toBe('doc-B');
-
-      // State must NOT contain doc-A (stale-id guard proves race safety)
       expect(result.current.data?.id).not.toBe('doc-A');
-
-      // The hook must have called .abort() on the prior AbortController
-      // (could be called once on the doc-A controller when switching to doc-B)
       expect(abortSpy).toHaveBeenCalled();
 
       abortSpy.mockRestore();

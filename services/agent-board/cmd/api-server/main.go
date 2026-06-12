@@ -77,20 +77,34 @@ func run() error {
 	projectRepo := repo.NewProjectRepo(db)
 	projectHandler := handler.NewProjectHandler(projectRepo)
 
-	documentHandler := handler.NewDocumentHandler(repo.NewDocumentRepo(db), projectRepo)
+	documentRepo := repo.NewDocumentRepo(db)
+	documentHandler := handler.NewDocumentHandler(documentRepo, projectRepo)
 
 	userStoryRepo := repo.NewUserStoryRepo(db)
 	taskRepo := repo.NewTaskRepo(db)
 	userStoryHandler := handler.NewUserStoryHandler(userStoryRepo, projectRepo)
 	userStoryHandler.SetTaskRepo(taskRepo)
 
+	requirementRepo := repo.NewRequirementRepo(db)
+	requirementHandler := handler.NewRequirementHandler(requirementRepo, projectRepo)
+
+	// Inject requirement repo into hierarchy handlers for chain-guard validation (D-009).
+	userStoryHandler.SetRequirementRepo(requirementRepo)
+	documentHandler.SetRequirementRepo(requirementRepo)
+
 	e.GET("/api/v1/projects", projectHandler.GetProjects)
+	e.POST("/api/v1/projects", projectHandler.CreateProject)
 	e.GET("/api/v1/projects/:id", projectHandler.GetProject)
-	e.GET("/api/v1/projects/:id/documents", documentHandler.ListProjectDocuments)
-	e.GET("/api/v1/documents/:id", documentHandler.GetDocument)
-	e.GET("/api/v1/projects/:id/user-stories", userStoryHandler.GetProjectUserStories)
-	e.GET("/api/v1/user-stories/:id", userStoryHandler.GetUserStory)
-	e.GET("/api/v1/user-stories/:id/tasks", userStoryHandler.GetUserStoryTasks)
+	e.GET("/api/v1/projects/:pid/requirements", requirementHandler.ListProjectRequirements)
+
+	// Hierarchy routes (§6–§11): full canonical Project → Requirement → UserStory/Document paths.
+	// The 8 flat/shorthand routes have been removed per D-009.
+	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories", userStoryHandler.ListRequirementUserStories)
+	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid", userStoryHandler.GetRequirementUserStory)
+	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks", userStoryHandler.GetRequirementUserStoryTasks)
+	e.GET("/api/v1/projects/:pid/requirements/:rid/user-stories/:usid/tasks/:tid", userStoryHandler.GetRequirementTask)
+	e.GET("/api/v1/projects/:pid/requirements/:rid/documents", documentHandler.ListRequirementDocuments)
+	e.GET("/api/v1/projects/:pid/requirements/:rid/documents/:docid", documentHandler.GetRequirementDocument)
 
 	// Start server
 	port := os.Getenv("PORT")

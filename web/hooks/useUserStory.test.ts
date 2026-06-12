@@ -8,10 +8,13 @@ import { server } from '../test/msw/server';
 import { useUserStory } from './useUserStory';
 import { ApiError } from '../lib/api/client';
 
+const PROJECT_ID = 'proj-001';
+const REQUIREMENT_ID = 'req-001';
 const STORY_ID = 'us-001';
 const STORY_FIXTURE = {
   id: 'us-001',
   projectId: 'proj-001',
+  requirementId: 'req-001',
   title: 'Add item to basket',
   description: 'As a shopper I want to add an item to my basket.',
   status: 'in_development',
@@ -22,14 +25,14 @@ const STORY_FIXTURE = {
 describe('useUserStory', () => {
   beforeEach(() => {
     server.use(
-      http.get('*/api/v1/user-stories/us-001', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/us-001', () => {
         return HttpResponse.json(STORY_FIXTURE);
       })
     );
   });
 
   it('returns isLoading:true initially then data when resolved', async () => {
-    const { result } = renderHook(() => useUserStory(STORY_ID));
+    const { result } = renderHook(() => useUserStory(PROJECT_ID, REQUIREMENT_ID, STORY_ID));
 
     expect(result.current.isLoading).toBe(true);
 
@@ -42,8 +45,8 @@ describe('useUserStory', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('skips fetch when storyId is undefined', () => {
-    const { result } = renderHook(() => useUserStory(undefined));
+  it('skips fetch when params are undefined', () => {
+    const { result } = renderHook(() => useUserStory(undefined, undefined, undefined));
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.data).toBeNull();
@@ -51,16 +54,7 @@ describe('useUserStory', () => {
   });
 
   it('returns error when 500 response', async () => {
-    server.use(
-      http.get('*/api/v1/user-stories/broken-story', () => {
-        return HttpResponse.json(
-          { code: 'INTERNAL_ERROR', message: 'Failed to fetch user story' },
-          { status: 500 }
-        );
-      })
-    );
-
-    const { result } = renderHook(() => useUserStory('broken-story'));
+    const { result } = renderHook(() => useUserStory(PROJECT_ID, REQUIREMENT_ID, 'broken-story'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -71,16 +65,7 @@ describe('useUserStory', () => {
   });
 
   it('returns error with NOT_FOUND code when 404', async () => {
-    server.use(
-      http.get('*/api/v1/user-stories/not-found-story', () => {
-        return HttpResponse.json(
-          { code: 'NOT_FOUND', message: 'User story not found' },
-          { status: 404 }
-        );
-      })
-    );
-
-    const { result } = renderHook(() => useUserStory('not-found-story'));
+    const { result } = renderHook(() => useUserStory(PROJECT_ID, REQUIREMENT_ID, 'not-found-story'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -92,14 +77,15 @@ describe('useUserStory', () => {
 
   it('aborts prior request when storyId changes', async () => {
     server.use(
-      http.get('*/api/v1/user-stories/story-slow', async () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/story-slow', async () => {
         await delay('infinite');
         return HttpResponse.json({ id: 'story-slow' });
       }),
-      http.get('*/api/v1/user-stories/story-fast', () => {
+      http.get('*/api/v1/projects/:pid/requirements/:rid/user-stories/story-fast', () => {
         return HttpResponse.json({
           id: 'story-fast',
-          projectId: 'proj-001',
+          projectId: PROJECT_ID,
+          requirementId: REQUIREMENT_ID,
           title: 'Fast Story',
           description: '',
           status: 'pending',
@@ -112,7 +98,7 @@ describe('useUserStory', () => {
     const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
 
     let storyId = 'story-slow';
-    const { result, rerender } = renderHook(() => useUserStory(storyId));
+    const { result, rerender } = renderHook(() => useUserStory(PROJECT_ID, REQUIREMENT_ID, storyId));
 
     expect(result.current.isLoading).toBe(true);
     abortSpy.mockClear();

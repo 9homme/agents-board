@@ -28,8 +28,8 @@ func TestProjectRepo_CreateProject(t *testing.T) {
 		Description: "A test project",
 	}
 
-	mock.ExpectQuery(`^INSERT INTO projects \(name, description\) VALUES \(\$1, \$2\) RETURNING id, created_at, updated_at$`).
-		WithArgs(p.Name, p.Description).
+	mock.ExpectQuery(`^INSERT INTO projects \(name, description, path\) VALUES \(\$1, \$2, \$3\) RETURNING id, created_at, updated_at$`).
+		WithArgs(p.Name, p.Description, p.Path).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at"}).
 			AddRow("123e4567-e89b-12d3-a456-426614174000", now, now))
 
@@ -56,10 +56,10 @@ func TestProjectRepo_GetProject(t *testing.T) {
 	id := "123e4567-e89b-12d3-a456-426614174000"
 
 	// Success case
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects WHERE id = \$1$`).
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = \$1$`).
 		WithArgs(id).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-			AddRow(id, "Test Project", "Desc", now, now))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+			AddRow(id, "Test Project", "Desc", "/some/path", now, now))
 
 	p, err := repo.GetProject(context.Background(), id)
 	assert.NoError(t, err)
@@ -67,7 +67,7 @@ func TestProjectRepo_GetProject(t *testing.T) {
 	assert.Equal(t, id, p.ID)
 
 	// Not found case
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects WHERE id = \$1$`).
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id = \$1$`).
 		WithArgs("non-existent").
 		WillReturnError(sql.ErrNoRows)
 
@@ -94,10 +94,10 @@ func TestProjectRepo_UpdateProject(t *testing.T) {
 		Description: "Updated desc",
 	}
 
-	mock.ExpectQuery(`^UPDATE projects SET name = \$1, description = \$2, updated_at = NOW\(\) WHERE id = \$3 RETURNING id, name, description, created_at, updated_at$`).
+	mock.ExpectQuery(`^UPDATE projects SET name = \$1, description = \$2, updated_at = NOW\(\) WHERE id = \$3 RETURNING id, name, description, path, created_at, updated_at$`).
 		WithArgs(p.Name, p.Description, p.ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-			AddRow(id, p.Name, p.Description, now, now))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+			AddRow(id, p.Name, p.Description, "", now, now))
 
 	updated, err := repo.UpdateProject(context.Background(), p)
 	assert.NoError(t, err)
@@ -139,10 +139,10 @@ func TestProjectRepo_ListProjects(t *testing.T) {
 	id1 := "11111111-e89b-12d3-a456-426614174000"
 	id2 := "22222222-e89b-12d3-a456-426614174000"
 
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY created_at DESC$`).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-			AddRow(id1, "P1", "D1", now, now).
-			AddRow(id2, "P2", "D2", now, now))
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY created_at DESC$`).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+			AddRow(id1, "P1", "D1", "/path/1", now, now).
+			AddRow(id2, "P2", "D2", "/path/2", now, now))
 
 	projects, err := repo.ListProjects(context.Background())
 	assert.NoError(t, err)
@@ -180,7 +180,7 @@ func TestProjectRepo_GetProject_GenericError(t *testing.T) {
 
 	r := NewProjectRepo(db)
 
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects WHERE id`).
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects WHERE id`).
 		WillReturnError(errors.New("db down"))
 
 	p, err := r.GetProject(context.Background(), "any-id")
@@ -254,7 +254,7 @@ func TestProjectRepo_ListProjects_QueryError(t *testing.T) {
 
 	r := NewProjectRepo(db)
 
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY`).
 		WillReturnError(errors.New("db down"))
 
 	projects, err := r.ListProjects(context.Background())
@@ -274,9 +274,9 @@ func TestProjectRepo_ListProjects_ScanError(t *testing.T) {
 	r := NewProjectRepo(db)
 
 	// type-mismatch: id column expects a UUID string but receives an integer, causing Scan to fail
-	rows := sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-		AddRow(42, "P1", "D1", "not-a-time", "not-a-time")
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+	rows := sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+		AddRow(42, "P1", "D1", "", "not-a-time", "not-a-time")
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY`).
 		WillReturnRows(rows)
 
 	got, err := r.ListProjects(context.Background())
@@ -284,6 +284,43 @@ func TestProjectRepo_ListProjects_ScanError(t *testing.T) {
 	assert.False(t, errors.Is(err, ErrNotFound))
 	assert.Contains(t, err.Error(), "failed to scan project")
 	assert.Nil(t, got)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-045-015 — ProjectRepository.CreateProject — ErrDuplicatePath (Postgres 23505)
+func TestProjectRepo_CreateProject_ErrDuplicatePath(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	// Simulate a unique-violation on uq_projects_path (SQLSTATE 23505)
+	mock.ExpectQuery(`^INSERT INTO projects`).
+		WillReturnError(errors.New("ERROR: duplicate key value violates unique constraint \"uq_projects_path\" (SQLSTATE 23505)"))
+
+	created, err := r.CreateProject(context.Background(), &domain.Project{Name: "x", Description: "", Path: "/already/taken"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrDuplicatePath)
+	assert.Nil(t, created)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+// UT-045-016 — ProjectRepository.CreateProject — generic scan error (not a constraint violation)
+func TestProjectRepo_CreateProject_ScanError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	r := NewProjectRepo(db)
+
+	mock.ExpectQuery(`^INSERT INTO projects`).
+		WillReturnError(errors.New("generic scan error"))
+
+	created, err := r.CreateProject(context.Background(), &domain.Project{Name: "x", Description: "", Path: "/some/path"})
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrDuplicatePath))
+	assert.Nil(t, created)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -296,10 +333,10 @@ func TestProjectRepo_ListProjects_RowsErr(t *testing.T) {
 	r := NewProjectRepo(db)
 	now := time.Now()
 
-	rows := sqlmock.NewRows([]string{"id", "name", "description", "created_at", "updated_at"}).
-		AddRow("123e4567-e89b-12d3-a456-426614174000", "P1", "D1", now, now).
+	rows := sqlmock.NewRows([]string{"id", "name", "description", "path", "created_at", "updated_at"}).
+		AddRow("123e4567-e89b-12d3-a456-426614174000", "P1", "D1", "", now, now).
 		RowError(0, errors.New("rows err"))
-	mock.ExpectQuery(`^SELECT id, name, description, created_at, updated_at FROM projects ORDER BY`).
+	mock.ExpectQuery(`^SELECT id, name, description, path, created_at, updated_at FROM projects ORDER BY`).
 		WillReturnRows(rows)
 
 	result, err := r.ListProjects(context.Background())

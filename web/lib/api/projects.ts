@@ -1,5 +1,5 @@
 import { fetchClient } from './client';
-import { Project, ProjectsResponse } from './types';
+import { Project, ProjectsResponse, CreateProjectRequest } from './types';
 
 /**
  * Fetch the list of all projects.
@@ -22,4 +22,21 @@ export const fetchProjects = async (signal?: AbortSignal): Promise<ProjectsRespo
  */
 export const fetchProject = async (id: string, signal?: AbortSignal): Promise<Project> => {
   return fetchClient<Project>(`/api/v1/projects/${encodeURIComponent(id)}`, { signal });
+};
+
+/**
+ * Create a new project.
+ * Corresponds to POST /api/v1/projects (§3).
+ *
+ * Sends name, optional description, and path as a JSON body.
+ * Returns the created Project (including path) on 201.
+ * Throws ApiError with code 'VALIDATION_ERROR' on 400 or 'DUPLICATE_PATH' on 409.
+ *
+ * @param req - The create request containing name, path, and optional description.
+ */
+export const createProject = async (req: CreateProjectRequest): Promise<Project> => {
+  return fetchClient<Project>('/api/v1/projects', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  });
 };

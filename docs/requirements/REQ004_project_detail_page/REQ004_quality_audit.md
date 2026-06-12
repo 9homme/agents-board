@@ -29,10 +29,10 @@ Test summary: **107 passed, 0 failed, 0 skipped, 6 packages** (`agent-board/cmd/
 |---|---|---|---|
 | `internal/handler/project_handler.go` | `NewProjectHandler` | 100.0% | OK |
 | `internal/handler/project_handler.go` | `GetProjects` | 100.0% | OK (touched incidentally) |
-| `internal/handler/project_handler.go` | `GetProject` (US001) | **100.0%** | OK |
+| `internal/handler/project_handler.go` | `GetProject` (US012) | **100.0%** | OK |
 | `internal/handler/document_handler.go` | `NewDocumentHandler` | 100.0% | OK |
-| `internal/handler/document_handler.go` | `ListProjectDocuments` (US002) | **100.0%** | OK |
-| `internal/handler/document_handler.go` | `GetDocument` (US002) | **100.0%** | OK |
+| `internal/handler/document_handler.go` | `ListProjectDocuments` (US013) | **100.0%** | OK |
+| `internal/handler/document_handler.go` | `GetDocument` (US013) | **100.0%** | OK |
 | `internal/repo/project_repo.go` | `NewProjectRepo` | 100.0% | OK |
 | `internal/repo/project_repo.go` | `CreateProject` | 87.5% | Pre-existing gap |
 | `internal/repo/project_repo.go` | `GetProject` | 87.5% | Pre-existing gap (gen-err branch) |
@@ -44,7 +44,7 @@ Test summary: **107 passed, 0 failed, 0 skipped, 6 packages** (`agent-board/cmd/
 | `internal/repo/document_repo.go` | `GetDocument` | 87.5% | Pre-existing gap (gen-err branch) |
 | `internal/repo/document_repo.go` | `UpdateDocument` | 62.5% | Pre-existing gap |
 | `internal/repo/document_repo.go` | `DeleteDocument` | 80.0% | Pre-existing gap |
-| `internal/repo/document_repo.go` | `ListDocuments` (US002 modified) | **80.0%** | Pre-existing gap; the ORDER-BY line REQ004 added IS covered |
+| `internal/repo/document_repo.go` | `ListDocuments` (US013 modified) | **80.0%** | Pre-existing gap; the ORDER-BY line REQ004 added IS covered |
 
 ### 1.2 Per-package totals
 
@@ -79,12 +79,12 @@ For each REQ004 endpoint, I cross-referenced uncovered statement ranges from `/t
 - Route registration smoke test: `TestDocumentHandler_IT_RouteRegistration_BothDocumentRoutes` ✓
 
 **`ListDocuments` repo change (document_repo.go:103, `ORDER BY updated_at DESC, id DESC`):**
-- The exact ORDER BY clause regex is asserted in `TestDocumentRepo_ListDocuments` (updated) and `TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc` (US-US002-010) ✓
+- The exact ORDER BY clause regex is asserted in `TestDocumentRepo_ListDocuments` (updated) and `TestDocumentRepo_ListDocuments_OrderByUpdatedAtDescIDDesc` (US-US013-010) ✓
 - Three-row tiebreaker scenario (same `updated_at`, lexicographic id DESC) verified ✓
 
 ### 1.4 Is the user's worry justified?
 
-**Largely no, with a fair caveat.** The handlers REQ004 added are at 100% — every happy and error JSON-envelope branch is exercised against the contract. The integration tests (`IT-US001-*`, `IT-US002-*`) also pin the wire format via `sqlmock` plus `httptest`. That is exactly the BE coverage discipline this project asked for, and the user's "BE unit-test coverage too low" hypothesis does not apply to the new code.
+**Largely no, with a fair caveat.** The handlers REQ004 added are at 100% — every happy and error JSON-envelope branch is exercised against the contract. The integration tests (`IT-US012-*`, `IT-US013-*`) also pin the wire format via `sqlmock` plus `httptest`. That is exactly the BE coverage discipline this project asked for, and the user's "BE unit-test coverage too low" hypothesis does not apply to the new code.
 
 **The legitimate caveat: the repo layer has pre-existing thin spots.** They are not REQ004 regressions — `git diff a5aa9ce..HEAD -- services/agent-board/internal/repo` shows REQ004 changed exactly **two lines of production code**: the `ORDER BY` clause in `ListDocuments` and a test variable rename. So flagging this as "REQ004 broke coverage" is not accurate. The uncovered branches in `project_repo.go` / `document_repo.go` are:
 
@@ -92,7 +92,7 @@ For each REQ004 endpoint, I cross-referenced uncovered statement ranges from `/t
 - `Get*` — non-`ErrNoRows` error branch (line `return nil, fmt.Errorf("failed to get …: %w", err)`; pre-existing).
 - `Update*` — both `ErrNoRows` mapping and generic-error branches (pre-existing — UpdateDocument is not even called by any REQ004 endpoint).
 - `Delete*` — `ExecContext` error branch (pre-existing).
-- `List*` — `QueryContext` initial error, `rows.Scan` error inside loop, `rows.Err()` after loop (pre-existing — ListProjects is on the dashboard path, ListDocuments is the one US002 modified).
+- `List*` — `QueryContext` initial error, `rows.Scan` error inside loop, `rows.Err()` after loop (pre-existing — ListProjects is on the dashboard path, ListDocuments is the one US013 modified).
 
 If the team wants to close this for real (not REQ004-specific), see §4.3 for the exact test-function shopping list.
 
@@ -177,8 +177,8 @@ Independent targeted scan: `semgrep --config=auto services/agent-board/internal 
 ### 3.2 Defects vs. environmental gaps
 
 - **Script defect (must fix):** `scripts/review/run-gate.sh` lines 58 and 71 both use `printf "${YELLOW}--- output (rc=%d) ---${RESET}\n%s\n…" "$rc" "$out"`. When stdout is non-TTY (CI, pipe, `bash -c`), the colour vars are empty, the format string becomes `--- output (rc=%d) ---\n%s\n…`, and `printf` parses the leading `--` as an option terminator, prints `printf: --: invalid option`, and **drops the failing-check output**. Minimum patch: `printf -- "${YELLOW}--- output ...${RESET}\n..." ...` (add `--` before the format), or prepend a space inside the format. The same bug pattern should be looked for in any other `printf` whose format starts with a colour-variable (none other I could find).
-- **Script defect (must fix):** FE gate runs `npm test --silent -- --watchAll=false` without `--forceExit`. The MSW server's open handle has caused intermittent hangs (documented in the per-task review logs for US001 / US002 / US003 FE tasks). Minimum patch: add `--forceExit` to that one line. Long-term, fix the actual leak (see §4.3 item 5).
-- **Tool gap (must address, not strictly a bug):** the script `require_tool gosec` will `exit 2` even though the repo's `.golangci.yml` enables `gosec` as a linter. The substitution has been accepted by every per-task BE review in REQ004 (US001-be, US002-list-be, US002-get-be). The script should EITHER (a) require `gosec` and treat the standalone run as additive, OR (b) skip the standalone `gosec` step with a `WARN` line when golangci-lint already has gosec enabled. Same call applies to `govulncheck`.
+- **Script defect (must fix):** FE gate runs `npm test --silent -- --watchAll=false` without `--forceExit`. The MSW server's open handle has caused intermittent hangs (documented in the per-task review logs for US012 / US013 / US014 FE tasks). Minimum patch: add `--forceExit` to that one line. Long-term, fix the actual leak (see §4.3 item 5).
+- **Tool gap (must address, not strictly a bug):** the script `require_tool gosec` will `exit 2` even though the repo's `.golangci.yml` enables `gosec` as a linter. The substitution has been accepted by every per-task BE review in REQ004 (US012-be, US013-list-be, US013-get-be). The script should EITHER (a) require `gosec` and treat the standalone run as additive, OR (b) skip the standalone `gosec` step with a `WARN` line when golangci-lint already has gosec enabled. Same call applies to `govulncheck`.
 
 ### 3.3 Minimum patch to make every gate terminate with a clean PASS/FAIL line
 
@@ -281,9 +281,9 @@ MISSING TOOL: gosec
 ```
 services/agent-board/internal/repo/document_repo.go     | 2 +-     (production)
 services/agent-board/internal/repo/document_repo_test.go| 50 ++++++/--   (tests)
-services/agent-board/internal/handler/project_handler.go  | + (US001 handler — NEW function)
-services/agent-board/internal/handler/project_handler_test.go | + (US001/US002 tests)
-services/agent-board/internal/handler/document_handler.go | + (US002 handlers — NEW functions)
-services/agent-board/internal/handler/document_handler_test.go | + (US002 tests, 23 KB)
+services/agent-board/internal/handler/project_handler.go  | + (US012 handler — NEW function)
+services/agent-board/internal/handler/project_handler_test.go | + (US012/US013 tests)
+services/agent-board/internal/handler/document_handler.go | + (US013 handlers — NEW functions)
+services/agent-board/internal/handler/document_handler_test.go | + (US013 tests, 23 KB)
 web/... (16 new components + hooks + tests, package-lock churn for markdown stack)
 ```

@@ -243,7 +243,7 @@ func TestAuditTools_NoAuditOnInvalidUserStoryTransition(t *testing.T) {
 			return nil, errors.New("should not be called")
 		},
 	}
-	RegisterUserStoryTools(registry, mockRepo)
+	RegisterUserStoryTools(registry, mockRepo, nil)
 
 	ctx := context.Background()
 	storyID := "333e4567-e89b-12d3-a456-426614174000"
@@ -316,6 +316,10 @@ func (m *auditTestUserStoryRepo) ListUserStories(ctx context.Context, projectID 
 }
 
 func (m *auditTestUserStoryRepo) ListUserStoriesWithTaskCount(ctx context.Context, projectID string) ([]*repo.UserStoryWithCount, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (m *auditTestUserStoryRepo) ListByRequirement(ctx context.Context, requirementID string) ([]*repo.UserStoryWithCount, error) {
 	return nil, errors.New("not implemented")
 }
 

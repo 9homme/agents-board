@@ -50,21 +50,17 @@ function reducer(state: State, action: Action): State {
 /**
  * Race-safe hook that fetches all tasks for a user story by id.
  *
- * Uses AbortController + a stale-id ref to ensure that rapid id changes
- * always end with the most-recently-requested story's tasks in state.
- * Mirrors the pattern established in useDocument.ts (D-005).
- *
- * Skips the fetch when `storyId` is undefined.
- *
- * @param storyId - The user story id whose tasks to fetch, or undefined to skip.
+ * Skips the fetch when any of projectId, requirementId, or storyId is undefined.
  */
 export const useUserStoryTasks = (
+  projectId: string | undefined,
+  requirementId: string | undefined,
   storyId: string | undefined
 ): UseUserStoryTasksResult => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const controllerRef = useRef<AbortController | null>(null);
-  const latestIdRef = useRef<string | undefined>(undefined);
+  const latestKeyRef = useRef<string | undefined>(undefined);
   const [fetchCount, setFetchCount] = useState(0);
 
   const refetch = useCallback(() => {
@@ -72,22 +68,23 @@ export const useUserStoryTasks = (
   }, []);
 
   useEffect(() => {
-    if (storyId === undefined) {
+    if (!projectId || !requirementId || !storyId) {
       return;
     }
 
-    // Abort any in-flight request from the previous storyId
+    const compositeKey = `${projectId}|${requirementId}|${storyId}`;
+
     controllerRef.current?.abort();
 
     const controller = new AbortController();
     controllerRef.current = controller;
-    latestIdRef.current = storyId;
+    latestKeyRef.current = compositeKey;
 
     dispatch({ type: 'FETCH_STARTED' });
 
-    fetchUserStoryTasks(storyId, controller.signal)
+    fetchUserStoryTasks(projectId, requirementId, storyId, controller.signal)
       .then((tasks) => {
-        if (latestIdRef.current === storyId) {
+        if (latestKeyRef.current === compositeKey) {
           dispatch({ type: 'FETCH_SUCCEEDED', tasks });
         }
       })
@@ -97,7 +94,7 @@ export const useUserStoryTasks = (
           return;
         }
 
-        if (latestIdRef.current !== storyId) return;
+        if (latestKeyRef.current !== compositeKey) return;
 
         const error: ApiError | Error =
           err instanceof ApiError
@@ -111,7 +108,7 @@ export const useUserStoryTasks = (
     return () => {
       controller.abort();
     };
-  }, [storyId, fetchCount]);
+  }, [projectId, requirementId, storyId, fetchCount]);
 
   return { data: state.data, isLoading: state.isLoading, error: state.error, refetch };
 };

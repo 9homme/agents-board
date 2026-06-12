@@ -12,34 +12,38 @@ import (
 	"agent-board/internal/repo"
 )
 
-// DocumentResponse represents the exact JSON shape for a document
+// DocumentResponse represents the exact JSON shape for a document (includes requirementId per §11).
 type DocumentResponse struct {
-	ID        string `json:"id"`
-	ProjectID string `json:"projectId"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	ID            string `json:"id"`
+	ProjectID     string `json:"projectId"`
+	RequirementID string `json:"requirementId"`
+	Title         string `json:"title"`
+	Content       string `json:"content"`
+	CreatedAt     string `json:"createdAt"`
+	UpdatedAt     string `json:"updatedAt"`
 }
 
 func mapDocumentToResponse(d *domain.Document) DocumentResponse {
 	return DocumentResponse{
-		ID:        d.ID,
-		ProjectID: d.ProjectID,
-		Title:     d.Title,
-		Content:   d.Content,
-		CreatedAt: d.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: d.UpdatedAt.Format(time.RFC3339),
+		ID:            d.ID,
+		ProjectID:     d.ProjectID,
+		RequirementID: d.RequirementID,
+		Title:         d.Title,
+		Content:       d.Content,
+		CreatedAt:     d.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:     d.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
 // RegisterDocumentTools registers all document-related tools in the provided registry.
-func RegisterDocumentTools(registry *mcp.ToolRegistry, repository repo.DocumentRepository) {
+// requirementRepo is used by create_document to validate requirement membership (§13 BREAKING).
+func RegisterDocumentTools(registry *mcp.ToolRegistry, repository repo.DocumentRepository, requirementRepo repo.RequirementRepository) {
 	registry.RegisterTool("create_document", func(ctx context.Context, args json.RawMessage) (interface{}, error) {
 		var req struct {
-			ProjectID string `json:"projectId"`
-			Title     string `json:"title"`
-			Content   string `json:"content"`
+			ProjectID     string `json:"projectId"`
+			RequirementID string `json:"requirement_id"`
+			Title         string `json:"title"`
+			Content       string `json:"content"`
 		}
 		if err := json.Unmarshal(args, &req); err != nil {
 			return nil, fmt.Errorf("invalid arguments: %w", err)
@@ -48,11 +52,27 @@ func RegisterDocumentTools(registry *mcp.ToolRegistry, repository repo.DocumentR
 		if req.ProjectID == "" || req.Title == "" {
 			return nil, errors.New("projectId and title are required")
 		}
+		if req.RequirementID == "" {
+			return nil, errors.New("requirement_id is required")
+		}
+
+		// Validate requirement belongs to project (§13).
+		requirement, err := requirementRepo.GetRequirement(ctx, req.RequirementID)
+		if err != nil {
+			if errors.Is(err, repo.ErrNotFound) {
+				return nil, fmt.Errorf("requirement not found")
+			}
+			return nil, fmt.Errorf("failed to validate requirement: %w", err)
+		}
+		if requirement.ProjectID != req.ProjectID {
+			return nil, errors.New("requirement does not belong to project")
+		}
 
 		d := &domain.Document{
-			ProjectID: req.ProjectID,
-			Title:     req.Title,
-			Content:   req.Content,
+			ProjectID:     req.ProjectID,
+			RequirementID: req.RequirementID,
+			Title:         req.Title,
+			Content:       req.Content,
 		}
 
 		created, err := repository.CreateDocument(ctx, d)
